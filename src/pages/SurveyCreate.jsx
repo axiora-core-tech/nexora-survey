@@ -99,24 +99,43 @@ export default function SurveyCreate() {
     if (questions.some((q) => hasOptions(q.question_type) && (!q.options || q.options.length < 2))) {
       return toast.error('Choice questions need at least 2 options');
     }
+    if (!profile?.tenant_id) return toast.error('Session error. Please refresh and try again.');
 
     setSaving(true);
     try {
+      // Generate unique slug
       const slug = await generateUniqueSlug(supabase);
+      console.log('Generated slug:', slug);
+
+      // Build insert payload (only known columns, no spread of form state)
+      const insertPayload = {
+        title: survey.title,
+        description: survey.description || null,
+        welcome_message: survey.welcome_message || null,
+        thank_you_message: survey.thank_you_message || null,
+        expires_at: survey.expires_at || null,
+        allow_anonymous: survey.allow_anonymous,
+        require_email: survey.require_email,
+        show_progress_bar: survey.show_progress_bar,
+        theme_color: survey.theme_color,
+        slug,
+        status,
+        tenant_id: profile.tenant_id,
+        created_by: profile.id,
+      };
+
+      console.log('Creating survey:', insertPayload);
+
       const { data: newSurvey, error: surveyErr } = await supabase
         .from('surveys')
-        .insert({
-          ...survey,
-          slug,
-          status,
-          tenant_id: profile.tenant_id,
-          created_by: profile.id,
-          expires_at: survey.expires_at || null,
-        })
+        .insert(insertPayload)
         .select()
         .single();
 
+      console.log('Survey insert result:', { data: newSurvey, error: surveyErr });
+
       if (surveyErr) throw surveyErr;
+      if (!newSurvey) throw new Error('Survey was not created. Check your permissions.');
 
       // Insert questions
       const questionInserts = questions.map((q, i) => ({
@@ -130,12 +149,13 @@ export default function SurveyCreate() {
       }));
 
       const { error: qErr } = await supabase.from('survey_questions').insert(questionInserts);
+      console.log('Questions insert result:', { error: qErr });
       if (qErr) throw qErr;
 
       toast.success(status === 'active' ? 'Survey published!' : 'Survey saved as draft');
       navigate(`/surveys/${newSurvey.id}/edit`);
     } catch (err) {
-      console.error(err);
+      console.error('Save survey error:', err);
       toast.error(err.message || 'Failed to save survey');
     } finally {
       setSaving(false);

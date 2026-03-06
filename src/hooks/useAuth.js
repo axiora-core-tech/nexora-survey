@@ -125,14 +125,24 @@ const useAuthStore = create((set, get) => ({
 
   updateProfile: async (updates) => {
     const { profile } = get();
-    if (!profile) return;
-    const { data, error } = await supabase
+    if (!profile) {
+      console.error('updateProfile: No profile loaded');
+      throw new Error('Profile not loaded. Please refresh the page.');
+    }
+    console.log('updateProfile: Updating', updates, 'for user', profile.id);
+
+    const { data, error, count } = await supabase
       .from('user_profiles')
       .update(updates)
       .eq('id', profile.id)
       .select()
       .single();
+
+    console.log('updateProfile result:', { data, error, count });
+
     if (error) throw error;
+    if (!data) throw new Error('Update had no effect. Your session may have expired — try logging out and back in.');
+
     set({ profile: data });
     return data;
   },

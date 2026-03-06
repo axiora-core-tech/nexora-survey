@@ -24,7 +24,8 @@ export default function Settings() {
       await updateProfile({ full_name: profileForm.full_name });
       toast.success('Profile updated');
     } catch (err) {
-      toast.error('Failed to update profile');
+      console.error('Save profile error:', err);
+      toast.error(err.message || 'Failed to update profile');
     } finally {
       setSavingProfile(false);
     }
@@ -32,16 +33,25 @@ export default function Settings() {
 
   async function handleSaveTenant(e) {
     e.preventDefault();
+    if (!tenant?.id) return toast.error('Organization not loaded');
     setSavingTenant(true);
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('tenants')
         .update({ name: tenantForm.name, primary_color: tenantForm.primary_color })
-        .eq('id', tenant.id);
+        .eq('id', tenant.id)
+        .select()
+        .single();
+
+      console.log('Save tenant result:', { data, error });
+
       if (error) throw error;
+      if (!data) throw new Error('Update had no effect. You may need super_admin role to change organization settings.');
+
       toast.success('Organization settings updated');
     } catch (err) {
-      toast.error('Failed to update organization');
+      console.error('Save tenant error:', err);
+      toast.error(err.message || 'Failed to update organization');
     } finally {
       setSavingTenant(false);
     }

@@ -4,4 +4,3 @@ dist
 .env.local
 .netlify
 *.log
-package-lock.json

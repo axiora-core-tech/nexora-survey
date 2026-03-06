@@ -129,21 +129,27 @@ export default function SurveyEdit() {
     if (!survey.title.trim()) return toast.error('Survey title required');
     setSaving(true);
     try {
-      const { error: sErr } = await supabase
+      const { data: updatedSurvey, error: sErr } = await supabase
         .from('surveys')
         .update({
           title: survey.title,
-          description: survey.description,
-          welcome_message: survey.welcome_message,
-          thank_you_message: survey.thank_you_message,
+          description: survey.description || null,
+          welcome_message: survey.welcome_message || null,
+          thank_you_message: survey.thank_you_message || null,
           expires_at: survey.expires_at || null,
           allow_anonymous: survey.allow_anonymous,
           require_email: survey.require_email,
           show_progress_bar: survey.show_progress_bar,
           theme_color: survey.theme_color,
         })
-        .eq('id', id);
+        .eq('id', id)
+        .select()
+        .single();
+
+      console.log('Survey update result:', { data: updatedSurvey, error: sErr });
+
       if (sErr) throw sErr;
+      if (!updatedSurvey) throw new Error('Survey update had no effect. Check your permissions.');
 
       // Upsert questions
       for (let i = 0; i < questions.length; i++) {
@@ -158,15 +164,18 @@ export default function SurveyEdit() {
           sort_order: i,
         };
         if (q.tempId.startsWith('new_')) {
-          await supabase.from('survey_questions').insert(qData);
+          const { error: qErr } = await supabase.from('survey_questions').insert(qData);
+          if (qErr) { console.error('Question insert error:', qErr); throw qErr; }
         } else {
-          await supabase.from('survey_questions').update(qData).eq('id', q.tempId);
+          const { error: qErr } = await supabase.from('survey_questions').update(qData).eq('id', q.tempId);
+          if (qErr) { console.error('Question update error:', qErr); throw qErr; }
         }
       }
 
       toast.success('Survey saved!');
       await loadSurvey();
     } catch (err) {
+      console.error('Save survey error:', err);
       toast.error(err.message || 'Save failed');
     } finally {
       setSaving(false);
