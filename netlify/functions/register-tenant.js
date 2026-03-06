@@ -1,64 +1,199 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Admin client with service role key (bypasses RLS)
+const SUPABASE_URL =
+  process.env.VITE_SUPABASE_URL ||
+  process.env.SUPABASE_URL ||
+  '';
+
+const SERVICE_ROLE_KEY =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.VITE_SUPABASE_SERVICE_ROLE_KEY ||
+  '';
+
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Content-Type': 'application/json',
+};
+
 function getAdminClient() {
-  return createClient(
-    process.env.VITE_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_KEY,
-    { auth: { autoRefreshToken: false, persistSession: false } }
-  );
+  if (!SUPABASE_URL) {
+    throw new Error('SUPABASE_URL not configured. Set VITE_SUPABASE_URL in Netlify env vars.');
+  }
+  if (!SERVICE_ROLE_KEY) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY not configured. Set it in Netlify env vars.');
+  }
+  return createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
 }
 
 export async function handler(event) {
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers: CORS_HEADERS, body: '' };
+  }
   if (event.httpMethod !== 'POST') {
-    return { statusCode: 405, body: JSON.stringify({ error: 'Method not allowed' }) };
+    return { statusCode: 405, headers: CORS_HEADERS, body: JSON.stringify({ error: 'Method not allowed' }) };
   }
 
   try {
-    const { userId, email, fullName, tenantName, tenantSlug } = JSON.parse(event.body);
+    const { userId, email, fullName, tenantName, tenantSlug } = JSON.parse(event.body || '{}');
 
-    if (!userId || !email || !tenantName || !tenantSlug) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'Missing required fields' }) };
+    if (!email || !tenantName || !tenantSlug) {
+      return {
+        statusCode: 400,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ error: 'Missing required fields: email, tenantName, tenantSlug' }),
+      };
     }
 
-    // Validate slug
     if (!/^[a-z0-9-]{3,50}$/.test(tenantSlug)) {
-      return { statusCode: 400, body: JSON.stringify({ error: 'Invalid organization URL. Use lowercase letters, numbers, and hyphens.' }) };
+      return {
+        statusCode: 400,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ error: 'Invalid organization URL. Use 3-50 lowercase letters, numbers, and hyphens.' }),
+      };
     }
 
     const supabase = getAdminClient();
 
-    // Check slug uniqueness
-    const { data: existing } = await supabase
+    // ----------------------------------------------------------------
+    // STEP 1: Find the REAL user in auth.users by email (don't trust userId from frontend)
+    // When Supabase has email confirmation on and user re-registers,
+    // signUp() can return a fake/obfuscated userId that doesn't exist in auth.users.
+    // ----------------------------------------------------------------
+    let realUserId = null;
+
+    // Try the provided userId first
+    if (userId) {
+      const { data: userById } = await supabase.auth.admin.getUserById(userId);
+      if (userById?.user?.id) {
+        realUserId = userById.user.id;
+        console.log(`Found user by provided ID: ${realUserId}`);
+      }
+    }
+
+    // If userId was fake/missing, look up by email
+    if (!realUserId) {
+      console.log(`userId ${userId} not found in auth.users, searching by email: ${email}`);
+      const { data: listData, error: listErr } = await supabase.auth.admin.listUsers();
+      if (listErr) {
+        console.error('listUsers error:', listErr);
+        throw new Error('Failed to look up user account.');
+      }
+      const matchedUser = listData?.users?.find(
+        (u) => u.email?.toLowerCase() === email.toLowerCase()
+      );
+      if (matchedUser) {
+        realUserId = matchedUser.id;
+        console.log(`Found user by email lookup: ${realUserId}`);
+      }
+    }
+
+    // If still no user found, something went very wrong
+    if (!realUserId) {
+      return {
+        statusCode: 400,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({
+          error: 'User account not found. Please go back to the registration page and try signing up again.',
+          hint: 'Make sure you complete the sign-up step before this is called.',
+        }),
+      };
+    }
+
+    // ----------------------------------------------------------------
+    // STEP 2: Check if this user already has a profile (previous partial registration)
+    // ----------------------------------------------------------------
+    const { data: existingProfile } = await supabase
+      .from('user_profiles')
+      .select('id, tenant_id')
+      .eq('id', realUserId)
+      .maybeSingle();
+
+    if (existingProfile) {
+      // User already has a profile — return their existing tenant
+      const { data: existingTenant } = await supabase
+        .from('tenants')
+        .select('id, name, slug')
+        .eq('id', existingProfile.tenant_id)
+        .maybeSingle();
+
+      return {
+        statusCode: 200,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({
+          tenantId: existingProfile.tenant_id,
+          message: existingTenant
+            ? `You already have an organization: "${existingTenant.name}". Redirecting to dashboard.`
+            : 'Organization already exists. Redirecting to dashboard.',
+          existing: true,
+        }),
+      };
+    }
+
+    // ----------------------------------------------------------------
+    // STEP 3: Check slug uniqueness
+    // ----------------------------------------------------------------
+    const { data: slugTaken } = await supabase
       .from('tenants')
       .select('id')
       .eq('slug', tenantSlug)
-      .single();
+      .maybeSingle();
 
-    if (existing) {
-      return { statusCode: 409, body: JSON.stringify({ error: 'Organization URL already taken' }) };
+    if (slugTaken) {
+      return {
+        statusCode: 409,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ error: 'Organization URL already taken. Try a different one.' }),
+      };
     }
 
-    // Use the register_tenant function
+    // ----------------------------------------------------------------
+    // STEP 4: Create tenant + profile via DB function
+    // ----------------------------------------------------------------
     const { data, error } = await supabase.rpc('register_tenant', {
       p_tenant_name: tenantName,
       p_tenant_slug: tenantSlug,
-      p_user_id: userId,
+      p_user_id: realUserId,
       p_user_email: email,
       p_user_name: fullName || email.split('@')[0],
     });
 
-    if (error) throw error;
+    if (error) {
+      console.error('register_tenant RPC error:', error);
+      if (error.message?.includes('duplicate key') && error.message?.includes('tenants_slug_key')) {
+        throw new Error('Organization URL already taken.');
+      }
+      if (error.message?.includes('duplicate key') && error.message?.includes('user_profiles_pkey')) {
+        throw new Error('Account already registered. Try logging in instead.');
+      }
+      throw error;
+    }
+
+    console.log(`Tenant created successfully: ${data} for user: ${realUserId}`);
 
     return {
       statusCode: 200,
-      body: JSON.stringify({ tenantId: data, message: 'Organization created successfully' }),
+      headers: CORS_HEADERS,
+      body: JSON.stringify({
+        tenantId: data,
+        message: 'Organization created successfully',
+      }),
     };
   } catch (err) {
     console.error('Register tenant error:', err);
+    const statusCode = err.message?.includes('not configured') ? 503 : 500;
     return {
-      statusCode: 500,
-      body: JSON.stringify({ error: err.message || 'Failed to create organization' }),
+      statusCode,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({
+        error: err.message || 'Failed to create organization',
+        hint: statusCode === 503
+          ? 'Server environment variables are not configured.'
+          : 'Please try again or contact support.',
+      }),
     };
   }
 }

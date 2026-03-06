@@ -51,7 +51,7 @@ export default function Dashboard() {
       // Recent surveys
       const { data: surveys } = await supabase
         .from('surveys')
-        .select('*, user_profiles!surveys_created_by_fkey(full_name, email)')
+        .select('*, creator:user_profiles!created_by(full_name, email)')
         .order('created_at', { ascending: false })
         .limit(5);
 
@@ -187,7 +187,7 @@ export default function Dashboard() {
                       {survey.title}
                     </p>
                     <p className="text-xs text-surface-400 mt-0.5">
-                      Created {timeAgo(survey.created_at)} by {survey.user_profiles?.full_name || 'Unknown'}
+                      Created {timeAgo(survey.created_at)} by {survey.creator?.full_name || 'Unknown'}
                     </p>
                   </div>
                   <div className="flex items-center gap-3 ml-4">

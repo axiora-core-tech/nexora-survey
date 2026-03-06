@@ -62,13 +62,28 @@ export const SURVEY_STATUS = {
 };
 
 // Generate a unique slug for surveys
-export function generateSlug(length = 8) {
+export function generateSlug(length = 10) {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
   let slug = '';
   for (let i = 0; i < length; i++) {
     slug += chars.charAt(Math.floor(Math.random() * chars.length));
   }
   return slug;
+}
+
+// Generate slug with DB uniqueness check (retry on collision)
+export async function generateUniqueSlug(supabaseClient, length = 10, maxRetries = 5) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    const slug = generateSlug(length);
+    const { data } = await supabaseClient
+      .from('surveys')
+      .select('id')
+      .eq('slug', slug)
+      .maybeSingle();
+    if (!data) return slug; // No collision
+  }
+  // Fallback: use longer slug
+  return generateSlug(length + 4);
 }
 
 // Format date nicely

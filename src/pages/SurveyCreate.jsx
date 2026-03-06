@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import useAuthStore from '../hooks/useAuth';
-import { QUESTION_TYPES, generateSlug } from '../lib/constants';
+import { QUESTION_TYPES, generateUniqueSlug } from '../lib/constants';
 import toast from 'react-hot-toast';
 import {
   HiOutlinePlusCircle, HiOutlineTrash, HiOutlineArrowUp, HiOutlineArrowDown,
@@ -102,7 +102,7 @@ export default function SurveyCreate() {
 
     setSaving(true);
     try {
-      const slug = generateSlug(10);
+      const slug = await generateUniqueSlug(supabase);
       const { data: newSurvey, error: surveyErr } = await supabase
         .from('surveys')
         .insert({

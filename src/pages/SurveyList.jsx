@@ -25,7 +25,7 @@ export default function SurveyList() {
     try {
       let query = supabase
         .from('surveys')
-        .select('*, user_profiles!surveys_created_by_fkey(full_name, email)')
+        .select('*, creator:user_profiles!created_by(full_name, email)')
         .order('created_at', { ascending: false });
 
       const { data, error } = await query;
@@ -177,7 +177,7 @@ export default function SurveyList() {
                   </span>
                 </div>
                 <div className="flex items-center gap-4 text-xs text-surface-400">
-                  <span>By {survey.user_profiles?.full_name || 'Unknown'}</span>
+                  <span>By {survey.creator?.full_name || 'Unknown'}</span>
                   <span>{timeAgo(survey.created_at)}</span>
                   {survey.expires_at && (
                     <span className={isExpired(survey.expires_at) ? 'text-red-500' : ''}>

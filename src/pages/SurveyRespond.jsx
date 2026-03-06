@@ -3,13 +3,13 @@ import { useParams } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import { HiOutlineSparkles, HiOutlineCheckCircle, HiOutlineStar, HiOutlineClock } from 'react-icons/hi';
 
-// Generate session token for auto-save
+// Generate session token for auto-save (localStorage persists across tab/browser close)
 function getSessionToken(slug) {
   const key = `nexora_session_${slug}`;
-  let token = sessionStorage.getItem(key);
+  let token = localStorage.getItem(key);
   if (!token) {
     token = 'sess_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
-    sessionStorage.setItem(key, token);
+    localStorage.setItem(key, token);
   }
   return token;
 }
@@ -27,10 +27,11 @@ export default function SurveyRespond() {
   const [error, setError] = useState(null);
   const [email, setEmail] = useState('');
   const [respondentName, setRespondentName] = useState('');
-  const [autoSaveCount, setAutoSaveCount] = useState(0);
   const [lastSaved, setLastSaved] = useState(null);
   const sessionToken = useRef(null);
   const saveTimerRef = useRef(null);
+  const autoSaveCountRef = useRef(0);
+  const responseIdRef = useRef(null);
 
   useEffect(() => {
     loadSurvey();
@@ -48,8 +49,8 @@ export default function SurveyRespond() {
 
       if (sErr || !s) { setError('Survey not found'); setLoading(false); return; }
 
-      // Check expiry
-      if (s.expires_at && new Date(s.expires_at) < new Date() && s.status !== 'active') {
+      // Check expiry — block if expired by time, regardless of DB status
+      if (s.expires_at && new Date(s.expires_at) < new Date()) {
         setError('This survey has expired and is no longer accepting responses.');
         setSurvey(s);
         setLoading(false);
@@ -84,6 +85,7 @@ export default function SurveyRespond() {
 
       if (existing) {
         setResponseId(existing.id);
+        responseIdRef.current = existing.id;
         // Restore answers
         const restored = {};
         (existing.survey_answers || []).forEach((a) => {
@@ -105,9 +107,10 @@ export default function SurveyRespond() {
     }
   }
 
-  // Create response record on first interaction
+  // Create response record on first interaction (uses ref to prevent race conditions)
   async function ensureResponse() {
-    if (responseId) return responseId;
+    if (responseIdRef.current) return responseIdRef.current;
+    if (responseId) { responseIdRef.current = responseId; return responseId; }
     try {
       const { data, error: rErr } = await supabase
         .from('survey_responses')
@@ -121,6 +124,7 @@ export default function SurveyRespond() {
         .select()
         .single();
       if (rErr) throw rErr;
+      responseIdRef.current = data.id;
       setResponseId(data.id);
       return data.id;
     } catch (err) {
@@ -160,21 +164,20 @@ export default function SurveyRespond() {
 
     const rId = await ensureResponse();
 
-    // Count new answers since last save
-    const newCount = autoSaveCount + 1;
-    setAutoSaveCount(newCount);
+    // Increment ref counter (no stale closure issues)
+    autoSaveCountRef.current += 1;
 
-    // Auto-save every 2 answers
+    // Auto-save every N answers (default 2)
     const interval = survey?.auto_save_interval || 2;
-    if (newCount >= interval) {
-      setAutoSaveCount(0);
+    if (autoSaveCountRef.current >= interval) {
+      autoSaveCountRef.current = 0;
       autoSave(newAnswers, rId);
     } else {
       // Debounced save after 5 seconds of inactivity
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(() => {
         autoSave(newAnswers, rId);
-        setAutoSaveCount(0);
+        autoSaveCountRef.current = 0;
       }, 5000);
     }
   };
@@ -201,7 +204,7 @@ export default function SurveyRespond() {
         .eq('id', rId);
       setCompleted(true);
       // Clean session
-      sessionStorage.removeItem(`nexora_session_${slug}`);
+      localStorage.removeItem(`nexora_session_${slug}`);
     } catch (err) {
       console.error(err);
       alert('Submission failed. Your answers are saved — try again.');

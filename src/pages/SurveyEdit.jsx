@@ -49,7 +49,7 @@ export default function SurveyEdit() {
       // Load shares
       const { data: shares } = await supabase
         .from('survey_shares')
-        .select('*, shared_with_profile:user_profiles!survey_shares_shared_with_fkey(full_name, email)')
+        .select('*, shared_with_user:user_profiles!shared_with(full_name, email)')
         .eq('survey_id', id);
       setShareUsers(shares || []);
 

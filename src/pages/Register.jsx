@@ -41,9 +41,24 @@ export default function Register() {
 
     setLoading(true);
     try {
-      await signUp(form.email, form.password, form.tenantName, form.tenantSlug, form.fullName);
-      toast.success('Organization created! Welcome to Nexora.');
-      navigate('/dashboard');
+      const result = await signUp(form.email, form.password, form.tenantName, form.tenantSlug, form.fullName);
+
+      if (result.existing) {
+        // User already had an org from a previous attempt
+        toast.success(result.message || 'Organization already exists. Redirecting...', { duration: 5000 });
+        if (result.session) {
+          navigate('/dashboard');
+        } else {
+          toast('Please check your email to confirm your account, then log in.', { duration: 8000 });
+          navigate('/login');
+        }
+      } else if (result.needsConfirmation) {
+        toast.success('Organization created! Please check your email to confirm your account.', { duration: 8000 });
+        navigate('/login');
+      } else {
+        toast.success('Organization created! Welcome to Nexora.');
+        navigate('/dashboard');
+      }
     } catch (err) {
       toast.error(err.message || 'Registration failed');
     } finally {

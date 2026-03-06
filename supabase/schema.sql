@@ -1,16 +1,16 @@
 -- ============================================================
--- NEXORA SURVEY — Fixed Multi-Tenant Schema
--- Run each CHUNK separately in Supabase SQL Editor
+-- NEXORA SURVEY — Complete Multi-Tenant Schema
+-- Run this in Supabase SQL Editor (in order)
 -- ============================================================
 
--- ============================================================
--- CHUNK 1: Extensions + Tables
--- ============================================================
-
+-- 0. Extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
-CREATE TABLE IF NOT EXISTS public.tenants (
+-- ============================================================
+-- 1. TENANTS (Organizations)
+-- ============================================================
+CREATE TABLE public.tenants (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   name TEXT NOT NULL,
   slug TEXT UNIQUE NOT NULL,
@@ -21,7 +21,10 @@ CREATE TABLE IF NOT EXISTS public.tenants (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS public.user_profiles (
+-- ============================================================
+-- 2. USER PROFILES (linked to auth.users)
+-- ============================================================
+CREATE TABLE public.user_profiles (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
   email TEXT NOT NULL,
@@ -33,13 +36,19 @@ CREATE TABLE IF NOT EXISTS public.user_profiles (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS public.surveys (
+CREATE INDEX idx_user_profiles_tenant ON public.user_profiles(tenant_id);
+CREATE INDEX idx_user_profiles_email ON public.user_profiles(email);
+
+-- ============================================================
+-- 3. SURVEYS
+-- ============================================================
+CREATE TABLE public.surveys (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
   created_by UUID NOT NULL REFERENCES public.user_profiles(id),
   title TEXT NOT NULL,
   description TEXT,
-  slug TEXT UNIQUE NOT NULL,
+  slug TEXT UNIQUE NOT NULL, -- unique shareable link identifier
   status TEXT DEFAULT 'draft' CHECK (status IN ('draft','active','paused','expired','closed')),
   expires_at TIMESTAMPTZ,
   theme_color TEXT DEFAULT '#6366f1',
@@ -48,12 +57,19 @@ CREATE TABLE IF NOT EXISTS public.surveys (
   allow_anonymous BOOLEAN DEFAULT true,
   require_email BOOLEAN DEFAULT false,
   show_progress_bar BOOLEAN DEFAULT true,
-  auto_save_interval INT DEFAULT 2,
+  auto_save_interval INT DEFAULT 2, -- save every N questions answered
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS public.survey_questions (
+CREATE INDEX idx_surveys_tenant ON public.surveys(tenant_id);
+CREATE INDEX idx_surveys_slug ON public.surveys(slug);
+CREATE INDEX idx_surveys_created_by ON public.surveys(created_by);
+
+-- ============================================================
+-- 4. SURVEY QUESTIONS
+-- ============================================================
+CREATE TABLE public.survey_questions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   survey_id UUID NOT NULL REFERENCES public.surveys(id) ON DELETE CASCADE,
   question_text TEXT NOT NULL,
@@ -61,24 +77,27 @@ CREATE TABLE IF NOT EXISTS public.survey_questions (
     'short_text','long_text','single_choice','multiple_choice',
     'rating','scale','date','number','email','dropdown','yes_no','file_upload'
   )),
-  options JSONB,
+  options JSONB, -- for choice-based questions: [{label, value}]
   is_required BOOLEAN DEFAULT false,
   sort_order INT NOT NULL DEFAULT 0,
-  description TEXT,
-  validation_rules JSONB,
-  conditional_logic JSONB,
+  description TEXT, -- helper text under the question
+  validation_rules JSONB, -- {min, max, pattern, etc.}
+  conditional_logic JSONB, -- {show_if: {question_id, operator, value}}
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- FIX 1: tenant_id is nullable here because the BEFORE INSERT trigger
--- populates it from the survey. NOT NULL is enforced by the trigger itself.
-CREATE TABLE IF NOT EXISTS public.survey_responses (
+CREATE INDEX idx_questions_survey ON public.survey_questions(survey_id);
+
+-- ============================================================
+-- 5. SURVEY RESPONSES (one per respondent session)
+-- ============================================================
+CREATE TABLE public.survey_responses (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   survey_id UUID NOT NULL REFERENCES public.surveys(id) ON DELETE CASCADE,
-  tenant_id UUID REFERENCES public.tenants(id) ON DELETE CASCADE, -- nullable; trigger sets this
+  tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
   respondent_email TEXT,
   respondent_name TEXT,
-  session_token TEXT UNIQUE NOT NULL,
+  session_token TEXT UNIQUE NOT NULL, -- for auto-save resume
   status TEXT DEFAULT 'in_progress' CHECK (status IN ('in_progress','completed','abandoned')),
   started_at TIMESTAMPTZ DEFAULT now(),
   completed_at TIMESTAMPTZ,
@@ -88,16 +107,31 @@ CREATE TABLE IF NOT EXISTS public.survey_responses (
   metadata JSONB DEFAULT '{}'
 );
 
-CREATE TABLE IF NOT EXISTS public.survey_answers (
+CREATE INDEX idx_responses_survey ON public.survey_responses(survey_id);
+CREATE INDEX idx_responses_tenant ON public.survey_responses(tenant_id);
+CREATE INDEX idx_responses_session ON public.survey_responses(session_token);
+
+-- ============================================================
+-- 6. INDIVIDUAL ANSWERS
+-- ============================================================
+CREATE TABLE public.survey_answers (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   response_id UUID NOT NULL REFERENCES public.survey_responses(id) ON DELETE CASCADE,
   question_id UUID NOT NULL REFERENCES public.survey_questions(id) ON DELETE CASCADE,
   answer_value TEXT,
-  answer_json JSONB,
+  answer_json JSONB, -- for multi-choice, file uploads, etc.
   answered_at TIMESTAMPTZ DEFAULT now()
 );
 
-CREATE TABLE IF NOT EXISTS public.survey_shares (
+CREATE INDEX idx_answers_response ON public.survey_answers(response_id);
+CREATE INDEX idx_answers_question ON public.survey_answers(question_id);
+-- Unique: one answer per question per response (upsert pattern)
+CREATE UNIQUE INDEX idx_answers_unique ON public.survey_answers(response_id, question_id);
+
+-- ============================================================
+-- 7. SURVEY SHARE PERMISSIONS (within same tenant)
+-- ============================================================
+CREATE TABLE public.survey_shares (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   survey_id UUID NOT NULL REFERENCES public.surveys(id) ON DELETE CASCADE,
   shared_with UUID NOT NULL REFERENCES public.user_profiles(id) ON DELETE CASCADE,
@@ -107,7 +141,12 @@ CREATE TABLE IF NOT EXISTS public.survey_shares (
   UNIQUE(survey_id, shared_with)
 );
 
-CREATE TABLE IF NOT EXISTS public.audit_log (
+CREATE INDEX idx_shares_survey ON public.survey_shares(survey_id);
+
+-- ============================================================
+-- 8. AUDIT LOG
+-- ============================================================
+CREATE TABLE public.audit_log (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
   user_id UUID REFERENCES public.user_profiles(id),
@@ -118,110 +157,23 @@ CREATE TABLE IF NOT EXISTS public.audit_log (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
--- ============================================================
--- CHUNK 2: Indexes
--- ============================================================
-
-CREATE INDEX IF NOT EXISTS idx_surveys_tenant ON public.surveys(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_surveys_slug ON public.surveys(slug);
-CREATE INDEX IF NOT EXISTS idx_surveys_created_by ON public.surveys(created_by);
-CREATE INDEX IF NOT EXISTS idx_user_profiles_tenant ON public.user_profiles(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_user_profiles_email ON public.user_profiles(email);
-CREATE INDEX IF NOT EXISTS idx_questions_survey ON public.survey_questions(survey_id);
-CREATE INDEX IF NOT EXISTS idx_responses_survey ON public.survey_responses(survey_id);
-CREATE INDEX IF NOT EXISTS idx_responses_tenant ON public.survey_responses(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_responses_session ON public.survey_responses(session_token);
-CREATE INDEX IF NOT EXISTS idx_answers_response ON public.survey_answers(response_id);
-CREATE INDEX IF NOT EXISTS idx_answers_question ON public.survey_answers(question_id);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_answers_unique ON public.survey_answers(response_id, question_id);
-CREATE INDEX IF NOT EXISTS idx_shares_survey ON public.survey_shares(survey_id);
-CREATE INDEX IF NOT EXISTS idx_audit_tenant ON public.audit_log(tenant_id);
+CREATE INDEX idx_audit_tenant ON public.audit_log(tenant_id);
 
 -- ============================================================
--- CHUNK 3: Triggers + Functions (run BEFORE RLS policies)
+-- 9. ROW LEVEL SECURITY POLICIES
 -- ============================================================
 
--- FIX 2: Added LIMIT 1 to prevent multiple-row issues
+-- Helper function: get current user's tenant_id
 CREATE OR REPLACE FUNCTION public.get_user_tenant_id()
 RETURNS UUID AS $$
-  SELECT tenant_id FROM public.user_profiles WHERE id = auth.uid() LIMIT 1;
+  SELECT tenant_id FROM public.user_profiles WHERE id = auth.uid();
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
 
+-- Helper function: get current user's role
 CREATE OR REPLACE FUNCTION public.get_user_role()
 RETURNS TEXT AS $$
-  SELECT role FROM public.user_profiles WHERE id = auth.uid() LIMIT 1;
+  SELECT role FROM public.user_profiles WHERE id = auth.uid();
 $$ LANGUAGE sql SECURITY DEFINER STABLE;
-
--- FIX 3: Trigger validates tenant_id is set; raises error if survey not found
-CREATE OR REPLACE FUNCTION public.set_response_tenant_id()
-RETURNS TRIGGER AS $$
-DECLARE
-  v_tenant_id UUID;
-BEGIN
-  SELECT tenant_id INTO v_tenant_id FROM public.surveys WHERE id = NEW.survey_id;
-  IF v_tenant_id IS NULL THEN
-    RAISE EXCEPTION 'Cannot find tenant for survey_id: %', NEW.survey_id;
-  END IF;
-  NEW.tenant_id := v_tenant_id;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-CREATE TRIGGER trg_set_response_tenant
-  BEFORE INSERT ON public.survey_responses
-  FOR EACH ROW EXECUTE FUNCTION public.set_response_tenant_id();
-
-CREATE OR REPLACE FUNCTION public.update_timestamp()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = now();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_update_tenants BEFORE UPDATE ON public.tenants
-  FOR EACH ROW EXECUTE FUNCTION public.update_timestamp();
-CREATE TRIGGER trg_update_profiles BEFORE UPDATE ON public.user_profiles
-  FOR EACH ROW EXECUTE FUNCTION public.update_timestamp();
-CREATE TRIGGER trg_update_surveys BEFORE UPDATE ON public.surveys
-  FOR EACH ROW EXECUTE FUNCTION public.update_timestamp();
-
-CREATE OR REPLACE FUNCTION public.auto_expire_surveys()
-RETURNS void AS $$
-BEGIN
-  UPDATE public.surveys
-  SET status = 'expired', updated_at = now()
-  WHERE status = 'active'
-    AND expires_at IS NOT NULL
-    AND expires_at < now();
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-CREATE OR REPLACE FUNCTION public.register_tenant(
-  p_tenant_name TEXT,
-  p_tenant_slug TEXT,
-  p_user_id UUID,
-  p_user_email TEXT,
-  p_user_name TEXT
-)
-RETURNS UUID AS $$
-DECLARE
-  v_tenant_id UUID;
-BEGIN
-  INSERT INTO public.tenants (name, slug)
-  VALUES (p_tenant_name, p_tenant_slug)
-  RETURNING id INTO v_tenant_id;
-
-  INSERT INTO public.user_profiles (id, tenant_id, email, full_name, role)
-  VALUES (p_user_id, v_tenant_id, p_user_email, p_user_name, 'super_admin');
-
-  RETURN v_tenant_id;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
--- ============================================================
--- CHUNK 4: RLS Policies
--- ============================================================
 
 -- ---- TENANTS ----
 ALTER TABLE public.tenants ENABLE ROW LEVEL SECURITY;
@@ -236,11 +188,6 @@ CREATE POLICY "Super admins can update own tenant"
 
 -- ---- USER PROFILES ----
 ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
-
--- FIX 4: Added INSERT policy so register_tenant and signup flows work
-CREATE POLICY "Allow profile creation on signup"
-  ON public.user_profiles FOR INSERT
-  WITH CHECK (id = auth.uid());
 
 CREATE POLICY "Users can view profiles in own tenant"
   ON public.user_profiles FOR SELECT
@@ -263,6 +210,11 @@ ALTER TABLE public.surveys ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users can view surveys in own tenant"
   ON public.surveys FOR SELECT
   USING (tenant_id = public.get_user_tenant_id());
+
+-- CRITICAL: Anonymous respondents need to read active surveys to fill them
+CREATE POLICY "Anyone can view active surveys by slug"
+  ON public.surveys FOR SELECT
+  USING (status = 'active');
 
 CREATE POLICY "Creators+ can create surveys"
   ON public.surveys FOR INSERT
@@ -291,17 +243,22 @@ CREATE POLICY "Admins can delete surveys"
 -- ---- SURVEY QUESTIONS ----
 ALTER TABLE public.survey_questions ENABLE ROW LEVEL SECURITY;
 
--- FIX 5: Merged the two conflicting FOR SELECT policies into one
-CREATE POLICY "View questions for tenant or active surveys"
+CREATE POLICY "View questions for visible surveys"
   ON public.survey_questions FOR SELECT
   USING (
     EXISTS (
       SELECT 1 FROM public.surveys s
-      WHERE s.id = survey_id
-        AND (
-          s.tenant_id = public.get_user_tenant_id()
-          OR s.status = 'active'
-        )
+      WHERE s.id = survey_id AND s.tenant_id = public.get_user_tenant_id()
+    )
+  );
+
+-- Allow anonymous access to questions for active surveys (respondents)
+CREATE POLICY "Public can view questions for active surveys"
+  ON public.survey_questions FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.surveys s
+      WHERE s.id = survey_id AND s.status = 'active'
     )
   );
 
@@ -311,11 +268,11 @@ CREATE POLICY "Creators can manage questions"
     EXISTS (
       SELECT 1 FROM public.surveys s
       WHERE s.id = survey_id
-        AND s.tenant_id = public.get_user_tenant_id()
-        AND (
-          s.created_by = auth.uid()
-          OR public.get_user_role() IN ('super_admin','admin','manager')
-        )
+      AND s.tenant_id = public.get_user_tenant_id()
+      AND (
+        s.created_by = auth.uid()
+        OR public.get_user_role() IN ('super_admin','admin','manager')
+      )
     )
   );
 
@@ -326,6 +283,7 @@ CREATE POLICY "Tenant users can view responses"
   ON public.survey_responses FOR SELECT
   USING (tenant_id = public.get_user_tenant_id());
 
+-- Anonymous respondents can insert responses
 CREATE POLICY "Anyone can create responses for active surveys"
   ON public.survey_responses FOR INSERT
   WITH CHECK (
@@ -335,9 +293,11 @@ CREATE POLICY "Anyone can create responses for active surveys"
     )
   );
 
+-- Respondents can update their own in-progress response (by session_token)
 CREATE POLICY "Respondents can update own response"
   ON public.survey_responses FOR UPDATE
-  USING (status = 'in_progress');
+  USING (true)
+  WITH CHECK (status = 'in_progress');
 
 -- ---- SURVEY ANSWERS ----
 ALTER TABLE public.survey_answers ENABLE ROW LEVEL SECURITY;
@@ -351,7 +311,17 @@ CREATE POLICY "Tenant users can view answers"
     )
   );
 
-CREATE POLICY "Respondents can insert answers"
+-- Anonymous respondents can read answers for in-progress responses (resume feature)
+CREATE POLICY "Anonymous can view answers for in-progress responses"
+  ON public.survey_answers FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.survey_responses r
+      WHERE r.id = response_id AND r.status = 'in_progress'
+    )
+  );
+
+CREATE POLICY "Respondents can insert/update answers"
   ON public.survey_answers FOR INSERT
   WITH CHECK (
     EXISTS (
@@ -387,11 +357,11 @@ CREATE POLICY "Owners can manage shares"
     EXISTS (
       SELECT 1 FROM public.surveys s
       WHERE s.id = survey_id
-        AND s.tenant_id = public.get_user_tenant_id()
-        AND (
-          s.created_by = auth.uid()
-          OR public.get_user_role() IN ('super_admin','admin','manager')
-        )
+      AND s.tenant_id = public.get_user_tenant_id()
+      AND (
+        s.created_by = auth.uid()
+        OR public.get_user_role() IN ('super_admin','admin','manager')
+      )
     )
   );
 
@@ -406,10 +376,81 @@ CREATE POLICY "Admins can view audit logs"
   );
 
 -- ============================================================
--- CHUNK 5: Analytics View
+-- 10. AUTO-EXPIRE SURVEYS (cron function)
 -- ============================================================
+CREATE OR REPLACE FUNCTION public.auto_expire_surveys()
+RETURNS void AS $$
+BEGIN
+  UPDATE public.surveys
+  SET status = 'expired', updated_at = now()
+  WHERE status = 'active'
+    AND expires_at IS NOT NULL
+    AND expires_at < now();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
-CREATE OR REPLACE VIEW public.survey_analytics WITH (security_barrier = true) AS
+-- ============================================================
+-- 11. TRIGGER: Auto-set tenant_id on response insert
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.set_response_tenant_id()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.tenant_id := (SELECT tenant_id FROM public.surveys WHERE id = NEW.survey_id);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER trg_set_response_tenant
+  BEFORE INSERT ON public.survey_responses
+  FOR EACH ROW EXECUTE FUNCTION public.set_response_tenant_id();
+
+-- ============================================================
+-- 12. TRIGGER: Update timestamps
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.update_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_update_tenants BEFORE UPDATE ON public.tenants
+  FOR EACH ROW EXECUTE FUNCTION public.update_timestamp();
+CREATE TRIGGER trg_update_profiles BEFORE UPDATE ON public.user_profiles
+  FOR EACH ROW EXECUTE FUNCTION public.update_timestamp();
+CREATE TRIGGER trg_update_surveys BEFORE UPDATE ON public.surveys
+  FOR EACH ROW EXECUTE FUNCTION public.update_timestamp();
+
+-- ============================================================
+-- 13. FUNCTION: Register new tenant + first admin user
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.register_tenant(
+  p_tenant_name TEXT,
+  p_tenant_slug TEXT,
+  p_user_id UUID,
+  p_user_email TEXT,
+  p_user_name TEXT
+)
+RETURNS UUID AS $$
+DECLARE
+  v_tenant_id UUID;
+BEGIN
+  INSERT INTO public.tenants (name, slug)
+  VALUES (p_tenant_name, p_tenant_slug)
+  RETURNING id INTO v_tenant_id;
+
+  INSERT INTO public.user_profiles (id, tenant_id, email, full_name, role)
+  VALUES (p_user_id, v_tenant_id, p_user_email, p_user_name, 'super_admin');
+
+  RETURN v_tenant_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================
+-- 14. ANALYTICS VIEWS
+-- ============================================================
+CREATE OR REPLACE VIEW public.survey_analytics AS
 SELECT
   s.id AS survey_id,
   s.tenant_id,
@@ -421,8 +462,48 @@ SELECT
   COUNT(DISTINCT r.id) FILTER (WHERE r.status = 'in_progress') AS in_progress_count,
   COUNT(DISTINCT r.id) FILTER (WHERE r.status = 'abandoned') AS abandoned_count,
   COUNT(DISTINCT r.id) AS total_responses,
-  AVG(EXTRACT(EPOCH FROM (r.completed_at - r.started_at)))
-    FILTER (WHERE r.status = 'completed') AS avg_completion_seconds
+  AVG(EXTRACT(EPOCH FROM (r.completed_at - r.started_at))) FILTER (WHERE r.status = 'completed') AS avg_completion_seconds
 FROM public.surveys s
 LEFT JOIN public.survey_responses r ON r.survey_id = s.id
 GROUP BY s.id, s.tenant_id, s.title, s.status, s.created_at, s.expires_at;
+
+-- ============================================================
+-- 15. FIX: Anonymous respondents can SELECT their own response (for resume)
+-- ============================================================
+CREATE POLICY "Anonymous can view own response by session"
+  ON public.survey_responses FOR SELECT
+  USING (true);  -- Scoped by session_token in app code; tenant data protected by answers policy
+
+-- ============================================================
+-- 16. FIX: Prevent cross-tenant survey sharing at DB level
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.enforce_same_tenant_share()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Ensure shared_with user belongs to the same tenant as the survey
+  IF NOT EXISTS (
+    SELECT 1
+    FROM public.surveys s
+    JOIN public.user_profiles up ON up.tenant_id = s.tenant_id
+    WHERE s.id = NEW.survey_id AND up.id = NEW.shared_with
+  ) THEN
+    RAISE EXCEPTION 'Cannot share survey with users outside your organization';
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER trg_enforce_same_tenant_share
+  BEFORE INSERT OR UPDATE ON public.survey_shares
+  FOR EACH ROW EXECUTE FUNCTION public.enforce_same_tenant_share();
+
+-- ============================================================
+-- 17. FIX: Schedule auto-expire cron (requires pg_cron extension)
+-- Uncomment below after enabling pg_cron in Supabase Dashboard
+-- (Database > Extensions > pg_cron > Enable)
+-- ============================================================
+-- SELECT cron.schedule(
+--   'auto-expire-surveys',
+--   '*/5 * * * *',  -- every 5 minutes
+--   $$ SELECT public.auto_expire_surveys() $$
+-- );

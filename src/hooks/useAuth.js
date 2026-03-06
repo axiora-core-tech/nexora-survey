@@ -67,18 +67,26 @@ const useAuthStore = create((set, get) => ({
   },
 
   signUp: async (email, password, tenantName, tenantSlug, fullName) => {
-    // 1. Create auth user
-    const { data: authData, error: authErr } = await supabase.auth.signUp({ email, password });
+    // 1. Create auth user (or get existing unconfirmed user)
+    const { data: authData, error: authErr } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: fullName, tenant_name: tenantName },
+        emailRedirectTo: `${window.location.origin}/dashboard`,
+      },
+    });
     if (authErr) throw authErr;
+    if (!authData.user) throw new Error('Sign up failed. Please try again.');
 
-    // 2. Register tenant via server function (uses service role key)
-    const { data: { session } } = await supabase.auth.getSession();
+    // Check if email confirmation is required
+    const needsConfirmation = authData.user && !authData.session;
+
+    // 2. Register tenant via server function
+    // The function will verify the real user ID from auth.users (not trusting frontend)
     const res = await fetch('/.netlify/functions/register-tenant', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(session?.access_token && { Authorization: `Bearer ${session.access_token}` }),
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         userId: authData.user.id,
         email,
@@ -88,17 +96,26 @@ const useAuthStore = create((set, get) => ({
       }),
     });
 
+    const result = await res.json();
+
     if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Failed to create organization');
+      throw new Error(result.error || 'Failed to create organization');
     }
 
-    // 3. Load profile
-    if (authData.user) {
+    // 3. If user already had an org (re-registration), just load their profile
+    if (result.existing) {
+      if (authData.session && authData.user) {
+        await get().loadProfile(authData.user);
+      }
+      return { ...authData, needsConfirmation, existing: true, message: result.message };
+    }
+
+    // 4. Fresh registration — load profile if session is available
+    if (authData.session && authData.user) {
       await get().loadProfile(authData.user);
     }
 
-    return authData;
+    return { ...authData, needsConfirmation };
   },
 
   signOut: async () => {
