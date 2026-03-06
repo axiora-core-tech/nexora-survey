@@ -1,177 +1,452 @@
--- Enable UUID extension
-create extension IF not exists "uuid-ossp";
+-- ============================================================
+-- NEXORA SURVEY — Complete Multi-Tenant Schema
+-- Run this in Supabase SQL Editor (in order)
+-- ============================================================
 
--- ─── USERS ────────────────────────────────────────────────────────────────────
-create table users (
-  id UUID primary key default uuid_generate_v4 (),
-  email TEXT unique not null,
-  name TEXT not null,
-  role TEXT not null check (role in ('admin', 'creator', 'manager')) default 'manager',
-  status TEXT default 'active' check (status in ('active', 'inactive')),
-  created_at TIMESTAMPTZ default NOW()
+-- 0. Extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- ============================================================
+-- 1. TENANTS (Organizations)
+-- ============================================================
+CREATE TABLE public.tenants (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  slug TEXT UNIQUE NOT NULL,
+  logo_url TEXT,
+  primary_color TEXT DEFAULT '#6366f1',
+  plan TEXT DEFAULT 'free' CHECK (plan IN ('free','pro','enterprise')),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- ─── SURVEYS ──────────────────────────────────────────────────────────────────
-create table surveys (
-  id UUID primary key default uuid_generate_v4 (),
-  title TEXT not null,
+-- ============================================================
+-- 2. USER PROFILES (linked to auth.users)
+-- ============================================================
+CREATE TABLE public.user_profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  email TEXT NOT NULL,
+  full_name TEXT,
+  avatar_url TEXT,
+  role TEXT NOT NULL DEFAULT 'viewer' CHECK (role IN ('super_admin','admin','manager','creator','viewer')),
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_user_profiles_tenant ON public.user_profiles(tenant_id);
+CREATE INDEX idx_user_profiles_email ON public.user_profiles(email);
+
+-- ============================================================
+-- 3. SURVEYS
+-- ============================================================
+CREATE TABLE public.surveys (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  created_by UUID NOT NULL REFERENCES public.user_profiles(id),
+  title TEXT NOT NULL,
   description TEXT,
-  status TEXT default 'draft' check (status in ('draft', 'active', 'paused', 'closed')),
-  created_by UUID references users (id),
-  settings JSONB default '{}',
-  created_at TIMESTAMPTZ default NOW(),
-  updated_at TIMESTAMPTZ default NOW()
-);
-
--- Survey-level roles (per survey overrides)
-create table survey_roles (
-  id UUID primary key default uuid_generate_v4 (),
-  survey_id UUID references surveys (id) on delete CASCADE,
-  user_id UUID references users (id) on delete CASCADE,
-  role TEXT not null check (role in ('admin', 'creator', 'manager')),
-  unique (survey_id, user_id)
-);
-
--- ─── SECTIONS & QUESTIONS ─────────────────────────────────────────────────────
-create table sections (
-  id UUID primary key default uuid_generate_v4 (),
-  survey_id UUID references surveys (id) on delete CASCADE,
-  title TEXT not null,
-  sort_order INTEGER default 0
-);
-
-create table questions (
-  id UUID primary key default uuid_generate_v4 (),
-  survey_id UUID references surveys (id) on delete CASCADE,
-  section_id UUID references sections (id) on delete CASCADE,
-  type TEXT not null check (
-    type in (
-      'radio',
-      'checkbox',
-      'rating_star',
-      'rating_number',
-      'likert',
-      'nps',
-      'text',
-      'dropdown'
-    )
-  ),
-  text TEXT not null,
-  options JSONB default '[]',
-  settings JSONB default '{}', -- min, max, required, etc.
-  sort_order INTEGER default 0,
-  required BOOLEAN default true
-);
-
--- ─── SURVEY LINKS ─────────────────────────────────────────────────────────────
-create table survey_links (
-  id UUID primary key default uuid_generate_v4 (),
-  survey_id UUID references surveys (id) on delete CASCADE,
-  email TEXT not null,
-  token TEXT unique not null default encode(gen_random_bytes (12), 'hex'),
-  click_count INTEGER default 0,
-  status TEXT default 'active' check (status in ('active', 'paused', 'expired')),
-  created_by UUID references users (id),
+  slug TEXT UNIQUE NOT NULL, -- unique shareable link identifier
+  status TEXT DEFAULT 'draft' CHECK (status IN ('draft','active','paused','expired','closed')),
   expires_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ default NOW()
+  theme_color TEXT DEFAULT '#6366f1',
+  welcome_message TEXT,
+  thank_you_message TEXT DEFAULT 'Thank you for completing this survey!',
+  allow_anonymous BOOLEAN DEFAULT true,
+  require_email BOOLEAN DEFAULT false,
+  show_progress_bar BOOLEAN DEFAULT true,
+  auto_save_interval INT DEFAULT 2, -- save every N questions answered
+  created_at TIMESTAMPTZ DEFAULT now(),
+  updated_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Increment click count (called when link is opened)
-create or replace function increment_click (link_token TEXT) RETURNS VOID as $$
-  UPDATE survey_links SET click_count = click_count + 1 WHERE token = link_token;
-$$ LANGUAGE SQL;
+CREATE INDEX idx_surveys_tenant ON public.surveys(tenant_id);
+CREATE INDEX idx_surveys_slug ON public.surveys(slug);
+CREATE INDEX idx_surveys_created_by ON public.surveys(created_by);
 
--- ─── RESPONSES ────────────────────────────────────────────────────────────────
-create table responses (
-  id UUID primary key default uuid_generate_v4 (),
-  survey_id UUID references surveys (id) on delete CASCADE,
-  survey_link_id UUID references survey_links (id),
-  status TEXT default 'in_progress' check (status in ('in_progress', 'completed')),
-  started_at TIMESTAMPTZ default NOW(),
+-- ============================================================
+-- 4. SURVEY QUESTIONS
+-- ============================================================
+CREATE TABLE public.survey_questions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  survey_id UUID NOT NULL REFERENCES public.surveys(id) ON DELETE CASCADE,
+  question_text TEXT NOT NULL,
+  question_type TEXT NOT NULL CHECK (question_type IN (
+    'short_text','long_text','single_choice','multiple_choice',
+    'rating','scale','date','number','email','dropdown','yes_no','file_upload'
+  )),
+  options JSONB, -- for choice-based questions: [{label, value}]
+  is_required BOOLEAN DEFAULT false,
+  sort_order INT NOT NULL DEFAULT 0,
+  description TEXT, -- helper text under the question
+  validation_rules JSONB, -- {min, max, pattern, etc.}
+  conditional_logic JSONB, -- {show_if: {question_id, operator, value}}
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_questions_survey ON public.survey_questions(survey_id);
+
+-- ============================================================
+-- 5. SURVEY RESPONSES (one per respondent session)
+-- ============================================================
+CREATE TABLE public.survey_responses (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  survey_id UUID NOT NULL REFERENCES public.surveys(id) ON DELETE CASCADE,
+  tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  respondent_email TEXT,
+  respondent_name TEXT,
+  session_token TEXT UNIQUE NOT NULL, -- for auto-save resume
+  status TEXT DEFAULT 'in_progress' CHECK (status IN ('in_progress','completed','abandoned')),
+  started_at TIMESTAMPTZ DEFAULT now(),
   completed_at TIMESTAMPTZ,
-  metadata JSONB default '{}' -- browser, device, IP hash, etc.
+  last_saved_at TIMESTAMPTZ DEFAULT now(),
+  ip_address TEXT,
+  user_agent TEXT,
+  metadata JSONB DEFAULT '{}'
 );
 
--- Answers (immutable once submitted)
-create table answers (
-  id UUID primary key default uuid_generate_v4 (),
-  response_id UUID references responses (id) on delete CASCADE,
-  question_id UUID references questions (id),
-  value JSONB not null, -- flexible: string, number, array
-  created_at TIMESTAMPTZ default NOW()
+CREATE INDEX idx_responses_survey ON public.survey_responses(survey_id);
+CREATE INDEX idx_responses_tenant ON public.survey_responses(tenant_id);
+CREATE INDEX idx_responses_session ON public.survey_responses(session_token);
+
+-- ============================================================
+-- 6. INDIVIDUAL ANSWERS
+-- ============================================================
+CREATE TABLE public.survey_answers (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  response_id UUID NOT NULL REFERENCES public.survey_responses(id) ON DELETE CASCADE,
+  question_id UUID NOT NULL REFERENCES public.survey_questions(id) ON DELETE CASCADE,
+  answer_value TEXT,
+  answer_json JSONB, -- for multi-choice, file uploads, etc.
+  answered_at TIMESTAMPTZ DEFAULT now()
 );
 
--- Prevent answer modification after response is completed
-create or replace function prevent_answer_modification () RETURNS TRIGGER as $$
+CREATE INDEX idx_answers_response ON public.survey_answers(response_id);
+CREATE INDEX idx_answers_question ON public.survey_answers(question_id);
+-- Unique: one answer per question per response (upsert pattern)
+CREATE UNIQUE INDEX idx_answers_unique ON public.survey_answers(response_id, question_id);
+
+-- ============================================================
+-- 7. SURVEY SHARE PERMISSIONS (within same tenant)
+-- ============================================================
+CREATE TABLE public.survey_shares (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  survey_id UUID NOT NULL REFERENCES public.surveys(id) ON DELETE CASCADE,
+  shared_with UUID NOT NULL REFERENCES public.user_profiles(id) ON DELETE CASCADE,
+  shared_by UUID NOT NULL REFERENCES public.user_profiles(id),
+  permission TEXT DEFAULT 'view' CHECK (permission IN ('view','view_analytics','edit')),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(survey_id, shared_with)
+);
+
+CREATE INDEX idx_shares_survey ON public.survey_shares(survey_id);
+
+-- ============================================================
+-- 8. AUDIT LOG
+-- ============================================================
+CREATE TABLE public.audit_log (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  tenant_id UUID NOT NULL REFERENCES public.tenants(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES public.user_profiles(id),
+  action TEXT NOT NULL,
+  resource_type TEXT,
+  resource_id UUID,
+  details JSONB,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_audit_tenant ON public.audit_log(tenant_id);
+
+-- ============================================================
+-- 9. ROW LEVEL SECURITY POLICIES
+-- ============================================================
+
+-- Helper function: get current user's tenant_id
+CREATE OR REPLACE FUNCTION public.get_user_tenant_id()
+RETURNS UUID AS $$
+  SELECT tenant_id FROM public.user_profiles WHERE id = auth.uid();
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
+-- Helper function: get current user's role
+CREATE OR REPLACE FUNCTION public.get_user_role()
+RETURNS TEXT AS $$
+  SELECT role FROM public.user_profiles WHERE id = auth.uid();
+$$ LANGUAGE sql SECURITY DEFINER STABLE;
+
+-- ---- TENANTS ----
+ALTER TABLE public.tenants ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view own tenant"
+  ON public.tenants FOR SELECT
+  USING (id = public.get_user_tenant_id());
+
+CREATE POLICY "Super admins can update own tenant"
+  ON public.tenants FOR UPDATE
+  USING (id = public.get_user_tenant_id() AND public.get_user_role() = 'super_admin');
+
+-- ---- USER PROFILES ----
+ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view profiles in own tenant"
+  ON public.user_profiles FOR SELECT
+  USING (tenant_id = public.get_user_tenant_id());
+
+CREATE POLICY "Users can update own profile"
+  ON public.user_profiles FOR UPDATE
+  USING (id = auth.uid());
+
+CREATE POLICY "Admins can manage users in tenant"
+  ON public.user_profiles FOR ALL
+  USING (
+    tenant_id = public.get_user_tenant_id()
+    AND public.get_user_role() IN ('super_admin', 'admin')
+  );
+
+-- ---- SURVEYS ----
+ALTER TABLE public.surveys ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can view surveys in own tenant"
+  ON public.surveys FOR SELECT
+  USING (tenant_id = public.get_user_tenant_id());
+
+CREATE POLICY "Creators+ can create surveys"
+  ON public.surveys FOR INSERT
+  WITH CHECK (
+    tenant_id = public.get_user_tenant_id()
+    AND public.get_user_role() IN ('super_admin','admin','manager','creator')
+  );
+
+CREATE POLICY "Owners and admins can update surveys"
+  ON public.surveys FOR UPDATE
+  USING (
+    tenant_id = public.get_user_tenant_id()
+    AND (
+      created_by = auth.uid()
+      OR public.get_user_role() IN ('super_admin','admin','manager')
+    )
+  );
+
+CREATE POLICY "Admins can delete surveys"
+  ON public.surveys FOR DELETE
+  USING (
+    tenant_id = public.get_user_tenant_id()
+    AND public.get_user_role() IN ('super_admin','admin')
+  );
+
+-- ---- SURVEY QUESTIONS ----
+ALTER TABLE public.survey_questions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "View questions for visible surveys"
+  ON public.survey_questions FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.surveys s
+      WHERE s.id = survey_id AND s.tenant_id = public.get_user_tenant_id()
+    )
+  );
+
+-- Allow anonymous access to questions for active surveys (respondents)
+CREATE POLICY "Public can view questions for active surveys"
+  ON public.survey_questions FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.surveys s
+      WHERE s.id = survey_id AND s.status = 'active'
+    )
+  );
+
+CREATE POLICY "Creators can manage questions"
+  ON public.survey_questions FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.surveys s
+      WHERE s.id = survey_id
+      AND s.tenant_id = public.get_user_tenant_id()
+      AND (
+        s.created_by = auth.uid()
+        OR public.get_user_role() IN ('super_admin','admin','manager')
+      )
+    )
+  );
+
+-- ---- SURVEY RESPONSES ----
+ALTER TABLE public.survey_responses ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Tenant users can view responses"
+  ON public.survey_responses FOR SELECT
+  USING (tenant_id = public.get_user_tenant_id());
+
+-- Anonymous respondents can insert responses
+CREATE POLICY "Anyone can create responses for active surveys"
+  ON public.survey_responses FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.surveys s
+      WHERE s.id = survey_id AND s.status = 'active'
+    )
+  );
+
+-- Respondents can update their own in-progress response
+CREATE POLICY "Respondents can update own response"
+  ON public.survey_responses FOR UPDATE
+  USING (status = 'in_progress');
+
+-- ---- SURVEY ANSWERS ----
+ALTER TABLE public.survey_answers ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Tenant users can view answers"
+  ON public.survey_answers FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.survey_responses r
+      WHERE r.id = response_id AND r.tenant_id = public.get_user_tenant_id()
+    )
+  );
+
+CREATE POLICY "Respondents can insert/update answers"
+  ON public.survey_answers FOR INSERT
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.survey_responses r
+      WHERE r.id = response_id AND r.status = 'in_progress'
+    )
+  );
+
+CREATE POLICY "Respondents can update answers"
+  ON public.survey_answers FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.survey_responses r
+      WHERE r.id = response_id AND r.status = 'in_progress'
+    )
+  );
+
+-- ---- SURVEY SHARES ----
+ALTER TABLE public.survey_shares ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "View shares within tenant"
+  ON public.survey_shares FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.surveys s
+      WHERE s.id = survey_id AND s.tenant_id = public.get_user_tenant_id()
+    )
+  );
+
+CREATE POLICY "Owners can manage shares"
+  ON public.survey_shares FOR ALL
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.surveys s
+      WHERE s.id = survey_id
+      AND s.tenant_id = public.get_user_tenant_id()
+      AND (
+        s.created_by = auth.uid()
+        OR public.get_user_role() IN ('super_admin','admin','manager')
+      )
+    )
+  );
+
+-- ---- AUDIT LOG ----
+ALTER TABLE public.audit_log ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins can view audit logs"
+  ON public.audit_log FOR SELECT
+  USING (
+    tenant_id = public.get_user_tenant_id()
+    AND public.get_user_role() IN ('super_admin','admin')
+  );
+
+-- ============================================================
+-- 10. AUTO-EXPIRE SURVEYS (cron function)
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.auto_expire_surveys()
+RETURNS void AS $$
 BEGIN
-  IF (SELECT status FROM responses WHERE id = OLD.response_id) = 'completed' THEN
-    RAISE EXCEPTION 'Cannot modify answers of a completed response';
-  END IF;
+  UPDATE public.surveys
+  SET status = 'expired', updated_at = now()
+  WHERE status = 'active'
+    AND expires_at IS NOT NULL
+    AND expires_at < now();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================
+-- 11. TRIGGER: Auto-set tenant_id on response insert
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.set_response_tenant_id()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.tenant_id := (SELECT tenant_id FROM public.surveys WHERE id = NEW.survey_id);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER trg_set_response_tenant
+  BEFORE INSERT ON public.survey_responses
+  FOR EACH ROW EXECUTE FUNCTION public.set_response_tenant_id();
+
+-- ============================================================
+-- 12. TRIGGER: Update timestamps
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.update_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
-create trigger lock_completed_answers BEFORE
-update on answers for EACH row
-execute FUNCTION prevent_answer_modification ();
+CREATE TRIGGER trg_update_tenants BEFORE UPDATE ON public.tenants
+  FOR EACH ROW EXECUTE FUNCTION public.update_timestamp();
+CREATE TRIGGER trg_update_profiles BEFORE UPDATE ON public.user_profiles
+  FOR EACH ROW EXECUTE FUNCTION public.update_timestamp();
+CREATE TRIGGER trg_update_surveys BEFORE UPDATE ON public.surveys
+  FOR EACH ROW EXECUTE FUNCTION public.update_timestamp();
 
--- ─── ROW LEVEL SECURITY ───────────────────────────────────────────────────────
-alter table surveys ENABLE row LEVEL SECURITY;
+-- ============================================================
+-- 13. FUNCTION: Register new tenant + first admin user
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.register_tenant(
+  p_tenant_name TEXT,
+  p_tenant_slug TEXT,
+  p_user_id UUID,
+  p_user_email TEXT,
+  p_user_name TEXT
+)
+RETURNS UUID AS $$
+DECLARE
+  v_tenant_id UUID;
+BEGIN
+  INSERT INTO public.tenants (name, slug)
+  VALUES (p_tenant_name, p_tenant_slug)
+  RETURNING id INTO v_tenant_id;
 
-alter table survey_links ENABLE row LEVEL SECURITY;
+  INSERT INTO public.user_profiles (id, tenant_id, email, full_name, role)
+  VALUES (p_user_id, v_tenant_id, p_user_email, p_user_name, 'admin');
 
-alter table responses ENABLE row LEVEL SECURITY;
+  RETURN v_tenant_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
-alter table answers ENABLE row LEVEL SECURITY;
-
--- Admins see everything
-create policy "Admins full access" on surveys for all using (
-  exists (
-    select
-      1
-    from
-      users
-    where
-      id = auth.uid ()
-      and role = 'admin'
-  )
-);
-
--- Public can submit via link (no auth needed for response submission)
-create policy "Public insert responses" on responses for INSERT
-with
-  check (true);
-
-create policy "Public insert answers" on answers for INSERT
-with
-  check (true);
-
--- ─── ANALYTICS VIEW ───────────────────────────────────────────────────────────
-create view survey_analytics as
-select
-  s.id as survey_id,
+-- ============================================================
+-- 14. ANALYTICS VIEWS
+-- ============================================================
+CREATE OR REPLACE VIEW public.survey_analytics AS
+SELECT
+  s.id AS survey_id,
+  s.tenant_id,
   s.title,
-  COUNT(distinct r.id) filter (
-    where
-      r.status = 'completed'
-  ) as total_responses,
-  COUNT(distinct r.id) filter (
-    where
-      r.status = 'in_progress'
-  ) as in_progress,
-  COUNT(distinct sl.id) as total_links,
-  SUM(sl.click_count) as total_clicks,
-  ROUND(
-    COUNT(distinct r.id) filter (
-      where
-        r.status = 'completed'
-    )::numeric / NULLIF(SUM(sl.click_count), 0) * 100,
-    1
-  ) as conversion_rate
-from
-  surveys s
-  left join survey_links sl on sl.survey_id = s.id
-  left join responses r on r.survey_link_id = sl.id
-group by
-  s.id,
-  s.title;
+  s.status,
+  s.created_at,
+  s.expires_at,
+  COUNT(DISTINCT r.id) FILTER (WHERE r.status = 'completed') AS completed_count,
+  COUNT(DISTINCT r.id) FILTER (WHERE r.status = 'in_progress') AS in_progress_count,
+  COUNT(DISTINCT r.id) FILTER (WHERE r.status = 'abandoned') AS abandoned_count,
+  COUNT(DISTINCT r.id) AS total_responses,
+  AVG(EXTRACT(EPOCH FROM (r.completed_at - r.started_at))) FILTER (WHERE r.status = 'completed') AS avg_completion_seconds
+FROM public.surveys s
+LEFT JOIN public.survey_responses r ON r.survey_id = s.id
+GROUP BY s.id, s.tenant_id, s.title, s.status, s.created_at, s.expires_at;
