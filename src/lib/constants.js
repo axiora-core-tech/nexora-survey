@@ -1,0 +1,103 @@
+export const ROLES = {
+  SUPER_ADMIN: 'super_admin',
+  ADMIN: 'admin',
+  MANAGER: 'manager',
+  CREATOR: 'creator',
+  VIEWER: 'viewer',
+};
+
+export const ROLE_LABELS = {
+  super_admin: 'Super Admin',
+  admin: 'Admin',
+  manager: 'Manager',
+  creator: 'Creator',
+  viewer: 'Viewer',
+};
+
+export const ROLE_COLORS = {
+  super_admin: 'bg-purple-50 text-purple-700 border-purple-200',
+  admin: 'bg-red-50 text-red-700 border-red-200',
+  manager: 'bg-nexora-50 text-nexora-700 border-nexora-200',
+  creator: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  viewer: 'bg-surface-100 text-surface-600 border-surface-200',
+};
+
+// Who can do what
+export const PERMISSIONS = {
+  create_survey: ['super_admin', 'admin', 'manager', 'creator'],
+  edit_any_survey: ['super_admin', 'admin'],
+  delete_survey: ['super_admin', 'admin'],
+  view_analytics: ['super_admin', 'admin', 'manager', 'creator'],
+  manage_team: ['super_admin', 'admin'],
+  view_audit: ['super_admin', 'admin'],
+  manage_tenant: ['super_admin'],
+  resume_survey: ['super_admin', 'admin', 'manager'],
+  share_survey: ['super_admin', 'admin', 'manager', 'creator'],
+};
+
+export function hasPermission(userRole, action) {
+  return PERMISSIONS[action]?.includes(userRole) ?? false;
+}
+
+export const QUESTION_TYPES = [
+  { value: 'short_text', label: 'Short Text', icon: '✏️' },
+  { value: 'long_text', label: 'Long Text', icon: '📝' },
+  { value: 'single_choice', label: 'Single Choice', icon: '⭕' },
+  { value: 'multiple_choice', label: 'Multiple Choice', icon: '☑️' },
+  { value: 'rating', label: 'Star Rating', icon: '⭐' },
+  { value: 'scale', label: 'Scale (1-10)', icon: '📊' },
+  { value: 'yes_no', label: 'Yes / No', icon: '👍' },
+  { value: 'dropdown', label: 'Dropdown', icon: '📋' },
+  { value: 'number', label: 'Number', icon: '🔢' },
+  { value: 'email', label: 'Email', icon: '📧' },
+  { value: 'date', label: 'Date', icon: '📅' },
+];
+
+export const SURVEY_STATUS = {
+  draft: { label: 'Draft', class: 'badge-draft' },
+  active: { label: 'Active', class: 'badge-active' },
+  paused: { label: 'Paused', class: 'badge bg-yellow-50 text-yellow-700 border border-yellow-200' },
+  expired: { label: 'Expired', class: 'badge-expired' },
+  closed: { label: 'Closed', class: 'badge-closed' },
+};
+
+// Generate a unique slug for surveys
+export function generateSlug(length = 8) {
+  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  let slug = '';
+  for (let i = 0; i < length; i++) {
+    slug += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return slug;
+}
+
+// Format date nicely
+export function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+export function formatDateTime(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('en-US', {
+    month: 'short', day: 'numeric', year: 'numeric',
+    hour: 'numeric', minute: '2-digit',
+  });
+}
+
+export function timeAgo(dateStr) {
+  if (!dateStr) return '';
+  const seconds = Math.floor((Date.now() - new Date(dateStr).getTime()) / 1000);
+  if (seconds < 60) return 'just now';
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+  if (seconds < 604800) return `${Math.floor(seconds / 86400)}d ago`;
+  return formatDate(dateStr);
+}
+
+export function isExpired(expiresAt) {
+  if (!expiresAt) return false;
+  return new Date(expiresAt) < new Date();
+}
