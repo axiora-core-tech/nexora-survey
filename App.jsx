@@ -57,7 +57,7 @@ function exportCSV(rows, filename) {
 async function exportAnalyticsPDF(survey, data) {
   const doc = new jsPDF();
   doc.setFontSize(20);
-  doc.text("Elevate Survey — Analytics Report", 14, 22);
+  doc.text("Nexora Survey — Analytics Report", 14, 22);
   doc.setFontSize(12);
   doc.text(survey?.title || "Survey Report", 14, 32);
   doc.text(`Generated: ${new Date().toLocaleDateString()}`, 14, 40);
@@ -359,7 +359,7 @@ function Sidebar({ page, onNav, user, onLogout }) {
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-xl flex items-center justify-center text-white font-black text-sm shadow-lg shadow-indigo-500/30">ES</div>
           <div>
-            <div className="font-bold text-white text-sm leading-tight">Elevate Survey</div>
+            <div className="font-bold text-white text-sm leading-tight">Nexora Survey</div>
             <div className="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5">Enterprise</div>
           </div>
         </div>
@@ -400,9 +400,9 @@ function LoginPage({ onLogin }) {
   const [error, setError] = useState("");
 
   const demos = [
-    { label: "Admin", email: "admin@elevate.io", icon: "🛡", desc: "Full access" },
-    { label: "Creator", email: "creator@elevate.io", icon: "✏️", desc: "Build & manage" },
-    { label: "Manager", email: "manager@elevate.io", icon: "📊", desc: "View & analyze" },
+    { label: "Admin", email: "admin@Nexora.io", icon: "🛡", desc: "Full access" },
+    { label: "Creator", email: "creator@Nexora.io", icon: "✏️", desc: "Build & manage" },
+    { label: "Manager", email: "manager@Nexora.io", icon: "📊", desc: "View & analyze" },
   ];
 
   const doLogin = async (loginEmail) => {
@@ -410,7 +410,7 @@ function LoginPage({ onLogin }) {
     // Supabase auth (swap with real logic)
     // const { data, error } = await supabase.auth.signInWithPassword({ email: loginEmail||email, password: pw });
     await new Promise(r => setTimeout(r, 700));
-    const roleMap = { "admin@elevate.io": "admin", "creator@elevate.io": "creator", "manager@elevate.io": "manager" };
+    const roleMap = { "admin@Nexora.io": "admin", "creator@Nexora.io": "creator", "manager@Nexora.io": "manager" };
     const e = loginEmail || email;
     const role = roleMap[e] || "manager";
     if (!role && !loginEmail) { setError("Invalid credentials. Use a demo account."); setLoading(false); return; }
@@ -426,7 +426,7 @@ function LoginPage({ onLogin }) {
           <div className="flex items-center gap-3 mb-14">
             <div className="w-12 h-12 bg-gradient-to-br from-indigo-500 to-violet-600 rounded-2xl flex items-center justify-center text-white font-black shadow-xl shadow-indigo-500/30">ES</div>
             <div>
-              <div className="font-bold text-white text-xl tracking-tight">Elevate Survey</div>
+              <div className="font-bold text-white text-xl tracking-tight">Nexora Survey</div>
               <div className="text-[10px] text-indigo-400 uppercase tracking-widest">Enterprise Platform</div>
             </div>
           </div>
@@ -1303,10 +1303,10 @@ const INIT_LINKS = [
 ];
 
 const INIT_USERS = [
-  { id: "u1", name: "Alex Morgan", email: "admin@elevate.io", role: "admin", status: "active" },
-  { id: "u2", name: "Jordan Lee", email: "creator@elevate.io", role: "creator", status: "active" },
-  { id: "u3", name: "Sam Rivera", email: "manager@elevate.io", role: "manager", status: "active" },
-  { id: "u4", name: "Casey Kim", email: "casey@elevate.io", role: "creator", status: "inactive" },
+  { id: "u1", name: "Alex Morgan", email: "admin@Nexora.io", role: "admin", status: "active" },
+  { id: "u2", name: "Jordan Lee", email: "creator@Nexora.io", role: "creator", status: "active" },
+  { id: "u3", name: "Sam Rivera", email: "manager@Nexora.io", role: "manager", status: "active" },
+  { id: "u4", name: "Casey Kim", email: "casey@Nexora.io", role: "creator", status: "inactive" },
 ];
 
 export default function App() {

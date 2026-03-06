@@ -545,7 +545,7 @@ function Sidebar({ page, onNav, user, onLogout }) {
             boxShadow: `0 4px 12px ${C.accent}40`,
           }}>ES</div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: C.text1, fontFamily: 'Sora', letterSpacing: '-0.02em' }}>Elevate Survey</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: C.text1, fontFamily: 'Sora', letterSpacing: '-0.02em' }}>Nexora Survey</div>
             <div style={{ fontSize: 10, color: C.text3, letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 500 }}>Enterprise</div>
           </div>
         </div>
@@ -620,16 +620,16 @@ function LoginPage({ onLogin }) {
   const [err, setErr]         = useState('');
 
   const demos = [
-    { role: 'admin',   label: 'Admin',   email: 'admin@elevate.io',   icon: '🛡', desc: 'Full platform access' },
-    { role: 'creator', label: 'Creator', email: 'creator@elevate.io', icon: '✦', desc: 'Build & manage surveys' },
-    { role: 'manager', label: 'Manager', email: 'manager@elevate.io', icon: '◷', desc: 'View & analyze data' },
+    { role: 'admin',   label: 'Admin',   email: 'admin@Nexora.io',   icon: '🛡', desc: 'Full platform access' },
+    { role: 'creator', label: 'Creator', email: 'creator@Nexora.io', icon: '✦', desc: 'Build & manage surveys' },
+    { role: 'manager', label: 'Manager', email: 'manager@Nexora.io', icon: '◷', desc: 'View & analyze data' },
   ];
 
   const doLogin = async (loginEmail) => {
     setLoading(true); setErr('');
     await new Promise(r => setTimeout(r, 600));
     const e = loginEmail || email;
-    const roleMap = { 'admin@elevate.io': 'admin', 'creator@elevate.io': 'creator', 'manager@elevate.io': 'manager' };
+    const roleMap = { 'admin@Nexora.io': 'admin', 'creator@Nexora.io': 'creator', 'manager@Nexora.io': 'manager' };
     const role = roleMap[e];
     if (!role) { setErr('Account not found. Please use a demo account.'); setLoading(false); return; }
     const names = { admin: 'Alex Morgan', creator: 'Jordan Lee', manager: 'Sam Rivera' };
@@ -651,7 +651,7 @@ function LoginPage({ onLogin }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 64 }}>
             <div style={{ width: 42, height: 42, borderRadius: 12, background: `linear-gradient(135deg, ${C.accent}, ${C.violet})`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 14, fontFamily: 'Sora', boxShadow: `0 8px 24px ${C.accent}50` }}>ES</div>
             <div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', fontFamily: 'Sora', letterSpacing: '-0.02em' }}>Elevate Survey</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', fontFamily: 'Sora', letterSpacing: '-0.02em' }}>Nexora Survey</div>
               <div style={{ fontSize: 10, color: 'rgba(255,255,255,.4)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Enterprise Platform</div>
             </div>
           </div>
@@ -674,7 +674,7 @@ function LoginPage({ onLogin }) {
           </motion.div>
         </div>
 
-        <div style={{ position: 'relative', fontSize: 12, color: 'rgba(255,255,255,.25)' }}>© 2024 Elevate Survey. All rights reserved.</div>
+        <div style={{ position: 'relative', fontSize: 12, color: 'rgba(255,255,255,.25)' }}>© 2024 Nexora Survey. All rights reserved.</div>
       </div>
 
       {/* Right form panel */}
@@ -1567,10 +1567,10 @@ const INIT_LINKS = [
   { id: 'l3', surveyId: 's2', email: 'beta@users.net',  token: 'c3d4e5f6g7h8', clicks: 203, responses: 89, createdAt: '2024-09-15', status: 'active' },
 ];
 const INIT_USERS = [
-  { id: 'u1', name: 'Alex Morgan',  email: 'admin@elevate.io',   role: 'admin',   status: 'active' },
-  { id: 'u2', name: 'Jordan Lee',   email: 'creator@elevate.io', role: 'creator', status: 'active' },
-  { id: 'u3', name: 'Sam Rivera',   email: 'manager@elevate.io', role: 'manager', status: 'active' },
-  { id: 'u4', name: 'Casey Kim',    email: 'casey@elevate.io',   role: 'creator', status: 'inactive' },
+  { id: 'u1', name: 'Alex Morgan',  email: 'admin@Nexora.io',   role: 'admin',   status: 'active' },
+  { id: 'u2', name: 'Jordan Lee',   email: 'creator@Nexora.io', role: 'creator', status: 'active' },
+  { id: 'u3', name: 'Sam Rivera',   email: 'manager@Nexora.io', role: 'manager', status: 'active' },
+  { id: 'u4', name: 'Casey Kim',    email: 'casey@Nexora.io',   role: 'creator', status: 'inactive' },
 ];
 
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
