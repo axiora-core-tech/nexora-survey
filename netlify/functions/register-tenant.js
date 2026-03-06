@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 function getAdminClient() {
   return createClient(
     process.env.VITE_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY,
+    process.env.SUPABASE_SERVICE_KEY,
     { auth: { autoRefreshToken: false, persistSession: false } }
   );
 }
