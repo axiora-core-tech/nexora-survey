@@ -1,82 +1,124 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import useAuthStore from '../hooks/useAuth';
-import { HiOutlineArrowRight, HiOutlinePlay } from 'react-icons/hi';
+import { HiOutlineArrowRight, HiOutlineStar, HiOutlineCheck } from 'react-icons/hi';
 
 export default function Landing() {
   const { user } = useAuthStore();
+
   return (
-    <div className="min-h-screen gradient-bg relative overflow-hidden">
-      {/* Soft gradient blobs */}
-      <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] rounded-full bg-brand/[0.04] blur-3xl animate-float" />
-      <div className="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] rounded-full bg-violet/[0.04] blur-3xl animate-float" style={{animationDelay:'3s'}} />
-      <div className="absolute top-[40%] left-[50%] w-[400px] h-[400px] rounded-full bg-mint/[0.03] blur-3xl" />
+    <div className="min-h-screen bg-n-0 overflow-hidden">
+      {/* Background blobs — alive, breathing */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-[600px] h-[600px] blob-green animate-float" />
+        <div className="absolute top-[50%] -left-20 w-[500px] h-[500px] blob-coral animate-float-slow" />
+        <div className="absolute -bottom-20 right-[30%] w-[400px] h-[400px] blob-plum animate-float" style={{animationDelay:'2s'}} />
+      </div>
 
       {/* Nav */}
-      <nav className="relative z-10 max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-brand flex items-center justify-center">
-            <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+      <nav className="relative z-20 max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-xl bg-green-500 flex items-center justify-center shadow-green">
+            <svg className="w-4.5 h-4.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/></svg>
           </div>
-          <span className="text-lg font-bold text-txt">Nexora</span>
+          <span className="text-xl font-bold text-n-900">Nexora</span>
         </div>
         <div className="flex items-center gap-3">
           {user ? (
-            <Link to="/dashboard" className="btn-primary text-xs">Go to Dashboard</Link>
+            <Link to="/dashboard" className="btn-green text-sm">Dashboard</Link>
           ) : (
-            <><Link to="/login" className="btn-ghost text-xs">Sign in</Link>
-            <Link to="/register" className="btn-primary text-xs">Get Started Free</Link></>
+            <>
+              <Link to="/login" className="btn-ghost">Log in</Link>
+              <Link to="/register" className="btn-green">Get started free</Link>
+            </>
           )}
         </div>
       </nav>
 
       {/* Hero */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 pt-20 pb-32">
+      <section className="relative z-10 max-w-6xl mx-auto px-6 pt-16 pb-24">
         <div className="grid lg:grid-cols-2 gap-16 items-center">
-          {/* Left */}
-          <div className="animate-enter">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-white rounded-pill border border-border text-xs font-medium text-txt-secondary mb-6 shadow-card">
-              <div className="pulse-dot" />Trusted by 500+ teams
+          <div>
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-green-50 rounded-full text-sm font-semibold text-green-700 mb-6 animate-in">
+              <HiOutlineStar className="w-4 h-4" /> Trusted by 500+ teams
             </div>
-            <h1 className="text-h1 text-txt mb-6 tracking-tight leading-[1.15]">
-              Understand Your Users.<br/>
-              <span className="gradient-text">Build What They Love.</span>
+
+            <h1 className="text-[3rem] md:text-[3.5rem] lg:text-[4rem] font-extrabold text-n-900 leading-[1.1] tracking-tight mb-6 animate-in-delay-1">
+              Let user research be
+              <br />your{' '}
+              <span className="text-green-500">superpower</span>
             </h1>
-            <p className="text-lg text-txt-secondary mb-8 leading-relaxed max-w-lg">
-              Beautiful surveys designed to reveal real human behavior. Get 3x more responses with our psychology-driven design.
+
+            <p className="text-lg text-n-500 leading-relaxed mb-8 max-w-lg animate-in-delay-2">
+              Beautiful surveys that people actually enjoy filling out.
+              Gather feedback, understand behavior, and build what users love.
             </p>
-            <div className="flex items-center gap-4">
-              <Link to="/register" className="btn-primary-lg">
-                Create Your First Survey <HiOutlineArrowRight className="w-4 h-4" />
+
+            <div className="flex items-center gap-4 animate-in-delay-3">
+              <Link to="/register" className="btn-green-lg">
+                Start for free <HiOutlineArrowRight className="w-5 h-5" />
               </Link>
-              <button className="btn-ghost text-sm flex items-center gap-2">
-                <div className="w-8 h-8 rounded-full bg-brand-50 flex items-center justify-center"><HiOutlinePlay className="w-3.5 h-3.5 text-brand ml-0.5" /></div>
-                View Demo
-              </button>
+              <Link to="/login" className="btn-outline px-8 py-4 rounded-2xl">Log in</Link>
             </div>
+
+            <p className="text-sm text-n-400 mt-4 flex items-center gap-2">
+              <HiOutlineCheck className="w-4 h-4 text-green-500" /> No credit card required
+            </p>
           </div>
 
-          {/* Right — Product visualization */}
-          <div className="animate-enter hidden lg:block" style={{animationDelay:'0.2s'}}>
-            <div className="relative">
-              {/* Mock survey card */}
-              <div className="card p-6 mb-4 animate-float">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-1.5 h-1.5 rounded-full bg-success" />
-                  <span className="text-[11px] font-medium text-txt-secondary">Live Survey</span>
-                </div>
-                <p className="text-sm font-semibold text-txt mb-4">How would you rate your experience?</p>
-                <div className="flex gap-2">
-                  {['😢','😐','🙂','😊','🤩'].map((e,i) => (
-                    <div key={i} className={`w-10 h-10 rounded-card flex items-center justify-center text-lg transition-all cursor-pointer ${i===3 ? 'bg-brand-50 border-2 border-brand scale-110' : 'bg-gray-50 border border-border'}`}>{e}</div>
-                  ))}
-                </div>
+          {/* Right — Live product preview (Lyssna-style) */}
+          <div className="hidden lg:block relative animate-in-delay-2">
+            {/* Floating sticky notes */}
+            <div className="sticky bg-yellow-100 text-yellow-800 absolute -top-4 -left-6 z-10 animate-float" style={{'--rotate':'-3deg'}}>
+              📝 Quick feedback
+            </div>
+            <div className="sticky bg-green-100 text-green-800 absolute -bottom-2 -right-4 z-10 animate-float-slow" style={{'--rotate':'2deg'}}>
+              ✅ 87% completion rate
+            </div>
+
+            {/* Main survey preview card */}
+            <div className="card p-6 relative">
+              <div className="flex items-center gap-2 mb-5">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse-soft" />
+                <span className="text-xs font-semibold text-n-500">Live Survey</span>
+                <span className="badge-active ml-auto">Active</span>
               </div>
-              {/* Mock analytics overlay */}
-              <div className="card p-4 w-[200px] absolute -bottom-4 -right-4 animate-float" style={{animationDelay:'2s'}}>
-                <p className="text-[10px] font-semibold text-txt-secondary mb-2">Completion Rate</p>
-                <p className="text-h3 text-success font-bold">87%</p>
-                <div className="w-full h-1.5 bg-gray-100 rounded-full mt-2"><div className="h-full bg-success rounded-full" style={{width:'87%'}} /></div>
+
+              <p className="font-bold text-n-900 text-lg mb-5">How would you rate your overall experience?</p>
+
+              {/* Star rating preview */}
+              <div className="flex gap-2 mb-6">
+                {[1,2,3,4,5].map(i => (
+                  <div key={i} className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl transition-all ${i<=4 ? 'bg-yellow-50 border-2 border-yellow-300 scale-105' : 'bg-n-100 border border-n-200'}`}>
+                    {i<=4 ? '⭐' : '☆'}
+                  </div>
+                ))}
+              </div>
+
+              {/* Option preview */}
+              <div className="space-y-2.5">
+                {['Very satisfied','Somewhat satisfied','Neutral'].map((opt,i) => (
+                  <div key={i} className={`flex items-center gap-3 p-3.5 rounded-xl border transition-all ${i===0 ? 'border-green-500 bg-green-50' : 'border-n-200'}`}>
+                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${i===0 ? 'border-green-500 bg-green-500' : 'border-n-300'}`}>
+                      {i===0 && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>}
+                    </div>
+                    <span className={`text-sm font-medium ${i===0 ? 'text-green-700' : 'text-n-600'}`}>{opt}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Floating stats card */}
+            <div className="card p-4 absolute -bottom-8 -left-8 w-48 animate-float" style={{animationDelay:'1.5s'}}>
+              <p className="text-[10px] font-bold text-n-400 uppercase tracking-wider mb-1">Responses today</p>
+              <div className="flex items-end gap-1">
+                <span className="text-2xl font-extrabold text-n-900">247</span>
+                <span className="text-xs font-bold text-green-500 mb-1">+23%</span>
+              </div>
+              <div className="flex gap-0.5 mt-2">
+                {[40,60,35,80,65,90,55].map((h,i) => (
+                  <div key={i} className="flex-1 bg-green-200 rounded-full" style={{height:`${h*0.3}px`}} />
+                ))}
               </div>
             </div>
           </div>
@@ -85,24 +127,45 @@ export default function Landing() {
 
       {/* Features */}
       <section className="relative z-10 max-w-5xl mx-auto px-6 pb-24">
+        <div className="text-center mb-14">
+          <p className="text-sm font-bold text-green-600 uppercase tracking-wider mb-3">Everything you need</p>
+          <h2 className="text-3xl md:text-4xl font-extrabold text-n-900 tracking-tight">
+            Research made simple and beautiful
+          </h2>
+        </div>
+
         <div className="grid md:grid-cols-3 gap-6">
           {[
-            { icon: '🎯', title: 'Psychology-Driven', desc: 'Questions designed with behavioral science to maximize completion.' },
-            { icon: '📊', title: 'Real-Time Analytics', desc: 'Insights appear the moment responses come in. No waiting.' },
-            { icon: '🔒', title: 'Enterprise Security', desc: 'Multi-tenant isolation with row-level security. Zero data leaks.' },
-          ].map((f, i) => (
-            <div key={i} className="card-interactive p-6 animate-enter" style={{animationDelay:`${0.3+i*0.1}s`}}>
-              <span className="text-2xl mb-4 block">{f.icon}</span>
-              <h3 className="text-base font-semibold text-txt mb-2">{f.title}</h3>
-              <p className="text-sm text-txt-secondary leading-relaxed">{f.desc}</p>
+            { emoji:'🎯', title:'Smart Surveys', desc:'11 question types, conditional logic, and auto-save that never loses a response.' },
+            { emoji:'👥', title:'Team Workspace', desc:'Multi-tenant isolation with roles. Every organization gets its own secure space.' },
+            { emoji:'📊', title:'Live Analytics', desc:'Charts, trends, and CSV export. See insights the moment responses land.' },
+          ].map((f,i) => (
+            <div key={i} className="card p-7 hover:shadow-card-hover hover:-translate-y-1 transition-all duration-300 animate-in" style={{animationDelay:`${0.2+i*0.1}s`}}>
+              <span className="text-3xl block mb-4">{f.emoji}</span>
+              <h3 className="text-lg font-bold text-n-900 mb-2">{f.title}</h3>
+              <p className="text-sm text-n-500 leading-relaxed">{f.desc}</p>
             </div>
           ))}
         </div>
       </section>
 
-      <footer className="relative z-10 border-t border-border py-6 px-6 text-center text-xs text-txt-tertiary">
-        © {new Date().getFullYear()} Nexora Survey. All rights reserved.
-      </footer>
+      {/* CTA — dark section (Yellow Slice-inspired) */}
+      <section className="relative z-10 bg-n-900 rounded-t-[32px]">
+        <div className="max-w-4xl mx-auto px-6 py-20 text-center">
+          <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight mb-5">
+            Ready to understand your users?
+          </h2>
+          <p className="text-n-400 text-lg mb-8 max-w-md mx-auto">
+            Start creating surveys in minutes. No credit card, no commitment.
+          </p>
+          <Link to="/register" className="btn-green-lg">
+            Get started — it's free <HiOutlineArrowRight className="w-5 h-5" />
+          </Link>
+        </div>
+        <div className="border-t border-n-800 py-6 px-6 text-center text-sm text-n-600">
+          © {new Date().getFullYear()} Nexora Survey
+        </div>
+      </section>
     </div>
   );
 }
