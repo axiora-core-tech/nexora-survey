@@ -86,7 +86,7 @@ export default function Register() {
       <div className="flex-1 flex items-center justify-center px-6 py-12 bg-canvas">
         <div className="w-full max-w-[400px]">
           <div className="lg:hidden flex items-center gap-2.5 mb-10">
-            <div className="logo-mark"><HiOutlineSparkles className="w-5 h-5 text-white" /></div>
+            <div className="w-9 h-9 rounded-xl bg-pri-600 flex items-center justify-center"><HiOutlineSparkles className="w-5 h-5 text-white" /></div>
             <span className="text-xl font-display font-bold text-ink-900 tracking-tight">Nexora</span>
           </div>
 
@@ -97,28 +97,28 @@ export default function Register() {
             <div>
               <label className="input-label">Your Name</label>
               <div className="relative">
-                <HiOutlineUser className="input-icon" />
+                <HiOutlineUser className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" />
                 <input type="text" value={form.fullName} onChange={(e) => updateField('fullName', e.target.value)} className="input-field pl-11" placeholder="Jane Smith" />
               </div>
             </div>
             <div>
               <label className="input-label">Work Email</label>
               <div className="relative">
-                <HiOutlineMail className="input-icon" />
+                <HiOutlineMail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" />
                 <input type="email" value={form.email} onChange={(e) => updateField('email', e.target.value)} className="input-field pl-11" placeholder="jane@company.com" />
               </div>
             </div>
             <div>
               <label className="input-label">Password</label>
               <div className="relative">
-                <HiOutlineLockClosed className="input-icon" />
+                <HiOutlineLockClosed className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" />
                 <input type="password" value={form.password} onChange={(e) => updateField('password', e.target.value)} className="input-field pl-11" placeholder="Min. 6 characters" />
               </div>
             </div>
             <div>
               <label className="input-label">Organization Name</label>
               <div className="relative">
-                <HiOutlineOfficeBuilding className="input-icon" />
+                <HiOutlineOfficeBuilding className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" />
                 <input type="text" value={form.tenantName} onChange={(e) => updateField('tenantName', e.target.value)} className="input-field pl-11" placeholder="Acme Inc." />
               </div>
             </div>

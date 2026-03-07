@@ -2,14 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import useAuthStore from '../hooks/useAuth';
-import { formatDate, formatDateTime, SURVEY_STATUS } from '../lib/constants';
-import { HiOutlineArrowLeft, HiOutlineDownload, HiOutlineUsers, HiOutlineCheckCircle, HiOutlineClock, HiOutlineChartBar } from 'react-icons/hi';
+import { formatDateTime } from '../lib/constants';
+import { HiOutlineArrowLeft, HiOutlineDownload } from 'react-icons/hi';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Filler } from 'chart.js';
 import { Doughnut, Bar, Line } from 'react-chartjs-2';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Filler);
-
-const chartColors = ['#8b5cf6', '#f97316', '#51cf66', '#ff6b6b', '#845ef7', '#20c997', '#fcc419', '#339af0', '#f06595', '#a9e34b'];
+const colors = ['#8b5cf6','#f97316','#10b981','#f43f5e','#6366f1','#14b8a6','#eab308','#3b82f6','#ec4899','#84cc16'];
 
 export default function SurveyAnalytics() {
   const { id } = useParams();
@@ -20,343 +19,123 @@ export default function SurveyAnalytics() {
   const [answers, setAnswers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { loadAnalytics(); }, [id]);
+  useEffect(() => { if (profile?.id) load(); }, [id, profile?.id]);
 
-  async function loadAnalytics() {
+  async function load() {
     try {
       const { data: s } = await supabase.from('surveys').select('*').eq('id', id).single();
       setSurvey(s);
-
       const { data: qs } = await supabase.from('survey_questions').select('*').eq('survey_id', id).order('sort_order');
-      setQuestions(qs || []);
-
+      setQuestions(qs||[]);
       const { data: rs } = await supabase.from('survey_responses').select('*').eq('survey_id', id).order('started_at');
-      setResponses(rs || []);
-
-      // Get all answers for this survey's responses
-      if (rs && rs.length > 0) {
-        const responseIds = rs.map((r) => r.id);
-        const { data: ans } = await supabase.from('survey_answers').select('*').in('response_id', responseIds);
-        setAnswers(ans || []);
+      setResponses(rs||[]);
+      if (rs?.length) {
+        const { data: ans } = await supabase.from('survey_answers').select('*').in('response_id', rs.map(r=>r.id));
+        setAnswers(ans||[]);
       }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
+    } catch(e) { console.error(e); } finally { setLoading(false); }
   }
 
-  // Compute stats
-  const totalResponses = responses.length;
-  const completedResponses = responses.filter((r) => r.status === 'completed').length;
-  const inProgressResponses = responses.filter((r) => r.status === 'in_progress').length;
-  const completionRate = totalResponses > 0 ? Math.round((completedResponses / totalResponses) * 100) : 0;
-  const avgTime = responses
-    .filter((r) => r.completed_at && r.started_at)
-    .reduce((acc, r, _, arr) => {
-      const seconds = (new Date(r.completed_at) - new Date(r.started_at)) / 1000;
-      return acc + seconds / arr.length;
-    }, 0);
+  const total = responses.length;
+  const completed = responses.filter(r=>r.status==='completed').length;
+  const rate = total ? Math.round((completed/total)*100) : 0;
 
-  // Responses over time (by day)
-  const responsesByDay = {};
-  responses.forEach((r) => {
-    const day = new Date(r.started_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    responsesByDay[day] = (responsesByDay[day] || 0) + 1;
-  });
-
-  const timeChartData = {
-    labels: Object.keys(responsesByDay),
-    datasets: [{
-      label: 'Responses',
-      data: Object.values(responsesByDay),
-      borderColor: '#8b5cf6',
-      backgroundColor: 'rgba(139, 92, 246, 0.1)',
-      fill: true,
-      tension: 0.4,
-      pointRadius: 4,
-      pointBackgroundColor: '#8b5cf6',
-    }],
-  };
-
-  // Per-question analytics
-  function getQuestionAnalytics(question) {
-    const qAnswers = answers.filter((a) => a.question_id === question.id);
-    if (qAnswers.length === 0) return null;
-
-    switch (question.question_type) {
-      case 'single_choice':
-      case 'dropdown':
-      case 'yes_no': {
-        const counts = {};
-        qAnswers.forEach((a) => {
-          const val = a.answer_value || 'No answer';
-          counts[val] = (counts[val] || 0) + 1;
-        });
-        return {
-          type: 'doughnut',
-          data: {
-            labels: Object.keys(counts).map((k) => {
-              const opt = (question.options || []).find((o) => o.value === k);
-              return opt?.label || k;
-            }),
-            datasets: [{
-              data: Object.values(counts),
-              backgroundColor: chartColors.slice(0, Object.keys(counts).length),
-              borderWidth: 0,
-              hoverOffset: 8,
-            }],
-          },
-          total: qAnswers.length,
-        };
-      }
-
-      case 'multiple_choice': {
-        const counts = {};
-        qAnswers.forEach((a) => {
-          const vals = a.answer_json || [];
-          vals.forEach((v) => { counts[v] = (counts[v] || 0) + 1; });
-        });
-        return {
-          type: 'bar',
-          data: {
-            labels: Object.keys(counts).map((k) => {
-              const opt = (question.options || []).find((o) => o.value === k);
-              return opt?.label || k;
-            }),
-            datasets: [{
-              data: Object.values(counts),
-              backgroundColor: chartColors.slice(0, Object.keys(counts).length),
-              borderRadius: 8,
-              barThickness: 32,
-            }],
-          },
-          total: qAnswers.length,
-        };
-      }
-
-      case 'rating':
-      case 'scale': {
-        const vals = qAnswers.map((a) => parseInt(a.answer_value) || 0).filter(Boolean);
-        const avg = vals.length > 0 ? (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(1) : 0;
-        const max = question.question_type === 'rating' ? 5 : 10;
-        const distribution = {};
-        for (let i = 1; i <= max; i++) distribution[i] = 0;
-        vals.forEach((v) => { if (distribution[v] !== undefined) distribution[v]++; });
-        return {
-          type: 'bar',
-          data: {
-            labels: Object.keys(distribution),
-            datasets: [{
-              data: Object.values(distribution),
-              backgroundColor: Object.keys(distribution).map((_, i) => chartColors[i % chartColors.length]),
-              borderRadius: 6,
-              barThickness: 24,
-            }],
-          },
-          average: avg,
-          total: vals.length,
-        };
-      }
-
-      case 'short_text':
-      case 'long_text':
-      case 'email':
-      case 'number':
-      case 'date': {
-        return {
-          type: 'text',
-          responses: qAnswers.map((a) => a.answer_value).filter(Boolean),
-          total: qAnswers.length,
-        };
-      }
-
-      default:
-        return null;
+  function getQA(q) {
+    const qa = answers.filter(a=>a.question_id===q.id);
+    if (!qa.length) return null;
+    if (['single_choice','dropdown','yes_no'].includes(q.question_type)) {
+      const c = {}; qa.forEach(a => { const v=a.answer_value||'—'; c[v]=(c[v]||0)+1; });
+      return { type:'doughnut', data:{ labels:Object.keys(c).map(k=>(q.options||[]).find(o=>o.value===k)?.label||k), datasets:[{data:Object.values(c),backgroundColor:colors.slice(0,Object.keys(c).length),borderWidth:0}] }, total:qa.length };
     }
+    if (q.question_type==='multiple_choice') {
+      const c = {}; qa.forEach(a=>(a.answer_json||[]).forEach(v=>{c[v]=(c[v]||0)+1;}));
+      return { type:'bar', data:{ labels:Object.keys(c).map(k=>(q.options||[]).find(o=>o.value===k)?.label||k), datasets:[{data:Object.values(c),backgroundColor:colors.slice(0,Object.keys(c).length),borderRadius:6,barThickness:28}] }, total:qa.length };
+    }
+    if (['rating','scale'].includes(q.question_type)) {
+      const vals=qa.map(a=>parseInt(a.answer_value)||0).filter(Boolean); const avg=vals.length?(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1):0;
+      const max=q.question_type==='rating'?5:10; const dist={}; for(let i=1;i<=max;i++)dist[i]=0; vals.forEach(v=>{if(dist[v]!==undefined)dist[v]++;});
+      return { type:'bar', data:{ labels:Object.keys(dist), datasets:[{data:Object.values(dist),backgroundColor:colors,borderRadius:4,barThickness:20}] }, avg, total:vals.length };
+    }
+    return { type:'text', items:qa.map(a=>a.answer_value).filter(Boolean), total:qa.length };
   }
 
-  // Export CSV
   function exportCSV() {
-    const headers = ['Response ID', 'Status', 'Email', 'Started', 'Completed', ...questions.map((q) => q.question_text)];
-    const rows = responses.map((r) => {
-      const rAnswers = answers.filter((a) => a.response_id === r.id);
-      return [
-        r.id,
-        r.status,
-        r.respondent_email || '',
-        r.started_at,
-        r.completed_at || '',
-        ...questions.map((q) => {
-          const ans = rAnswers.find((a) => a.question_id === q.id);
-          return ans?.answer_value || (ans?.answer_json ? JSON.stringify(ans.answer_json) : '');
-        }),
-      ];
+    const h = ['#','Status','Email','Started','Completed',...questions.map(q=>q.question_text)];
+    const rows = responses.map((r,i) => {
+      const ra = answers.filter(a=>a.response_id===r.id);
+      return [i+1,r.status,r.respondent_email||'',r.started_at,r.completed_at||'',...questions.map(q=>{ const a=ra.find(x=>x.question_id===q.id); return a?.answer_value||(a?.answer_json?JSON.stringify(a.answer_json):''); })];
     });
-
-    const csv = [headers, ...rows].map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${survey?.title || 'survey'}-responses.csv`;
-    a.click();
+    const csv = [h,...rows].map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'})); a.download = `${survey?.title||'survey'}-responses.csv`; a.click();
   }
 
-  if (loading) return <div className="text-center py-20 text-ink-400">Loading analytics...</div>;
-  if (!survey) return <div className="text-center py-20 text-ink-400">Survey not found</div>;
+  const opts = { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false},tooltip:{cornerRadius:6}} };
 
-  const chartOpts = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: { legend: { display: false }, tooltip: { cornerRadius: 8 } },
-  };
+  if (loading) return <div className="text-center py-20 text-ink-400 text-sm">Loading...</div>;
+  if (!survey) return <div className="text-center py-20 text-ink-400 text-sm">Not found</div>;
 
   return (
-    <div className="animate-enter">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <div>
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <Link to={`/surveys/${id}/edit`} className="text-sm text-pri-600 hover:text-pri-700 flex items-center gap-1 mb-2">
-            <HiOutlineArrowLeft className="w-4 h-4" /> Back to Survey
-          </Link>
-          <h1 className="page-title flex items-center gap-3">
-            <HiOutlineChartBar className="w-7 h-7 text-pri-500" />
-            {survey.title}
-          </h1>
-          <p className="text-ink-500 mt-1">Response analytics and insights</p>
+          <Link to={`/surveys/${id}/edit`} className="text-xs text-ink-400 hover:text-ink-700 flex items-center gap-1 mb-1"><HiOutlineArrowLeft className="w-3 h-3"/>Back</Link>
+          <h1 className="page-title">{survey.title}</h1>
         </div>
-        <button onClick={exportCSV} className="btn-secondary">
-          <HiOutlineDownload className="w-4 h-4" /> Export CSV
-        </button>
+        <button onClick={exportCSV} className="btn-secondary text-xs"><HiOutlineDownload className="w-3.5 h-3.5"/>Export CSV</button>
       </div>
 
-      {/* Summary stats */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        {[
-          { label: 'Total Responses', value: totalResponses, icon: HiOutlineUsers, color: 'bg-pri-50 text-pri-600 ring-1 ring-pri-100' },
-          { label: 'Completed', value: completedResponses, icon: HiOutlineCheckCircle, color: 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100' },
-          { label: 'Completion Rate', value: `${completionRate}%`, icon: HiOutlineChartBar, color: 'bg-acc-50 text-acc-600 ring-1 ring-acc-100' },
-          { label: 'Avg. Time', value: avgTime > 0 ? `${Math.round(avgTime / 60)}m` : '—', icon: HiOutlineClock, color: 'bg-purple-50 text-purple-600 ring-1 ring-purple-100' },
-        ].map((stat, i) => (
-          <div key={i} className="stat-card">
-            <div className={`w-10 h-10 rounded-xl border flex items-center justify-center mb-3 ${stat.color}`}>
-              <stat.icon className="w-5 h-5" />
-            </div>
-            <span className="stat-value">{stat.value}</span>
-            <span className="stat-label">{stat.label}</span>
+      <div className="grid grid-cols-3 gap-4 mb-8">
+        {[{l:'Responses',v:total,c:'text-pri-600'},{l:'Completed',v:completed,c:'text-emerald-600'},{l:'Rate',v:`${rate}%`,c:'text-acc-600'}].map((s,i)=>(
+          <div key={i} className="bg-white rounded-xl border border-ink-100 p-5">
+            <p className={`text-2xl font-display font-bold ${s.c}`}>{s.v}</p><p className="text-xs text-ink-400 mt-1">{s.l}</p>
           </div>
         ))}
       </div>
 
-      {/* Response trend */}
-      {Object.keys(responsesByDay).length > 1 && (
-        <div className="card p-6 mb-8">
-          <h3 className="section-title mb-4">Response Trend</h3>
-          <div className="h-[200px]">
-            <Line data={timeChartData} options={{ ...chartOpts, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }} />
-          </div>
-        </div>
-      )}
-
-      {/* Per-question breakdown */}
-      <h2 className="section-title mb-4">Question Breakdown</h2>
-      <div className="space-y-6">
-        {questions.map((q, idx) => {
-          const analytics = getQuestionAnalytics(q);
+      <h2 className="text-sm font-semibold text-ink-500 mb-4">Question Breakdown</h2>
+      <div className="space-y-4">
+        {questions.map((q,idx) => {
+          const a = getQA(q);
           return (
-            <div key={q.id} className="card p-6">
-              <div className="flex items-start gap-3 mb-4">
-                <span className="w-7 h-7 rounded-lg bg-pri-50 border ring-1 ring-pri-100 flex items-center justify-center text-xs font-bold text-pri-600 flex-shrink-0">
-                  {idx + 1}
-                </span>
-                <div>
-                  <h4 className="font-semibold text-ink-800">{q.question_text}</h4>
-                  <p className="text-xs text-ink-400 mt-0.5">{analytics?.total || 0} responses</p>
-                </div>
+            <div key={q.id} className="bg-white rounded-xl border border-ink-100 p-6">
+              <div className="flex items-start gap-2 mb-4">
+                <span className="text-xs font-bold text-ink-300 mt-0.5">{idx+1}.</span>
+                <div><p className="text-sm font-semibold text-ink-800">{q.question_text}</p><p className="text-[11px] text-ink-400">{a?.total||0} responses</p></div>
               </div>
-
-              {!analytics ? (
-                <p className="text-sm text-ink-400 italic">No responses yet</p>
-              ) : analytics.type === 'doughnut' ? (
-                <div className="flex items-center gap-8">
-                  <div className="w-[160px] h-[160px]">
-                    <Doughnut data={analytics.data} options={{ ...chartOpts, cutout: '65%' }} />
-                  </div>
-                  <div className="flex-1 space-y-2">
-                    {analytics.data.labels.map((label, i) => (
-                      <div key={i} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 rounded-full" style={{ backgroundColor: chartColors[i] }} />
-                          <span className="text-sm text-ink-700">{label}</span>
-                        </div>
-                        <span className="text-sm font-semibold text-ink-600">
-                          {analytics.data.datasets[0].data[i]} ({Math.round((analytics.data.datasets[0].data[i] / analytics.total) * 100)}%)
-                        </span>
-                      </div>
-                    ))}
-                  </div>
+              {!a ? <p className="text-xs text-ink-300 italic">No responses</p> :
+               a.type==='doughnut' ? (
+                <div className="flex items-center gap-6"><div className="w-[140px] h-[140px]"><Doughnut data={a.data} options={{...opts,cutout:'65%'}}/></div>
+                  <div className="space-y-1.5 flex-1">{a.data.labels.map((l,i)=>(<div key={i} className="flex items-center justify-between"><div className="flex items-center gap-2"><div className="w-2.5 h-2.5 rounded-full" style={{backgroundColor:colors[i]}}/><span className="text-xs text-ink-600">{l}</span></div><span className="text-xs font-semibold text-ink-500">{a.data.datasets[0].data[i]}</span></div>))}</div>
                 </div>
-              ) : analytics.type === 'bar' ? (
-                <div>
-                  {analytics.average && (
-                    <p className="text-sm text-ink-500 mb-3">Average: <span className="font-bold text-ink-800 text-lg">{analytics.average}</span></p>
-                  )}
-                  <div className="h-[180px]">
-                    <Bar data={analytics.data} options={{ ...chartOpts, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { grid: { display: false } } } }} />
-                  </div>
-                </div>
-              ) : analytics.type === 'text' ? (
-                <div className="max-h-48 overflow-y-auto space-y-2">
-                  {analytics.responses.slice(0, 20).map((resp, i) => (
-                    <div key={i} className="text-sm text-ink-700 bg-canvas rounded-lg px-3 py-2">
-                      {resp}
-                    </div>
-                  ))}
-                  {analytics.responses.length > 20 && (
-                    <p className="text-xs text-ink-400">...and {analytics.responses.length - 20} more</p>
-                  )}
-                </div>
-              ) : null}
+               ) : a.type==='bar' ? (
+                <div>{a.avg && <p className="text-xs text-ink-400 mb-2">Average: <span className="font-bold text-ink-700 text-base">{a.avg}</span></p>}<div className="h-[160px]"><Bar data={a.data} options={{...opts,scales:{y:{beginAtZero:true,ticks:{stepSize:1}},x:{grid:{display:false}}}}}/></div></div>
+               ) : (
+                <div className="max-h-40 overflow-y-auto space-y-1">{a.items.slice(0,20).map((r,i)=>(<div key={i} className="text-sm text-ink-600 bg-ink-50 rounded-lg px-3 py-1.5">{r}</div>))}{a.items.length>20&&<p className="text-[11px] text-ink-400">+{a.items.length-20} more</p>}</div>
+               )
+              }
             </div>
           );
         })}
       </div>
 
-      {/* Individual responses table */}
-      <div className="card p-6 mt-8">
-        <h3 className="section-title mb-4">Individual Responses</h3>
-        {responses.length === 0 ? (
-          <p className="text-sm text-ink-400">No responses yet.</p>
-        ) : (
+      {/* Responses table */}
+      <div className="bg-white rounded-xl border border-ink-100 p-6 mt-6">
+        <h3 className="text-sm font-semibold text-ink-500 mb-3">Individual Responses</h3>
+        {!responses.length ? <p className="text-xs text-ink-300">None yet</p> : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-ink-200">
-                  <th className="text-left py-3 px-3 font-semibold text-ink-500">#</th>
-                  <th className="text-left py-3 px-3 font-semibold text-ink-500">Status</th>
-                  <th className="text-left py-3 px-3 font-semibold text-ink-500">Email</th>
-                  <th className="text-left py-3 px-3 font-semibold text-ink-500">Started</th>
-                  <th className="text-left py-3 px-3 font-semibold text-ink-500">Completed</th>
+              <thead><tr className="border-b border-ink-100">
+                {['#','Status','Email','Started','Completed'].map(h=><th key={h} className="text-left py-2 px-3 text-[11px] font-bold uppercase tracking-wider text-ink-400">{h}</th>)}
+              </tr></thead>
+              <tbody>{responses.slice(0,50).map((r,i)=>(
+                <tr key={r.id} className="border-b border-ink-50 hover:bg-ink-50/50">
+                  <td className="py-2 px-3 text-ink-400 text-xs">{i+1}</td>
+                  <td className="py-2 px-3"><span className={r.status==='completed'?'badge-active':r.status==='in_progress'?'badge bg-blue-50 text-blue-600':'badge-closed'}>{r.status}</span></td>
+                  <td className="py-2 px-3 text-ink-500 text-xs">{r.respondent_email||'—'}</td>
+                  <td className="py-2 px-3 text-ink-400 text-xs">{formatDateTime(r.started_at)}</td>
+                  <td className="py-2 px-3 text-ink-400 text-xs">{r.completed_at?formatDateTime(r.completed_at):'—'}</td>
                 </tr>
-              </thead>
-              <tbody>
-                {responses.slice(0, 50).map((r, i) => (
-                  <tr key={r.id} className="border-b border-ink-100 hover:bg-canvas">
-                    <td className="py-2.5 px-3 text-ink-400">{i + 1}</td>
-                    <td className="py-2.5 px-3">
-                      <span className={`badge text-[10px] border ${
-                        r.status === 'completed' ? 'badge-active' : r.status === 'in_progress' ? 'badge bg-blue-50 text-blue-600 border-blue-200' : 'badge-closed'
-                      }`}>
-                        {r.status}
-                      </span>
-                    </td>
-                    <td className="py-2.5 px-3 text-ink-600">{r.respondent_email || '—'}</td>
-                    <td className="py-2.5 px-3 text-ink-500">{formatDateTime(r.started_at)}</td>
-                    <td className="py-2.5 px-3 text-ink-500">{r.completed_at ? formatDateTime(r.completed_at) : '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
+              ))}</tbody>
             </table>
           </div>
         )}

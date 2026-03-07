@@ -4,441 +4,147 @@ import { supabase } from '../lib/supabase';
 import useAuthStore from '../hooks/useAuth';
 import { QUESTION_TYPES, generateUniqueSlug } from '../lib/constants';
 import toast from 'react-hot-toast';
-import {
-  HiOutlinePlusCircle, HiOutlineTrash, HiOutlineArrowUp, HiOutlineArrowDown,
-  HiOutlineSave, HiOutlineEye, HiOutlineCalendar, HiOutlineChevronDown, HiOutlineX
-} from 'react-icons/hi';
+import { HiOutlinePlus, HiOutlineTrash, HiOutlineArrowUp, HiOutlineArrowDown, HiOutlineX, HiOutlineSave, HiOutlineGlobe } from 'react-icons/hi';
 
-const emptyQuestion = () => ({
-  tempId: Math.random().toString(36).slice(2),
-  question_text: '',
-  question_type: 'short_text',
-  options: [],
-  is_required: false,
-  description: '',
-});
+const newQ = () => ({ _id: Math.random().toString(36).slice(2), question_text: '', question_type: 'short_text', options: [], is_required: false, description: '' });
+const hasOpts = t => ['single_choice','multiple_choice','dropdown'].includes(t);
 
 export default function SurveyCreate() {
   const { profile } = useAuthStore();
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
+  const [tab, setTab] = useState('details');
+  const [form, setForm] = useState({ title: '', description: '', welcome_message: '', thank_you_message: 'Thank you for completing this survey!', expires_at: '', theme_color: '#8b5cf6', allow_anonymous: true, require_email: false, show_progress_bar: true });
+  const [questions, setQuestions] = useState([newQ()]);
 
-  const [survey, setSurvey] = useState({
-    title: '',
-    description: '',
-    welcome_message: '',
-    thank_you_message: 'Thank you for completing this survey!',
-    expires_at: '',
-    allow_anonymous: true,
-    require_email: false,
-    show_progress_bar: true,
-    theme_color: '#8b5cf6',
-  });
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const setQ = (id, k, v) => setQuestions(qs => qs.map(q => q._id === id ? { ...q, [k]: v } : q));
+  const addQ = () => setQuestions(qs => [...qs, newQ()]);
+  const delQ = id => { if (questions.length <= 1) return toast.error('Need at least one question'); setQuestions(qs => qs.filter(q => q._id !== id)); };
+  const moveQ = (id, d) => setQuestions(qs => { const i = qs.findIndex(q => q._id === id); if ((d === -1 && i === 0) || (d === 1 && i === qs.length - 1)) return qs; const a = [...qs]; [a[i], a[i+d]] = [a[i+d], a[i]]; return a; });
+  const addOpt = id => setQuestions(qs => qs.map(q => q._id === id ? { ...q, options: [...(q.options||[]), {label:'',value:''}] } : q));
+  const setOpt = (id, i, v) => setQuestions(qs => qs.map(q => { if (q._id !== id) return q; const o = [...(q.options||[])]; o[i] = {label:v,value:v.toLowerCase().replace(/\s+/g,'_')}; return {...q,options:o}; }));
+  const delOpt = (id, i) => setQuestions(qs => qs.map(q => q._id !== id ? q : {...q, options: q.options.filter((_,j)=>j!==i)}));
 
-  const [questions, setQuestions] = useState([emptyQuestion()]);
-  const [activeTab, setActiveTab] = useState('details'); // details | questions | settings
-
-  const updateSurvey = (field, value) => setSurvey((s) => ({ ...s, [field]: value }));
-
-  const updateQuestion = (tempId, field, value) => {
-    setQuestions((qs) => qs.map((q) => (q.tempId === tempId ? { ...q, [field]: value } : q)));
-  };
-
-  const addQuestion = () => setQuestions((qs) => [...qs, emptyQuestion()]);
-
-  const removeQuestion = (tempId) => {
-    if (questions.length <= 1) return toast.error('Survey needs at least one question');
-    setQuestions((qs) => qs.filter((q) => q.tempId !== tempId));
-  };
-
-  const moveQuestion = (tempId, direction) => {
-    setQuestions((qs) => {
-      const idx = qs.findIndex((q) => q.tempId === tempId);
-      if ((direction === -1 && idx === 0) || (direction === 1 && idx === qs.length - 1)) return qs;
-      const newQs = [...qs];
-      [newQs[idx], newQs[idx + direction]] = [newQs[idx + direction], newQs[idx]];
-      return newQs;
-    });
-  };
-
-  const addOption = (tempId) => {
-    setQuestions((qs) =>
-      qs.map((q) =>
-        q.tempId === tempId
-          ? { ...q, options: [...(q.options || []), { label: '', value: '' }] }
-          : q
-      )
-    );
-  };
-
-  const updateOption = (tempId, optIdx, value) => {
-    setQuestions((qs) =>
-      qs.map((q) => {
-        if (q.tempId !== tempId) return q;
-        const opts = [...(q.options || [])];
-        opts[optIdx] = { label: value, value: value.toLowerCase().replace(/\s+/g, '_') };
-        return { ...q, options: opts };
-      })
-    );
-  };
-
-  const removeOption = (tempId, optIdx) => {
-    setQuestions((qs) =>
-      qs.map((q) => {
-        if (q.tempId !== tempId) return q;
-        return { ...q, options: q.options.filter((_, i) => i !== optIdx) };
-      })
-    );
-  };
-
-  const hasOptions = (type) => ['single_choice', 'multiple_choice', 'dropdown'].includes(type);
-
-  async function handleSave(status = 'draft') {
-    if (!survey.title.trim()) return toast.error('Survey title is required');
-    if (questions.some((q) => !q.question_text.trim())) return toast.error('All questions need text');
-    if (questions.some((q) => hasOptions(q.question_type) && (!q.options || q.options.length < 2))) {
-      return toast.error('Choice questions need at least 2 options');
-    }
-    if (!profile?.tenant_id) return toast.error('Session error. Please refresh and try again.');
+  async function save(status = 'draft') {
+    if (!form.title.trim()) return toast.error('Title is required');
+    if (questions.some(q => !q.question_text.trim())) return toast.error('All questions need text');
+    if (questions.some(q => hasOpts(q.question_type) && (!q.options || q.options.length < 2))) return toast.error('Choice questions need ≥2 options');
+    if (!profile?.tenant_id) return toast.error('Session error — refresh the page');
 
     setSaving(true);
     try {
-      // Generate unique slug
       const slug = await generateUniqueSlug(supabase);
-      console.log('Generated slug:', slug);
+      const { data: survey, error: sErr } = await supabase.from('surveys').insert({
+        title: form.title, description: form.description || null, welcome_message: form.welcome_message || null,
+        thank_you_message: form.thank_you_message || null, expires_at: form.expires_at || null,
+        allow_anonymous: form.allow_anonymous, require_email: form.require_email, show_progress_bar: form.show_progress_bar,
+        theme_color: form.theme_color, slug, status, tenant_id: profile.tenant_id, created_by: profile.id,
+      }).select().single();
+      if (sErr) throw sErr;
+      if (!survey) throw new Error('Survey not created');
 
-      // Build insert payload (only known columns, no spread of form state)
-      const insertPayload = {
-        title: survey.title,
-        description: survey.description || null,
-        welcome_message: survey.welcome_message || null,
-        thank_you_message: survey.thank_you_message || null,
-        expires_at: survey.expires_at || null,
-        allow_anonymous: survey.allow_anonymous,
-        require_email: survey.require_email,
-        show_progress_bar: survey.show_progress_bar,
-        theme_color: survey.theme_color,
-        slug,
-        status,
-        tenant_id: profile.tenant_id,
-        created_by: profile.id,
-      };
-
-      console.log('Creating survey:', insertPayload);
-
-      const { data: newSurvey, error: surveyErr } = await supabase
-        .from('surveys')
-        .insert(insertPayload)
-        .select()
-        .single();
-
-      console.log('Survey insert result:', { data: newSurvey, error: surveyErr });
-
-      if (surveyErr) throw surveyErr;
-      if (!newSurvey) throw new Error('Survey was not created. Check your permissions.');
-
-      // Insert questions
-      const questionInserts = questions.map((q, i) => ({
-        survey_id: newSurvey.id,
-        question_text: q.question_text,
-        question_type: q.question_type,
-        options: hasOptions(q.question_type) ? q.options : null,
-        is_required: q.is_required,
-        description: q.description || null,
-        sort_order: i,
-      }));
-
-      const { error: qErr } = await supabase.from('survey_questions').insert(questionInserts);
-      console.log('Questions insert result:', { error: qErr });
+      const { error: qErr } = await supabase.from('survey_questions').insert(
+        questions.map((q, i) => ({
+          survey_id: survey.id, question_text: q.question_text, question_type: q.question_type,
+          options: hasOpts(q.question_type) ? q.options : null, is_required: q.is_required,
+          description: q.description || null, sort_order: i,
+        }))
+      );
       if (qErr) throw qErr;
-
-      toast.success(status === 'active' ? 'Survey published!' : 'Survey saved as draft');
-      navigate(`/surveys/${newSurvey.id}/edit`);
-    } catch (err) {
-      console.error('Save survey error:', err);
-      toast.error(err.message || 'Failed to save survey');
-    } finally {
-      setSaving(false);
-    }
+      toast.success(status === 'active' ? 'Published!' : 'Saved as draft');
+      navigate(`/surveys/${survey.id}/edit`);
+    } catch (e) { console.error(e); toast.error(e.message || 'Failed to save'); }
+    finally { setSaving(false); }
   }
 
-  const tabs = [
-    { id: 'details', label: 'Details' },
-    { id: 'questions', label: `Questions (${questions.length})` },
-    { id: 'settings', label: 'Settings' },
-  ];
+  const tabs = [{id:'details',label:'Details'},{id:'questions',label:`Questions (${questions.length})`},{id:'settings',label:'Settings'}];
 
   return (
-    <div className="animate-enter max-w-4xl">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-          <h1 className="page-title">Create Survey</h1>
-          <p className="text-ink-500 mt-1">Design your survey and start collecting responses</p>
-        </div>
+    <div className="max-w-3xl">
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="page-title">New Survey</h1>
         <div className="flex gap-2">
-          <button onClick={() => handleSave('draft')} disabled={saving} className="btn-secondary">
-            <HiOutlineSave className="w-4 h-4" /> Save Draft
-          </button>
-          <button onClick={() => handleSave('active')} disabled={saving} className="btn-primary">
-            <HiOutlineEye className="w-4 h-4" /> Publish
-          </button>
+          <button onClick={() => save('draft')} disabled={saving} className="btn-secondary text-xs"><HiOutlineSave className="w-3.5 h-3.5" />Draft</button>
+          <button onClick={() => save('active')} disabled={saving} className="btn-primary text-xs"><HiOutlineGlobe className="w-3.5 h-3.5" />Publish</button>
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-ink-100 rounded-xl p-1 mb-6">
-        {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${
-              activeTab === tab.id
-                ? 'bg-white text-ink-900 shadow-sm'
-                : 'text-ink-500 hover:text-ink-700'
-            }`}
-          >
-            {tab.label}
+      <div className="flex gap-1 bg-ink-100 rounded-lg p-0.5 mb-6">
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)}
+            className={`flex-1 py-2 rounded-md text-xs font-medium transition-colors ${tab === t.id ? 'bg-white text-ink-900 shadow-xs' : 'text-ink-400 hover:text-ink-600'}`}>
+            {t.label}
           </button>
         ))}
       </div>
 
-      {/* Tab Content */}
-      {activeTab === 'details' && (
-        <div className="card p-6 space-y-5 animate-enter">
-          <div>
-            <label className="input-label">Survey Title *</label>
-            <input
-              type="text"
-              value={survey.title}
-              onChange={(e) => updateSurvey('title', e.target.value)}
-              className="input-field text-lg font-semibold"
-              placeholder="e.g., Customer Satisfaction Survey 2026"
-            />
-          </div>
-          <div>
-            <label className="input-label">Description</label>
-            <textarea
-              value={survey.description}
-              onChange={(e) => updateSurvey('description', e.target.value)}
-              className="input-field"
-              rows={3}
-              placeholder="Brief description of what this survey is about..."
-            />
-          </div>
-          <div>
-            <label className="input-label">Welcome Message</label>
-            <textarea
-              value={survey.welcome_message}
-              onChange={(e) => updateSurvey('welcome_message', e.target.value)}
-              className="input-field"
-              rows={2}
-              placeholder="Message shown to respondents before they start..."
-            />
-          </div>
-          <div>
-            <label className="input-label">Thank You Message</label>
-            <textarea
-              value={survey.thank_you_message}
-              onChange={(e) => updateSurvey('thank_you_message', e.target.value)}
-              className="input-field"
-              rows={2}
-              placeholder="Message shown after survey completion..."
-            />
-          </div>
-          <div className="grid sm:grid-cols-2 gap-5">
-            <div>
-              <label className="input-label">
-                <HiOutlineCalendar className="inline w-4 h-4 mr-1" />
-                Expiry Date
-              </label>
-              <input
-                type="datetime-local"
-                value={survey.expires_at}
-                onChange={(e) => updateSurvey('expires_at', e.target.value)}
-                className="input-field"
-              />
-            </div>
-            <div>
-              <label className="input-label">Theme Color</label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="color"
-                  value={survey.theme_color}
-                  onChange={(e) => updateSurvey('theme_color', e.target.value)}
-                  className="w-10 h-10 rounded-lg border border-ink-200 cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={survey.theme_color}
-                  onChange={(e) => updateSurvey('theme_color', e.target.value)}
-                  className="input-field flex-1"
-                />
-              </div>
+      {tab === 'details' && (
+        <div className="space-y-4 anim-enter">
+          <div><label className="input-label">Title *</label><input value={form.title} onChange={e => set('title', e.target.value)} className="input-field font-medium" placeholder="Customer Satisfaction Survey 2026" /></div>
+          <div><label className="input-label">Description</label><textarea value={form.description} onChange={e => set('description', e.target.value)} className="input-field" rows={2} placeholder="Brief description..." /></div>
+          <div><label className="input-label">Welcome Message</label><textarea value={form.welcome_message} onChange={e => set('welcome_message', e.target.value)} className="input-field" rows={2} placeholder="Shown before they start..." /></div>
+          <div><label className="input-label">Thank You Message</label><textarea value={form.thank_you_message} onChange={e => set('thank_you_message', e.target.value)} className="input-field" rows={2} /></div>
+          <div className="grid grid-cols-2 gap-4">
+            <div><label className="input-label">Expires</label><input type="datetime-local" value={form.expires_at} onChange={e => set('expires_at', e.target.value)} className="input-field text-sm" /></div>
+            <div><label className="input-label">Theme Color</label>
+              <div className="flex items-center gap-2"><input type="color" value={form.theme_color} onChange={e => set('theme_color', e.target.value)} className="w-9 h-9 rounded-lg border border-ink-200 cursor-pointer" /><input value={form.theme_color} onChange={e => set('theme_color', e.target.value)} className="input-field flex-1 font-mono text-sm" /></div>
             </div>
           </div>
         </div>
       )}
 
-      {activeTab === 'questions' && (
-        <div className="space-y-4 animate-enter">
+      {tab === 'questions' && (
+        <div className="space-y-3 anim-enter">
           {questions.map((q, idx) => (
-            <div key={q.tempId} className="card p-5">
-              {/* Question header */}
-              <div className="flex items-start justify-between gap-3 mb-4">
-                <div className="flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-lg bg-pri-50 border border-pri-100 flex items-center justify-center text-xs font-bold text-pri-600">
-                    {idx + 1}
-                  </span>
-                  <span className="text-xs font-medium text-ink-400 uppercase">
-                    {QUESTION_TYPES.find((t) => t.value === q.question_type)?.label || q.question_type}
-                  </span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => moveQuestion(q.tempId, -1)} className="btn-ghost p-1.5" disabled={idx === 0}>
-                    <HiOutlineArrowUp className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => moveQuestion(q.tempId, 1)} className="btn-ghost p-1.5" disabled={idx === questions.length - 1}>
-                    <HiOutlineArrowDown className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => removeQuestion(q.tempId)} className="btn-ghost p-1.5 text-red-500 hover:bg-red-50">
-                    <HiOutlineTrash className="w-4 h-4" />
-                  </button>
+            <div key={q._id} className="bg-white rounded-xl border border-ink-100 p-5">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-xs font-bold text-ink-400">{idx+1}.</span>
+                <div className="flex gap-0.5">
+                  <button onClick={() => moveQ(q._id,-1)} disabled={idx===0} className="btn-ghost p-1"><HiOutlineArrowUp className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => moveQ(q._id,1)} disabled={idx===questions.length-1} className="btn-ghost p-1"><HiOutlineArrowDown className="w-3.5 h-3.5" /></button>
+                  <button onClick={() => delQ(q._id)} className="btn-ghost p-1 text-red-500 hover:bg-red-50"><HiOutlineTrash className="w-3.5 h-3.5" /></button>
                 </div>
               </div>
-
-              {/* Question text */}
-              <input
-                type="text"
-                value={q.question_text}
-                onChange={(e) => updateQuestion(q.tempId, 'question_text', e.target.value)}
-                className="input-field mb-3 font-medium"
-                placeholder="Type your question here..."
-              />
-
-              {/* Helper text */}
-              <input
-                type="text"
-                value={q.description}
-                onChange={(e) => updateQuestion(q.tempId, 'description', e.target.value)}
-                className="input-field mb-3 text-sm"
-                placeholder="Optional helper text..."
-              />
-
-              {/* Question type selector */}
-              <div className="flex flex-wrap gap-3 mb-4">
-                <div className="flex-1 min-w-[200px]">
-                  <label className="input-label text-xs">Question Type</label>
-                  <select
-                    value={q.question_type}
-                    onChange={(e) => updateQuestion(q.tempId, 'question_type', e.target.value)}
-                    className="input-field"
-                  >
-                    {QUESTION_TYPES.map((t) => (
-                      <option key={t.value} value={t.value}>
-                        {t.icon} {t.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex items-end">
-                  <label className="flex items-center gap-2 px-4 py-3 bg-canvas rounded-xl cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={q.is_required}
-                      onChange={(e) => updateQuestion(q.tempId, 'is_required', e.target.checked)}
-                      className="w-4 h-4 rounded border-ink-300 text-pri-600 focus:ring-pri-500"
-                    />
-                    <span className="text-sm font-medium text-ink-600">Required</span>
-                  </label>
-                </div>
+              <input value={q.question_text} onChange={e => setQ(q._id,'question_text',e.target.value)} className="input-field mb-2 font-medium" placeholder="Your question..." />
+              <input value={q.description} onChange={e => setQ(q._id,'description',e.target.value)} className="input-field mb-3 text-sm" placeholder="Helper text (optional)" />
+              <div className="flex gap-3 items-center">
+                <select value={q.question_type} onChange={e => setQ(q._id,'question_type',e.target.value)} className="input-field flex-1 text-sm">
+                  {QUESTION_TYPES.map(t => <option key={t.value} value={t.value}>{t.icon} {t.label}</option>)}
+                </select>
+                <label className="flex items-center gap-2 text-xs text-ink-600 cursor-pointer whitespace-nowrap">
+                  <input type="checkbox" checked={q.is_required} onChange={e => setQ(q._id,'is_required',e.target.checked)} className="rounded border-ink-300 text-pri-600 w-3.5 h-3.5" />Required
+                </label>
               </div>
-
-              {/* Options for choice questions */}
-              {hasOptions(q.question_type) && (
-                <div className="space-y-2 mt-4 pl-4 border-l-2 border-pri-100">
-                  <p className="text-xs font-semibold text-ink-500 mb-2">OPTIONS</p>
-                  {(q.options || []).map((opt, optIdx) => (
-                    <div key={optIdx} className="flex items-center gap-2">
-                      <div className="w-5 h-5 rounded-full border-2 border-ink-300 flex-shrink-0" />
-                      <input
-                        type="text"
-                        value={opt.label}
-                        onChange={(e) => updateOption(q.tempId, optIdx, e.target.value)}
-                        className="input-field py-2 flex-1"
-                        placeholder={`Option ${optIdx + 1}`}
-                      />
-                      <button
-                        onClick={() => removeOption(q.tempId, optIdx)}
-                        className="btn-ghost p-1.5 text-red-400 hover:text-red-600"
-                      >
-                        <HiOutlineX className="w-4 h-4" />
-                      </button>
+              {hasOpts(q.question_type) && (
+                <div className="mt-3 pl-3 border-l-2 border-ink-100 space-y-1.5">
+                  {(q.options||[]).map((o,i) => (
+                    <div key={i} className="flex items-center gap-2">
+                      <span className="w-4 h-4 rounded-full border-2 border-ink-300 flex-shrink-0" />
+                      <input value={o.label} onChange={e => setOpt(q._id,i,e.target.value)} className="input-field py-1.5 flex-1 text-sm" placeholder={`Option ${i+1}`} />
+                      <button onClick={() => delOpt(q._id,i)} className="btn-ghost p-1 text-red-400"><HiOutlineX className="w-3 h-3" /></button>
                     </div>
                   ))}
-                  <button
-                    onClick={() => addOption(q.tempId)}
-                    className="text-sm font-medium text-pri-600 hover:text-pri-700 flex items-center gap-1 mt-2"
-                  >
-                    <HiOutlinePlusCircle className="w-4 h-4" /> Add Option
-                  </button>
+                  <button onClick={() => addOpt(q._id)} className="text-xs font-medium text-pri-600 hover:text-pri-700 flex items-center gap-1 mt-1"><HiOutlinePlus className="w-3 h-3" />Add option</button>
                 </div>
               )}
             </div>
           ))}
-
-          {/* Add question button */}
-          <button
-            onClick={addQuestion}
-            className="w-full py-4 border-2 border-dashed border-ink-300 rounded-2xl text-ink-500 hover:border-pri-400 hover:text-pri-600 transition-all flex items-center justify-center gap-2 font-medium"
-          >
-            <HiOutlinePlusCircle className="w-5 h-5" /> Add Question
+          <button onClick={addQ} className="w-full py-3 border-2 border-dashed border-ink-200 rounded-xl text-sm text-ink-400 hover:border-ink-400 hover:text-ink-600 transition-colors flex items-center justify-center gap-1.5">
+            <HiOutlinePlus className="w-4 h-4" />Add Question
           </button>
         </div>
       )}
 
-      {activeTab === 'settings' && (
-        <div className="card p-6 space-y-6 animate-enter">
-          <h3 className="section-title">Response Settings</h3>
-
-          <label className="flex items-center justify-between p-4 rounded-xl bg-canvas cursor-pointer group">
-            <div>
-              <p className="text-sm font-semibold text-ink-700">Allow Anonymous Responses</p>
-              <p className="text-xs text-ink-500">Respondents don't need to provide their identity</p>
-            </div>
-            <input
-              type="checkbox"
-              checked={survey.allow_anonymous}
-              onChange={(e) => updateSurvey('allow_anonymous', e.target.checked)}
-              className="w-5 h-5 rounded border-ink-300 text-pri-600 focus:ring-pri-500"
-            />
-          </label>
-
-          <label className="flex items-center justify-between p-4 rounded-xl bg-canvas cursor-pointer">
-            <div>
-              <p className="text-sm font-semibold text-ink-700">Require Email</p>
-              <p className="text-xs text-ink-500">Ask respondents for their email before starting</p>
-            </div>
-            <input
-              type="checkbox"
-              checked={survey.require_email}
-              onChange={(e) => updateSurvey('require_email', e.target.checked)}
-              className="w-5 h-5 rounded border-ink-300 text-pri-600 focus:ring-pri-500"
-            />
-          </label>
-
-          <label className="flex items-center justify-between p-4 rounded-xl bg-canvas cursor-pointer">
-            <div>
-              <p className="text-sm font-semibold text-ink-700">Show Progress Bar</p>
-              <p className="text-xs text-ink-500">Display completion progress to respondents</p>
-            </div>
-            <input
-              type="checkbox"
-              checked={survey.show_progress_bar}
-              onChange={(e) => updateSurvey('show_progress_bar', e.target.checked)}
-              className="w-5 h-5 rounded border-ink-300 text-pri-600 focus:ring-pri-500"
-            />
-          </label>
+      {tab === 'settings' && (
+        <div className="space-y-2 anim-enter">
+          {[{k:'allow_anonymous',l:'Anonymous Responses',d:'No identity needed'},{k:'require_email',l:'Require Email',d:'Ask before starting'},{k:'show_progress_bar',l:'Progress Bar',d:'Show completion %'}].map(s => (
+            <label key={s.k} className="flex items-center justify-between p-4 rounded-xl bg-white border border-ink-100 cursor-pointer hover:bg-ink-50/50 transition-colors">
+              <div><p className="text-sm font-medium text-ink-700">{s.l}</p><p className="text-xs text-ink-400">{s.d}</p></div>
+              <input type="checkbox" checked={form[s.k]} onChange={e => set(s.k, e.target.checked)} className="rounded border-ink-300 text-pri-600 w-4 h-4" />
+            </label>
+          ))}
         </div>
       )}
     </div>

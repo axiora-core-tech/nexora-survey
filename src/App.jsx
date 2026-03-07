@@ -2,8 +2,6 @@ import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import useAuthStore from './hooks/useAuth';
-
-// Pages
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
@@ -15,27 +13,14 @@ import SurveyAnalytics from './pages/SurveyAnalytics';
 import SurveyRespond from './pages/SurveyRespond';
 import TeamManagement from './pages/TeamManagement';
 import Settings from './pages/Settings';
-
-// Components
 import DashboardLayout from './components/DashboardLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 
-// Loading screen
-function LoadingScreen() {
+function Loader() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-canvas">
-      <div className="text-center">
-        <div className="inline-flex items-center gap-3 mb-5">
-          <div className="logo-mark">
-            <span className="text-white font-bold text-lg">N</span>
-          </div>
-          <span className="text-2xl font-display font-bold text-ink-900 tracking-tight">Nexora</span>
-        </div>
-        <div className="flex gap-1.5 justify-center">
-          <div className="w-2 h-2 rounded-full bg-pri-400 animate-pulse-soft" />
-          <div className="w-2 h-2 rounded-full bg-pri-400 animate-pulse-soft" style={{ animationDelay: '200ms' }} />
-          <div className="w-2 h-2 rounded-full bg-pri-400 animate-pulse-soft" style={{ animationDelay: '400ms' }} />
-        </div>
+      <div className="flex gap-1">
+        {[0,1,2].map(i => <div key={i} className="w-1.5 h-1.5 rounded-full bg-ink-300 animate-pulse" style={{animationDelay:`${i*150}ms`}}/>)}
       </div>
     </div>
   );
@@ -43,41 +28,20 @@ function LoadingScreen() {
 
 export default function App() {
   const { initialize, loading, initialized } = useAuthStore();
-
-  useEffect(() => {
-    initialize();
-  }, [initialize]);
-
-  if (!initialized || loading) return <LoadingScreen />;
+  useEffect(() => { initialize(); }, [initialize]);
+  if (!initialized || loading) return <Loader />;
 
   return (
     <>
-      <Toaster
-        position="top-right"
-        toastOptions={{
-          duration: 4000,
-          style: {
-            borderRadius: '14px',
-            background: '#1c1917',
-            color: '#fafaf9',
-            fontSize: '14px',
-            fontFamily: '"DM Sans", sans-serif',
-            padding: '12px 16px',
-            boxShadow: '0 8px 32px rgba(28,25,23,0.15)',
-          },
-        }}
-      />
-
+      <Toaster position="top-center" toastOptions={{ duration: 3500, style: {
+        borderRadius:'10px', background:'#1c1917', color:'#fafaf9', fontSize:'13px',
+        fontFamily:'"DM Sans",sans-serif', padding:'10px 16px', maxWidth:'420px',
+      }}} />
       <Routes>
-        {/* Public routes */}
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
-
-        {/* Public survey response */}
         <Route path="/s/:slug" element={<SurveyRespond />} />
-
-        {/* Protected dashboard routes */}
         <Route element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
@@ -89,8 +53,6 @@ export default function App() {
             <Route path="/settings" element={<Settings />} />
           </Route>
         </Route>
-
-        {/* Catch all */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

@@ -3,224 +3,121 @@ import { supabase } from '../lib/supabase';
 import useAuthStore from '../hooks/useAuth';
 import { ROLE_LABELS, hasPermission } from '../lib/constants';
 import toast from 'react-hot-toast';
-import { HiOutlineUserAdd, HiOutlineTrash, HiOutlineUserGroup, HiOutlineMail } from 'react-icons/hi';
+import { HiOutlineUserAdd, HiOutlineTrash, HiOutlineMail, HiOutlineX } from 'react-icons/hi';
 
 export default function TeamManagement() {
   const { profile } = useAuthStore();
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showInvite, setShowInvite] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('viewer');
-  const [inviteName, setInviteName] = useState('');
+  const [invEmail, setInvEmail] = useState('');
+  const [invRole, setInvRole] = useState('viewer');
+  const [invName, setInvName] = useState('');
   const [inviting, setInviting] = useState(false);
 
-  useEffect(() => { loadMembers(); }, []);
+  useEffect(() => { if (profile?.id) load(); }, [profile?.id]);
 
-  async function loadMembers() {
-    try {
-      const { data, error } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .order('created_at');
-      if (error) throw error;
-      setMembers(data || []);
-    } catch (err) {
-      toast.error('Failed to load team members');
-    } finally {
-      setLoading(false);
-    }
+  async function load() {
+    const { data } = await supabase.from('user_profiles').select('*').order('created_at');
+    setMembers(data || []);
+    setLoading(false);
   }
 
-  async function handleInvite(e) {
+  async function invite(e) {
     e.preventDefault();
-    if (!inviteEmail) return toast.error('Email is required');
-
+    if (!invEmail) return toast.error('Email required');
     setInviting(true);
     try {
-      // Use server function to create user
       const res = await fetch('/.netlify/functions/invite-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: inviteEmail,
-          role: inviteRole,
-          fullName: inviteName,
-          tenantId: profile.tenant_id,
-          invitedBy: profile.id,
-        }),
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ email:invEmail, role:invRole, fullName:invName, tenantId:profile.tenant_id, invitedBy:profile.id }),
       });
-
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error || 'Failed to invite user');
-      }
-
-      toast.success(`Invitation sent to ${inviteEmail}`);
-      setShowInvite(false);
-      setInviteEmail('');
-      setInviteName('');
-      setInviteRole('viewer');
-      loadMembers();
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setInviting(false);
-    }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      toast.success(`Invited ${invEmail}`);
+      setShowInvite(false); setInvEmail(''); setInvName(''); setInvRole('viewer'); load();
+    } catch(e) { toast.error(e.message); }
+    finally { setInviting(false); }
   }
 
-  async function handleRoleChange(userId, newRole) {
-    if (userId === profile.id) return toast.error("You can't change your own role");
-    try {
-      const { error } = await supabase
-        .from('user_profiles')
-        .update({ role: newRole })
-        .eq('id', userId);
-      if (error) throw error;
-      toast.success('Role updated');
-      loadMembers();
-    } catch (err) {
-      toast.error('Failed to update role');
-    }
+  async function changeRole(uid, role) {
+    if (uid===profile.id) return toast.error("Can't change your own role");
+    const { error } = await supabase.from('user_profiles').update({role}).eq('id',uid);
+    if (error) return toast.error('Failed');
+    toast.success('Updated'); load();
   }
 
-  async function handleDeactivate(userId) {
-    if (userId === profile.id) return toast.error("You can't deactivate yourself");
-    if (!confirm('Deactivate this user? They will lose access.')) return;
-    try {
-      const { error } = await supabase
-        .from('user_profiles')
-        .update({ is_active: false })
-        .eq('id', userId);
-      if (error) throw error;
-      toast.success('User deactivated');
-      loadMembers();
-    } catch (err) {
-      toast.error('Failed');
-    }
+  async function deactivate(uid) {
+    if (uid===profile.id) return toast.error("Can't deactivate yourself");
+    if (!confirm('Deactivate this user?')) return;
+    const { error } = await supabase.from('user_profiles').update({is_active:false}).eq('id',uid);
+    if (error) return toast.error('Failed');
+    toast.success('Deactivated'); load();
   }
 
   const isAdmin = hasPermission(profile?.role, 'manage_team');
 
   return (
-    <div className="animate-enter">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <div>
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="page-title">Team Management</h1>
-          <p className="text-ink-500 mt-1">{members.length} member{members.length !== 1 ? 's' : ''} in your organization</p>
+          <h1 className="page-title">Team</h1>
+          <p className="text-sm text-ink-400 mt-1">{members.length} member{members.length!==1?'s':''}</p>
         </div>
-        {isAdmin && (
-          <button onClick={() => setShowInvite(true)} className="btn-primary">
-            <HiOutlineUserAdd className="w-5 h-5" /> Invite Member
-          </button>
-        )}
+        {isAdmin && <button onClick={()=>setShowInvite(true)} className="btn-primary"><HiOutlineUserAdd className="w-4 h-4"/>Invite</button>}
       </div>
 
-      {/* Role legend */}
-      <div className="flex flex-wrap gap-2 mb-6">
-        {Object.entries(ROLE_LABELS).map(([role, label]) => (
-          <span key={role} className={`badge role-${role}`}>
-            {label}
-          </span>
-        ))}
-      </div>
-
-      {/* Members list */}
       {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => <div key={i} className="h-16 bg-white rounded-2xl animate-pulse border border-ink-100" />)}
-        </div>
+        <div className="space-y-2">{[1,2,3].map(i=><div key={i} className="h-14 bg-ink-100 rounded-xl animate-pulse"/>)}</div>
       ) : (
-        <div className="space-y-3">
-          {members.map((member) => (
-            <div key={member.id} className={`card p-4 flex items-center gap-4 ${!member.is_active ? 'opacity-50' : ''}`}>
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pri-400 to-acc-400 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
-                {member.full_name?.charAt(0)?.toUpperCase() || member.email?.charAt(0)?.toUpperCase() || '?'}
+        <div className="bg-white rounded-2xl border border-ink-100 divide-y divide-ink-100">
+          {members.map(m => (
+            <div key={m.id} className={`flex items-center gap-3 px-5 py-3.5 ${!m.is_active?'opacity-40':''}`}>
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-pri-500 to-acc-400 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                {m.full_name?.[0]?.toUpperCase()||'?'}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <p className="text-sm font-semibold text-ink-800 truncate">
-                    {member.full_name || 'Unnamed'}
-                    {member.id === profile.id && <span className="text-xs text-pri-500 ml-1">(you)</span>}
-                  </p>
-                  {!member.is_active && <span className="badge text-[10px] bg-red-50 text-red-600 border border-red-200">Inactive</span>}
-                </div>
-                <p className="text-xs text-ink-400 truncate">{member.email}</p>
+                <p className="text-sm font-medium text-ink-800 truncate">
+                  {m.full_name||'Unnamed'}{m.id===profile.id && <span className="text-ink-400 ml-1">(you)</span>}
+                </p>
+                <p className="text-[11px] text-ink-400 truncate">{m.email}</p>
               </div>
-
-              <div className="flex items-center gap-3">
-                {isAdmin && member.id !== profile.id ? (
-                  <select
-                    value={member.role}
-                    onChange={(e) => handleRoleChange(member.id, e.target.value)}
-                    className="text-xs font-medium px-3 py-1.5 rounded-lg border border-ink-200 bg-white focus:outline-none focus:ring-2 focus:ring-pri-500/20"
-                  >
-                    {Object.entries(ROLE_LABELS).map(([val, label]) => (
-                      <option key={val} value={val}>{label}</option>
-                    ))}
-                  </select>
-                ) : (
-                  <span className={`badge role-${member.role}`}>
-                    {ROLE_LABELS[member.role] || member.role}
-                  </span>
-                )}
-
-                {isAdmin && member.id !== profile.id && member.is_active && (
-                  <button
-                    onClick={() => handleDeactivate(member.id)}
-                    className="btn-ghost p-2 text-red-400 hover:text-red-600 hover:bg-red-50"
-                    title="Deactivate"
-                  >
-                    <HiOutlineTrash className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
+              {isAdmin && m.id !== profile.id ? (
+                <select value={m.role} onChange={e=>changeRole(m.id,e.target.value)}
+                  className="text-xs font-medium px-2 py-1 rounded-lg border border-ink-200 bg-white focus:outline-none">
+                  {Object.entries(ROLE_LABELS).map(([v,l])=><option key={v} value={v}>{l}</option>)}
+                </select>
+              ) : (
+                <span className={`badge role-${m.role}`}>{ROLE_LABELS[m.role]||m.role}</span>
+              )}
+              {isAdmin && m.id !== profile.id && m.is_active && (
+                <button onClick={()=>deactivate(m.id)} className="btn-ghost p-1.5 text-red-400 hover:text-red-600"><HiOutlineTrash className="w-3.5 h-3.5"/></button>
+              )}
             </div>
           ))}
         </div>
       )}
 
-      {/* Invite modal */}
       {showInvite && (
-        <div className="fixed inset-0 bg-ink-950/25 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowInvite(false)}>
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 animate-scale-in" onClick={(e) => e.stopPropagation()}>
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-pri-50 border border-pri-100 flex items-center justify-center">
-                <HiOutlineUserAdd className="w-5 h-5 text-pri-600" />
-              </div>
-              <div>
-                <h3 className="section-title">Invite Team Member</h3>
-                <p className="text-xs text-ink-400">They'll receive an email to join your organization</p>
-              </div>
+        <div className="fixed inset-0 bg-ink-950/25 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={()=>setShowInvite(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 anim-enter" onClick={e=>e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h3 className="font-display font-semibold text-ink-900">Invite Member</h3>
+              <button onClick={()=>setShowInvite(false)} className="btn-ghost p-1"><HiOutlineX className="w-4 h-4"/></button>
             </div>
-
-            <form onSubmit={handleInvite} className="space-y-4">
-              <div>
-                <label className="input-label">Full Name</label>
-                <input type="text" value={inviteName} onChange={(e) => setInviteName(e.target.value)} className="input-field" placeholder="Jane Smith" />
+            <form onSubmit={invite} className="space-y-3">
+              <div><label className="input-label">Name</label><input value={invName} onChange={e=>setInvName(e.target.value)} className="input-field" placeholder="Jane Smith"/></div>
+              <div><label className="input-label">Email *</label>
+                <div className="relative"><HiOutlineMail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400"/><input type="email" value={invEmail} onChange={e=>setInvEmail(e.target.value)} className="input-field pl-10" placeholder="jane@company.com" required/></div>
               </div>
-              <div>
-                <label className="input-label">Email *</label>
-                <div className="relative">
-                  <HiOutlineMail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-ink-400" />
-                  <input type="email" value={inviteEmail} onChange={(e) => setInviteEmail(e.target.value)} className="input-field pl-11" placeholder="jane@company.com" required />
-                </div>
-              </div>
-              <div>
-                <label className="input-label">Role</label>
-                <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)} className="input-field">
-                  <option value="viewer">Viewer</option>
-                  <option value="creator">Creator</option>
-                  <option value="manager">Manager</option>
-                  <option value="admin">Admin</option>
+              <div><label className="input-label">Role</label>
+                <select value={invRole} onChange={e=>setInvRole(e.target.value)} className="input-field">
+                  <option value="viewer">Viewer</option><option value="creator">Creator</option><option value="manager">Manager</option><option value="admin">Admin</option>
                 </select>
               </div>
-              <div className="flex gap-3 pt-2">
-                <button type="button" onClick={() => setShowInvite(false)} className="btn-secondary flex-1">Cancel</button>
-                <button type="submit" disabled={inviting} className="btn-primary flex-1">
-                  {inviting ? 'Sending...' : 'Send Invite'}
-                </button>
+              <div className="flex gap-2 pt-2">
+                <button type="button" onClick={()=>setShowInvite(false)} className="btn-secondary flex-1 text-xs">Cancel</button>
+                <button type="submit" disabled={inviting} className="btn-primary flex-1 text-xs">{inviting?'Sending...':'Send Invite'}</button>
               </div>
             </form>
           </div>

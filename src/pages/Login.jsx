@@ -71,7 +71,7 @@ export default function Login() {
       <div className="flex-1 flex items-center justify-center px-6 py-12 bg-canvas">
         <div className="w-full max-w-[400px]">
           <div className="lg:hidden flex items-center gap-2.5 mb-10">
-            <div className="logo-mark"><HiOutlineSparkles className="w-5 h-5 text-white" /></div>
+            <div className="w-9 h-9 rounded-xl bg-pri-600 flex items-center justify-center"><HiOutlineSparkles className="w-5 h-5 text-white" /></div>
             <span className="text-xl font-display font-bold text-ink-900 tracking-tight">Nexora</span>
           </div>
 
@@ -82,7 +82,7 @@ export default function Login() {
             <div>
               <label className="input-label">Email</label>
               <div className="relative">
-                <HiOutlineMail className="input-icon" />
+                <HiOutlineMail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" />
                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
                   className="input-field pl-11" placeholder="you@company.com" autoComplete="email" />
               </div>
@@ -90,7 +90,7 @@ export default function Login() {
             <div>
               <label className="input-label">Password</label>
               <div className="relative">
-                <HiOutlineLockClosed className="input-icon" />
+                <HiOutlineLockClosed className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-ink-400" />
                 <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
                   className="input-field pl-11" placeholder="••••••••" autoComplete="current-password" />
               </div>

@@ -3,159 +3,61 @@ import { supabase } from '../lib/supabase';
 import useAuthStore from '../hooks/useAuth';
 import { hasPermission, ROLE_LABELS } from '../lib/constants';
 import toast from 'react-hot-toast';
-import { HiOutlineUser, HiOutlineOfficeBuilding, HiOutlineSave } from 'react-icons/hi';
+import { HiOutlineSave } from 'react-icons/hi';
 
 export default function Settings() {
   const { profile, tenant, updateProfile } = useAuthStore();
-  const [profileForm, setProfileForm] = useState({
-    full_name: profile?.full_name || '',
-  });
-  const [tenantForm, setTenantForm] = useState({
-    name: tenant?.name || '',
-    primary_color: tenant?.primary_color || '#8b5cf6',
-  });
-  const [savingProfile, setSavingProfile] = useState(false);
-  const [savingTenant, setSavingTenant] = useState(false);
+  const [pForm, setPForm] = useState({ full_name: profile?.full_name || '' });
+  const [tForm, setTForm] = useState({ name: tenant?.name || '', primary_color: tenant?.primary_color || '#8b5cf6' });
+  const [savingP, setSavingP] = useState(false);
+  const [savingT, setSavingT] = useState(false);
 
-  async function handleSaveProfile(e) {
-    e.preventDefault();
-    setSavingProfile(true);
-    try {
-      await updateProfile({ full_name: profileForm.full_name });
-      toast.success('Profile updated');
-    } catch (err) {
-      console.error('Save profile error:', err);
-      toast.error(err.message || 'Failed to update profile');
-    } finally {
-      setSavingProfile(false);
-    }
+  async function saveProfile(e) {
+    e.preventDefault(); setSavingP(true);
+    try { await updateProfile({ full_name: pForm.full_name }); toast.success('Profile updated'); }
+    catch(e) { console.error(e); toast.error(e.message || 'Failed'); }
+    finally { setSavingP(false); }
   }
 
-  async function handleSaveTenant(e) {
-    e.preventDefault();
-    if (!tenant?.id) return toast.error('Organization not loaded');
-    setSavingTenant(true);
+  async function saveTenant(e) {
+    e.preventDefault(); if (!tenant?.id) return toast.error('Org not loaded');
+    setSavingT(true);
     try {
-      const { data, error } = await supabase
-        .from('tenants')
-        .update({ name: tenantForm.name, primary_color: tenantForm.primary_color })
-        .eq('id', tenant.id)
-        .select()
-        .single();
-
-      console.log('Save tenant result:', { data, error });
-
+      const { data, error } = await supabase.from('tenants').update({ name: tForm.name, primary_color: tForm.primary_color }).eq('id', tenant.id).select().single();
       if (error) throw error;
-      if (!data) throw new Error('Update had no effect. You may need super_admin role to change organization settings.');
-
-      toast.success('Organization settings updated');
-    } catch (err) {
-      console.error('Save tenant error:', err);
-      toast.error(err.message || 'Failed to update organization');
-    } finally {
-      setSavingTenant(false);
-    }
+      if (!data) throw new Error('Update failed — need super_admin or admin role');
+      toast.success('Organization updated');
+    } catch(e) { console.error(e); toast.error(e.message || 'Failed'); }
+    finally { setSavingT(false); }
   }
 
   return (
-    <div className="animate-enter max-w-2xl">
+    <div className="max-w-lg">
       <h1 className="page-title mb-6">Settings</h1>
 
-      {/* Profile settings */}
-      <div className="card p-6 mb-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-pri-50 border border-pri-100 flex items-center justify-center">
-            <HiOutlineUser className="w-5 h-5 text-pri-600" />
-          </div>
-          <div>
-            <h2 className="section-title">Profile</h2>
-            <p className="text-xs text-ink-400">Your personal information</p>
-          </div>
-        </div>
-
-        <form onSubmit={handleSaveProfile} className="space-y-4">
-          <div>
-            <label className="input-label">Full Name</label>
-            <input
-              type="text"
-              value={profileForm.full_name}
-              onChange={(e) => setProfileForm((f) => ({ ...f, full_name: e.target.value }))}
-              className="input-field"
-            />
-          </div>
-          <div>
-            <label className="input-label">Email</label>
-            <input type="email" value={profile?.email || ''} disabled className="input-field bg-canvas text-ink-500 cursor-not-allowed" />
-            <p className="text-xs text-ink-400 mt-1">Email cannot be changed here</p>
-          </div>
-          <div>
-            <label className="input-label">Role</label>
-            <div className="input-field bg-canvas text-ink-500 cursor-not-allowed">
-              {ROLE_LABELS[profile?.role] || profile?.role}
-            </div>
-          </div>
-          <button type="submit" disabled={savingProfile} className="btn-primary">
-            <HiOutlineSave className="w-4 h-4" /> {savingProfile ? 'Saving...' : 'Save Profile'}
-          </button>
+      {/* Profile */}
+      <div className="bg-white rounded-2xl border border-ink-100 p-6 mb-6">
+        <h2 className="text-sm font-semibold text-ink-500 mb-4">Profile</h2>
+        <form onSubmit={saveProfile} className="space-y-3">
+          <div><label className="input-label">Full Name</label><input value={pForm.full_name} onChange={e=>setPForm({...pForm, full_name:e.target.value})} className="input-field"/></div>
+          <div><label className="input-label">Email</label><input value={profile?.email||''} disabled className="input-field bg-ink-50 text-ink-400 cursor-not-allowed"/></div>
+          <div><label className="input-label">Role</label><div className="input-field bg-ink-50 text-ink-400 cursor-not-allowed">{ROLE_LABELS[profile?.role]}</div></div>
+          <button type="submit" disabled={savingP} className="btn-primary text-xs"><HiOutlineSave className="w-3.5 h-3.5"/>{savingP?'Saving...':'Save Profile'}</button>
         </form>
       </div>
 
-      {/* Organization settings (admin only) */}
+      {/* Organization */}
       {hasPermission(profile?.role, 'manage_tenant') && (
-        <div className="card p-6">
-          <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-acc-50 border border-acc-100 flex items-center justify-center">
-              <HiOutlineOfficeBuilding className="w-5 h-5 text-acc-600" />
+        <div className="bg-white rounded-2xl border border-ink-100 p-6">
+          <h2 className="text-sm font-semibold text-ink-500 mb-4">Organization</h2>
+          <form onSubmit={saveTenant} className="space-y-3">
+            <div><label className="input-label">Name</label><input value={tForm.name} onChange={e=>setTForm({...tForm,name:e.target.value})} className="input-field"/></div>
+            <div><label className="input-label">Slug</label><div className="input-field bg-ink-50 text-ink-400 cursor-not-allowed font-mono text-sm">{tenant?.slug||'—'}</div></div>
+            <div><label className="input-label">Plan</label><div className="input-field bg-ink-50 text-ink-400 cursor-not-allowed capitalize">{tenant?.plan||'free'}</div></div>
+            <div><label className="input-label">Brand Color</label>
+              <div className="flex items-center gap-2"><input type="color" value={tForm.primary_color} onChange={e=>setTForm({...tForm,primary_color:e.target.value})} className="w-9 h-9 rounded-lg border border-ink-200 cursor-pointer"/><input value={tForm.primary_color} onChange={e=>setTForm({...tForm,primary_color:e.target.value})} className="input-field flex-1 font-mono text-sm"/></div>
             </div>
-            <div>
-              <h2 className="section-title">Organization</h2>
-              <p className="text-xs text-ink-400">Manage your organization settings</p>
-            </div>
-          </div>
-
-          <form onSubmit={handleSaveTenant} className="space-y-4">
-            <div>
-              <label className="input-label">Organization Name</label>
-              <input
-                type="text"
-                value={tenantForm.name}
-                onChange={(e) => setTenantForm((f) => ({ ...f, name: e.target.value }))}
-                className="input-field"
-              />
-            </div>
-            <div>
-              <label className="input-label">Slug</label>
-              <div className="input-field bg-canvas text-ink-500 cursor-not-allowed">
-                {tenant?.slug || '—'}
-              </div>
-              <p className="text-xs text-ink-400 mt-1">Organization URL cannot be changed</p>
-            </div>
-            <div>
-              <label className="input-label">Plan</label>
-              <div className="input-field bg-canvas text-ink-500 cursor-not-allowed capitalize">
-                {tenant?.plan || 'free'}
-              </div>
-            </div>
-            <div>
-              <label className="input-label">Brand Color</label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="color"
-                  value={tenantForm.primary_color}
-                  onChange={(e) => setTenantForm((f) => ({ ...f, primary_color: e.target.value }))}
-                  className="w-10 h-10 rounded-lg border border-ink-200 cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={tenantForm.primary_color}
-                  onChange={(e) => setTenantForm((f) => ({ ...f, primary_color: e.target.value }))}
-                  className="input-field flex-1"
-                />
-              </div>
-            </div>
-            <button type="submit" disabled={savingTenant} className="btn-primary">
-              <HiOutlineSave className="w-4 h-4" /> {savingTenant ? 'Saving...' : 'Save Organization'}
-            </button>
+            <button type="submit" disabled={savingT} className="btn-primary text-xs"><HiOutlineSave className="w-3.5 h-3.5"/>{savingT?'Saving...':'Save Organization'}</button>
           </form>
         </div>
       )}
