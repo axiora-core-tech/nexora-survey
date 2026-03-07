@@ -8,6 +8,32 @@ import {
 import { motion, AnimatePresence } from "framer-motion";
 import toast from "react-hot-toast";
 
+// ─── GLOBAL CSS (sonar dot + app tokens) ──────────────────────────────────────
+const APP_CSS = `
+  :root {
+    --coral: #FF4500; --coral-bright: #FF6B35; --saffron: #FFB800;
+    --terracotta: #D63B1F; --cream: #FDF5E8; --espresso: #160F08;
+    --espresso-mid: #2C1A0E; --blush: #FADDCA; --sage: #1E7A4A;
+    --cobalt: #0047FF; --warm-white: #FFFBF4;
+  }
+  .sonar-ring {
+    position: absolute; border-radius: 50%;
+    border: 1.5px solid var(--coral);
+    top: 50%; left: 50%;
+    width: 9px; height: 9px;
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+    animation: sonarRing 3s ease-out infinite;
+  }
+  .sonar-ring:nth-child(1) { animation-delay: 0s; }
+  .sonar-ring:nth-child(2) { animation-delay: 0.9s; }
+  .sonar-ring:nth-child(3) { animation-delay: 1.8s; }
+  @keyframes sonarRing {
+    0%   { transform: translate(-50%, -50%) scale(0); opacity: 0.8; }
+    100% { transform: translate(-50%, -50%) scale(5); opacity: 0; }
+  }
+`;
+
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const ROLES = { ADMIN: "admin", CREATOR: "creator", MANAGER: "manager" };
 const INACTIVITY_MS = 15 * 60 * 1000;
@@ -581,12 +607,10 @@ function LoginPage({ onLogin }) {
         {/* Content */}
         <div style={{ position: "relative", zIndex: 1 }}>
           {/* Logo */}
-          <div style={{ display: "flex", alignItems: "flex-start", marginBottom: 80 }}>
-            <div>
-              <span style={{ fontFamily: "Syne, sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(253,245,232,0.35)", display: "block", marginBottom: 3 }}>Nexora</span>
-              <span style={{ fontFamily: "Playfair Display, serif", fontSize: 28, fontWeight: 900, letterSpacing: "-1px", color: "var(--cream)", lineHeight: 1 }}>Pulse</span>
-            </div>
-            <div style={{ position: "relative", width: 9, height: 9, background: "var(--coral)", borderRadius: "50%", boxShadow: "0 0 10px rgba(255,69,0,0.55)", marginLeft: 10, marginTop: 5, flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 0, lineHeight: 1, marginBottom: 80 }}>
+            <span style={{ fontFamily: "Syne, sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(253,245,232,0.35)", marginRight: 8, position: "relative", top: -2 }}>Nexora</span>
+            <span style={{ fontFamily: "Playfair Display, serif", fontSize: 28, fontWeight: 900, letterSpacing: "-1px", color: "var(--cream)", lineHeight: 1 }}>Pulse</span>
+            <div style={{ position: "relative", width: 9, height: 9, background: "var(--coral)", borderRadius: "50%", boxShadow: "0 0 10px rgba(255,69,0,0.55)", alignSelf: "flex-start", marginTop: 5, marginLeft: 8, flexShrink: 0 }}>
               <div className="sonar-ring" /><div className="sonar-ring" /><div className="sonar-ring" />
             </div>
           </div>
@@ -1903,6 +1927,15 @@ const INIT_USERS = [
 
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
 export default function App() {
+  useEffect(() => {
+    if (!document.getElementById("app-styles")) {
+      const el = document.createElement("style");
+      el.id = "app-styles";
+      el.textContent = APP_CSS;
+      document.head.appendChild(el);
+    }
+  }, []);
+
   const [showLanding, setShowLanding] = useState(true);
   const [user, setUser] = useState(null);
   const [page, setPage] = useState("dashboard");
