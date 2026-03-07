@@ -17,9 +17,9 @@ export const ROLE_LABELS = {
 export const ROLE_COLORS = {
   super_admin: 'bg-purple-50 text-purple-700 border-purple-200',
   admin: 'bg-red-50 text-red-700 border-red-200',
-  manager: 'bg-nexora-50 text-nexora-700 border-nexora-200',
+  manager: 'bg-pri-50 text-pri-700 border-pri-200',
   creator: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  viewer: 'bg-surface-100 text-surface-600 border-surface-200',
+  viewer: 'bg-ink-100 text-ink-600 border-ink-200',
 };
 
 // Who can do what
@@ -56,7 +56,7 @@ export const QUESTION_TYPES = [
 export const SURVEY_STATUS = {
   draft: { label: 'Draft', class: 'badge-draft' },
   active: { label: 'Active', class: 'badge-active' },
-  paused: { label: 'Paused', class: 'badge bg-yellow-50 text-yellow-700 border border-yellow-200' },
+  paused: { label: 'Paused', class: 'badge-paused' },
   expired: { label: 'Expired', class: 'badge-expired' },
   closed: { label: 'Closed', class: 'badge-closed' },
 };

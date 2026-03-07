@@ -220,8 +220,8 @@ export default function SurveyEdit() {
     toast.success('Link copied!');
   }
 
-  if (loading) return <div className="text-center py-20 text-surface-400">Loading survey...</div>;
-  if (!survey) return <div className="text-center py-20 text-surface-400">Survey not found</div>;
+  if (loading) return <div className="text-center py-20 text-ink-400">Loading survey...</div>;
+  if (!survey) return <div className="text-center py-20 text-ink-400">Survey not found</div>;
 
   const tabs = [
     { id: 'details', label: 'Details' },
@@ -230,7 +230,7 @@ export default function SurveyEdit() {
   ];
 
   return (
-    <div className="animate-fade-in max-w-4xl">
+    <div className="animate-enter max-w-4xl">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
         <div>
@@ -240,13 +240,13 @@ export default function SurveyEdit() {
               {SURVEY_STATUS[survey.status]?.label || survey.status}
             </span>
           </div>
-          <div className="flex items-center gap-4 text-sm text-surface-400">
+          <div className="flex items-center gap-4 text-sm text-ink-400">
             {survey.expires_at && (
               <span className={isExpired(survey.expires_at) ? 'text-red-500 font-medium' : ''}>
                 {isExpired(survey.expires_at) ? 'Expired' : `Expires ${formatDate(survey.expires_at)}`}
               </span>
             )}
-            <button onClick={copyLink} className="flex items-center gap-1 hover:text-nexora-600 transition-colors">
+            <button onClick={copyLink} className="flex items-center gap-1 hover:text-pri-600 transition-colors">
               <HiOutlineLink className="w-4 h-4" /> Copy Link
             </button>
           </div>
@@ -281,13 +281,13 @@ export default function SurveyEdit() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-surface-100 rounded-xl p-1 mb-6">
+      <div className="flex gap-1 bg-ink-100 rounded-xl p-1 mb-6">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${
-              activeTab === tab.id ? 'bg-white text-surface-900 shadow-sm' : 'text-surface-500 hover:text-surface-700'
+              activeTab === tab.id ? 'bg-white text-ink-900 shadow-sm' : 'text-ink-500 hover:text-ink-700'
             }`}
           >
             {tab.label}
@@ -297,7 +297,7 @@ export default function SurveyEdit() {
 
       {/* Details tab */}
       {activeTab === 'details' && (
-        <div className="glass-card p-6 space-y-5 animate-fade-in">
+        <div className="card p-6 space-y-5 animate-enter">
           <div>
             <label className="input-label">Survey Title *</label>
             <input type="text" value={survey.title} onChange={(e) => updateSurvey('title', e.target.value)} className="input-field text-lg font-semibold" />
@@ -322,7 +322,7 @@ export default function SurveyEdit() {
             <div>
               <label className="input-label">Theme Color</label>
               <div className="flex items-center gap-3">
-                <input type="color" value={survey.theme_color || '#6366f1'} onChange={(e) => updateSurvey('theme_color', e.target.value)} className="w-10 h-10 rounded-lg border border-surface-200 cursor-pointer" />
+                <input type="color" value={survey.theme_color || '#8b5cf6'} onChange={(e) => updateSurvey('theme_color', e.target.value)} className="w-10 h-10 rounded-lg border border-ink-200 cursor-pointer" />
                 <input type="text" value={survey.theme_color || ''} onChange={(e) => updateSurvey('theme_color', e.target.value)} className="input-field flex-1" />
               </div>
             </div>
@@ -332,12 +332,12 @@ export default function SurveyEdit() {
 
       {/* Questions tab */}
       {activeTab === 'questions' && (
-        <div className="space-y-4 animate-fade-in">
+        <div className="space-y-4 animate-enter">
           {questions.map((q, idx) => (
-            <div key={q.tempId} className="glass-card p-5">
+            <div key={q.tempId} className="card p-5">
               <div className="flex items-start justify-between gap-3 mb-4">
                 <div className="flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-lg bg-nexora-50 border border-nexora-100 flex items-center justify-center text-xs font-bold text-nexora-600">{idx + 1}</span>
+                  <span className="w-7 h-7 rounded-lg bg-pri-50 border border-pri-100 flex items-center justify-center text-xs font-bold text-pri-600">{idx + 1}</span>
                 </div>
                 <div className="flex items-center gap-1">
                   <button onClick={() => moveQuestion(q.tempId, -1)} className="btn-ghost p-1.5" disabled={idx === 0}><HiOutlineArrowUp className="w-4 h-4" /></button>
@@ -353,28 +353,28 @@ export default function SurveyEdit() {
                     {QUESTION_TYPES.map((t) => <option key={t.value} value={t.value}>{t.icon} {t.label}</option>)}
                   </select>
                 </div>
-                <label className="flex items-center gap-2 px-4 py-3 bg-surface-50 rounded-xl cursor-pointer">
-                  <input type="checkbox" checked={q.is_required} onChange={(e) => updateQuestion(q.tempId, 'is_required', e.target.checked)} className="w-4 h-4 rounded border-surface-300 text-nexora-600" />
-                  <span className="text-sm font-medium text-surface-600">Required</span>
+                <label className="flex items-center gap-2 px-4 py-3 bg-canvas rounded-xl cursor-pointer">
+                  <input type="checkbox" checked={q.is_required} onChange={(e) => updateQuestion(q.tempId, 'is_required', e.target.checked)} className="w-4 h-4 rounded border-ink-300 text-pri-600" />
+                  <span className="text-sm font-medium text-ink-600">Required</span>
                 </label>
               </div>
               {hasOptions(q.question_type) && (
-                <div className="space-y-2 pl-4 border-l-2 border-nexora-100">
+                <div className="space-y-2 pl-4 border-l-2 border-pri-100">
                   {(q.options || []).map((opt, oi) => (
                     <div key={oi} className="flex items-center gap-2">
-                      <div className="w-5 h-5 rounded-full border-2 border-surface-300 flex-shrink-0" />
+                      <div className="w-5 h-5 rounded-full border-2 border-ink-300 flex-shrink-0" />
                       <input type="text" value={opt.label} onChange={(e) => updateOption(q.tempId, oi, e.target.value)} className="input-field py-2 flex-1" placeholder={`Option ${oi + 1}`} />
                       <button onClick={() => removeOption(q.tempId, oi)} className="btn-ghost p-1.5 text-red-400"><HiOutlineX className="w-4 h-4" /></button>
                     </div>
                   ))}
-                  <button onClick={() => addOption(q.tempId)} className="text-sm font-medium text-nexora-600 hover:text-nexora-700 flex items-center gap-1">
+                  <button onClick={() => addOption(q.tempId)} className="text-sm font-medium text-pri-600 hover:text-pri-700 flex items-center gap-1">
                     <HiOutlinePlusCircle className="w-4 h-4" /> Add Option
                   </button>
                 </div>
               )}
             </div>
           ))}
-          <button onClick={addQuestion} className="w-full py-4 border-2 border-dashed border-surface-300 rounded-2xl text-surface-500 hover:border-nexora-400 hover:text-nexora-600 transition-all flex items-center justify-center gap-2 font-medium">
+          <button onClick={addQuestion} className="w-full py-4 border-2 border-dashed border-ink-300 rounded-2xl text-ink-500 hover:border-pri-400 hover:text-pri-600 transition-all flex items-center justify-center gap-2 font-medium">
             <HiOutlinePlusCircle className="w-5 h-5" /> Add Question
           </button>
         </div>
@@ -382,18 +382,18 @@ export default function SurveyEdit() {
 
       {/* Settings tab */}
       {activeTab === 'settings' && (
-        <div className="glass-card p-6 space-y-4 animate-fade-in">
+        <div className="card p-6 space-y-4 animate-enter">
           {[
             { field: 'allow_anonymous', label: 'Allow Anonymous', desc: 'No identity needed' },
             { field: 'require_email', label: 'Require Email', desc: 'Ask for email first' },
             { field: 'show_progress_bar', label: 'Show Progress', desc: 'Display completion bar' },
           ].map((s) => (
-            <label key={s.field} className="flex items-center justify-between p-4 rounded-xl bg-surface-50 cursor-pointer">
+            <label key={s.field} className="flex items-center justify-between p-4 rounded-xl bg-canvas cursor-pointer">
               <div>
-                <p className="text-sm font-semibold text-surface-700">{s.label}</p>
-                <p className="text-xs text-surface-500">{s.desc}</p>
+                <p className="text-sm font-semibold text-ink-700">{s.label}</p>
+                <p className="text-xs text-ink-500">{s.desc}</p>
               </div>
-              <input type="checkbox" checked={survey[s.field]} onChange={(e) => updateSurvey(s.field, e.target.checked)} className="w-5 h-5 rounded border-surface-300 text-nexora-600" />
+              <input type="checkbox" checked={survey[s.field]} onChange={(e) => updateSurvey(s.field, e.target.checked)} className="w-5 h-5 rounded border-ink-300 text-pri-600" />
             </label>
           ))}
         </div>
@@ -401,26 +401,26 @@ export default function SurveyEdit() {
 
       {/* Share modal */}
       {shareModal && (
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShareModal(false)}>
-          <div className="bg-white rounded-2xl shadow-glass-lg w-full max-w-md p-6 animate-scale-in" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-ink-950/25 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShareModal(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 animate-scale-in" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
               <h3 className="section-title">Share Analytics</h3>
               <button onClick={() => setShareModal(false)} className="btn-ghost p-1.5"><HiOutlineX className="w-5 h-5" /></button>
             </div>
-            <p className="text-sm text-surface-500 mb-4">Share with team members in your organization only.</p>
+            <p className="text-sm text-ink-500 mb-4">Share with team members in your organization only.</p>
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {tenantUsers.filter((u) => u.id !== profile.id).map((user) => {
                 const isShared = shareUsers.some((s) => s.shared_with === user.id);
                 return (
-                  <div key={user.id} className="flex items-center justify-between p-3 rounded-xl bg-surface-50">
+                  <div key={user.id} className="flex items-center justify-between p-3 rounded-xl bg-canvas">
                     <div>
-                      <p className="text-sm font-medium text-surface-700">{user.full_name || user.email}</p>
-                      <p className="text-xs text-surface-400">{user.role}</p>
+                      <p className="text-sm font-medium text-ink-700">{user.full_name || user.email}</p>
+                      <p className="text-xs text-ink-400">{user.role}</p>
                     </div>
                     {isShared ? (
                       <span className="text-xs font-medium text-emerald-600">Shared</span>
                     ) : (
-                      <button onClick={() => handleShare(user.id)} className="text-xs font-medium text-nexora-600 hover:text-nexora-700">
+                      <button onClick={() => handleShare(user.id)} className="text-xs font-medium text-pri-600 hover:text-pri-700">
                         Share
                       </button>
                     )}

@@ -23,18 +23,18 @@ import ProtectedRoute from './components/ProtectedRoute';
 // Loading screen
 function LoadingScreen() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-surface-50">
+    <div className="min-h-screen flex items-center justify-center bg-canvas">
       <div className="text-center">
-        <div className="inline-flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 rounded-xl bg-nexora-600 flex items-center justify-center">
+        <div className="inline-flex items-center gap-3 mb-5">
+          <div className="logo-mark">
             <span className="text-white font-bold text-lg">N</span>
           </div>
-          <span className="text-2xl font-display text-surface-900">Nexora</span>
+          <span className="text-2xl font-display font-bold text-ink-900 tracking-tight">Nexora</span>
         </div>
-        <div className="flex gap-1 justify-center">
-          <div className="w-2 h-2 rounded-full bg-nexora-400 animate-pulse" style={{ animationDelay: '0ms' }} />
-          <div className="w-2 h-2 rounded-full bg-nexora-400 animate-pulse" style={{ animationDelay: '150ms' }} />
-          <div className="w-2 h-2 rounded-full bg-nexora-400 animate-pulse" style={{ animationDelay: '300ms' }} />
+        <div className="flex gap-1.5 justify-center">
+          <div className="w-2 h-2 rounded-full bg-pri-400 animate-pulse-soft" />
+          <div className="w-2 h-2 rounded-full bg-pri-400 animate-pulse-soft" style={{ animationDelay: '200ms' }} />
+          <div className="w-2 h-2 rounded-full bg-pri-400 animate-pulse-soft" style={{ animationDelay: '400ms' }} />
         </div>
       </div>
     </div>
@@ -57,11 +57,13 @@ export default function App() {
         toastOptions={{
           duration: 4000,
           style: {
-            borderRadius: '12px',
+            borderRadius: '14px',
             background: '#1c1917',
-            color: '#fafafa',
+            color: '#fafaf9',
             fontSize: '14px',
-            fontFamily: '"Plus Jakarta Sans", sans-serif',
+            fontFamily: '"DM Sans", sans-serif',
+            padding: '12px 16px',
+            boxShadow: '0 8px 32px rgba(28,25,23,0.15)',
           },
         }}
       />

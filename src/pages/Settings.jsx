@@ -12,7 +12,7 @@ export default function Settings() {
   });
   const [tenantForm, setTenantForm] = useState({
     name: tenant?.name || '',
-    primary_color: tenant?.primary_color || '#6366f1',
+    primary_color: tenant?.primary_color || '#8b5cf6',
   });
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingTenant, setSavingTenant] = useState(false);
@@ -58,18 +58,18 @@ export default function Settings() {
   }
 
   return (
-    <div className="animate-fade-in max-w-2xl">
+    <div className="animate-enter max-w-2xl">
       <h1 className="page-title mb-6">Settings</h1>
 
       {/* Profile settings */}
-      <div className="glass-card p-6 mb-6">
+      <div className="card p-6 mb-6">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-nexora-50 border border-nexora-100 flex items-center justify-center">
-            <HiOutlineUser className="w-5 h-5 text-nexora-600" />
+          <div className="w-10 h-10 rounded-xl bg-pri-50 border border-pri-100 flex items-center justify-center">
+            <HiOutlineUser className="w-5 h-5 text-pri-600" />
           </div>
           <div>
             <h2 className="section-title">Profile</h2>
-            <p className="text-xs text-surface-400">Your personal information</p>
+            <p className="text-xs text-ink-400">Your personal information</p>
           </div>
         </div>
 
@@ -85,12 +85,12 @@ export default function Settings() {
           </div>
           <div>
             <label className="input-label">Email</label>
-            <input type="email" value={profile?.email || ''} disabled className="input-field bg-surface-50 text-surface-500 cursor-not-allowed" />
-            <p className="text-xs text-surface-400 mt-1">Email cannot be changed here</p>
+            <input type="email" value={profile?.email || ''} disabled className="input-field bg-canvas text-ink-500 cursor-not-allowed" />
+            <p className="text-xs text-ink-400 mt-1">Email cannot be changed here</p>
           </div>
           <div>
             <label className="input-label">Role</label>
-            <div className="input-field bg-surface-50 text-surface-500 cursor-not-allowed">
+            <div className="input-field bg-canvas text-ink-500 cursor-not-allowed">
               {ROLE_LABELS[profile?.role] || profile?.role}
             </div>
           </div>
@@ -102,14 +102,14 @@ export default function Settings() {
 
       {/* Organization settings (admin only) */}
       {hasPermission(profile?.role, 'manage_tenant') && (
-        <div className="glass-card p-6">
+        <div className="card p-6">
           <div className="flex items-center gap-3 mb-6">
-            <div className="w-10 h-10 rounded-xl bg-warm-50 border border-warm-100 flex items-center justify-center">
-              <HiOutlineOfficeBuilding className="w-5 h-5 text-warm-600" />
+            <div className="w-10 h-10 rounded-xl bg-acc-50 border border-acc-100 flex items-center justify-center">
+              <HiOutlineOfficeBuilding className="w-5 h-5 text-acc-600" />
             </div>
             <div>
               <h2 className="section-title">Organization</h2>
-              <p className="text-xs text-surface-400">Manage your organization settings</p>
+              <p className="text-xs text-ink-400">Manage your organization settings</p>
             </div>
           </div>
 
@@ -125,14 +125,14 @@ export default function Settings() {
             </div>
             <div>
               <label className="input-label">Slug</label>
-              <div className="input-field bg-surface-50 text-surface-500 cursor-not-allowed">
+              <div className="input-field bg-canvas text-ink-500 cursor-not-allowed">
                 {tenant?.slug || '—'}
               </div>
-              <p className="text-xs text-surface-400 mt-1">Organization URL cannot be changed</p>
+              <p className="text-xs text-ink-400 mt-1">Organization URL cannot be changed</p>
             </div>
             <div>
               <label className="input-label">Plan</label>
-              <div className="input-field bg-surface-50 text-surface-500 cursor-not-allowed capitalize">
+              <div className="input-field bg-canvas text-ink-500 cursor-not-allowed capitalize">
                 {tenant?.plan || 'free'}
               </div>
             </div>
@@ -143,7 +143,7 @@ export default function Settings() {
                   type="color"
                   value={tenantForm.primary_color}
                   onChange={(e) => setTenantForm((f) => ({ ...f, primary_color: e.target.value }))}
-                  className="w-10 h-10 rounded-lg border border-surface-200 cursor-pointer"
+                  className="w-10 h-10 rounded-lg border border-ink-200 cursor-pointer"
                 />
                 <input
                   type="text"

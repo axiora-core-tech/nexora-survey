@@ -15,7 +15,7 @@ CREATE TABLE public.tenants (
   name TEXT NOT NULL,
   slug TEXT UNIQUE NOT NULL,
   logo_url TEXT,
-  primary_color TEXT DEFAULT '#6366f1',
+  primary_color TEXT DEFAULT '#8b5cf6',
   plan TEXT DEFAULT 'free' CHECK (plan IN ('free','pro','enterprise')),
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
@@ -51,7 +51,7 @@ CREATE TABLE public.surveys (
   slug TEXT UNIQUE NOT NULL, -- unique shareable link identifier
   status TEXT DEFAULT 'draft' CHECK (status IN ('draft','active','paused','expired','closed')),
   expires_at TIMESTAMPTZ,
-  theme_color TEXT DEFAULT '#6366f1',
+  theme_color TEXT DEFAULT '#8b5cf6',
   welcome_message TEXT,
   thank_you_message TEXT DEFAULT 'Thank you for completing this survey!',
   allow_anonymous BOOLEAN DEFAULT true,

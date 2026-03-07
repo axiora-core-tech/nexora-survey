@@ -32,7 +32,7 @@ export default function SurveyCreate() {
     allow_anonymous: true,
     require_email: false,
     show_progress_bar: true,
-    theme_color: '#6366f1',
+    theme_color: '#8b5cf6',
   });
 
   const [questions, setQuestions] = useState([emptyQuestion()]);
@@ -169,12 +169,12 @@ export default function SurveyCreate() {
   ];
 
   return (
-    <div className="animate-fade-in max-w-4xl">
+    <div className="animate-enter max-w-4xl">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
           <h1 className="page-title">Create Survey</h1>
-          <p className="text-surface-500 mt-1">Design your survey and start collecting responses</p>
+          <p className="text-ink-500 mt-1">Design your survey and start collecting responses</p>
         </div>
         <div className="flex gap-2">
           <button onClick={() => handleSave('draft')} disabled={saving} className="btn-secondary">
@@ -187,15 +187,15 @@ export default function SurveyCreate() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-surface-100 rounded-xl p-1 mb-6">
+      <div className="flex gap-1 bg-ink-100 rounded-xl p-1 mb-6">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={`flex-1 py-2.5 px-4 rounded-lg text-sm font-medium transition-all ${
               activeTab === tab.id
-                ? 'bg-white text-surface-900 shadow-sm'
-                : 'text-surface-500 hover:text-surface-700'
+                ? 'bg-white text-ink-900 shadow-sm'
+                : 'text-ink-500 hover:text-ink-700'
             }`}
           >
             {tab.label}
@@ -205,7 +205,7 @@ export default function SurveyCreate() {
 
       {/* Tab Content */}
       {activeTab === 'details' && (
-        <div className="glass-card p-6 space-y-5 animate-fade-in">
+        <div className="card p-6 space-y-5 animate-enter">
           <div>
             <label className="input-label">Survey Title *</label>
             <input
@@ -266,7 +266,7 @@ export default function SurveyCreate() {
                   type="color"
                   value={survey.theme_color}
                   onChange={(e) => updateSurvey('theme_color', e.target.value)}
-                  className="w-10 h-10 rounded-lg border border-surface-200 cursor-pointer"
+                  className="w-10 h-10 rounded-lg border border-ink-200 cursor-pointer"
                 />
                 <input
                   type="text"
@@ -281,16 +281,16 @@ export default function SurveyCreate() {
       )}
 
       {activeTab === 'questions' && (
-        <div className="space-y-4 animate-fade-in">
+        <div className="space-y-4 animate-enter">
           {questions.map((q, idx) => (
-            <div key={q.tempId} className="glass-card p-5">
+            <div key={q.tempId} className="card p-5">
               {/* Question header */}
               <div className="flex items-start justify-between gap-3 mb-4">
                 <div className="flex items-center gap-2">
-                  <span className="w-7 h-7 rounded-lg bg-nexora-50 border border-nexora-100 flex items-center justify-center text-xs font-bold text-nexora-600">
+                  <span className="w-7 h-7 rounded-lg bg-pri-50 border border-pri-100 flex items-center justify-center text-xs font-bold text-pri-600">
                     {idx + 1}
                   </span>
-                  <span className="text-xs font-medium text-surface-400 uppercase">
+                  <span className="text-xs font-medium text-ink-400 uppercase">
                     {QUESTION_TYPES.find((t) => t.value === q.question_type)?.label || q.question_type}
                   </span>
                 </div>
@@ -342,25 +342,25 @@ export default function SurveyCreate() {
                   </select>
                 </div>
                 <div className="flex items-end">
-                  <label className="flex items-center gap-2 px-4 py-3 bg-surface-50 rounded-xl cursor-pointer">
+                  <label className="flex items-center gap-2 px-4 py-3 bg-canvas rounded-xl cursor-pointer">
                     <input
                       type="checkbox"
                       checked={q.is_required}
                       onChange={(e) => updateQuestion(q.tempId, 'is_required', e.target.checked)}
-                      className="w-4 h-4 rounded border-surface-300 text-nexora-600 focus:ring-nexora-500"
+                      className="w-4 h-4 rounded border-ink-300 text-pri-600 focus:ring-pri-500"
                     />
-                    <span className="text-sm font-medium text-surface-600">Required</span>
+                    <span className="text-sm font-medium text-ink-600">Required</span>
                   </label>
                 </div>
               </div>
 
               {/* Options for choice questions */}
               {hasOptions(q.question_type) && (
-                <div className="space-y-2 mt-4 pl-4 border-l-2 border-nexora-100">
-                  <p className="text-xs font-semibold text-surface-500 mb-2">OPTIONS</p>
+                <div className="space-y-2 mt-4 pl-4 border-l-2 border-pri-100">
+                  <p className="text-xs font-semibold text-ink-500 mb-2">OPTIONS</p>
                   {(q.options || []).map((opt, optIdx) => (
                     <div key={optIdx} className="flex items-center gap-2">
-                      <div className="w-5 h-5 rounded-full border-2 border-surface-300 flex-shrink-0" />
+                      <div className="w-5 h-5 rounded-full border-2 border-ink-300 flex-shrink-0" />
                       <input
                         type="text"
                         value={opt.label}
@@ -378,7 +378,7 @@ export default function SurveyCreate() {
                   ))}
                   <button
                     onClick={() => addOption(q.tempId)}
-                    className="text-sm font-medium text-nexora-600 hover:text-nexora-700 flex items-center gap-1 mt-2"
+                    className="text-sm font-medium text-pri-600 hover:text-pri-700 flex items-center gap-1 mt-2"
                   >
                     <HiOutlinePlusCircle className="w-4 h-4" /> Add Option
                   </button>
@@ -390,7 +390,7 @@ export default function SurveyCreate() {
           {/* Add question button */}
           <button
             onClick={addQuestion}
-            className="w-full py-4 border-2 border-dashed border-surface-300 rounded-2xl text-surface-500 hover:border-nexora-400 hover:text-nexora-600 transition-all flex items-center justify-center gap-2 font-medium"
+            className="w-full py-4 border-2 border-dashed border-ink-300 rounded-2xl text-ink-500 hover:border-pri-400 hover:text-pri-600 transition-all flex items-center justify-center gap-2 font-medium"
           >
             <HiOutlinePlusCircle className="w-5 h-5" /> Add Question
           </button>
@@ -398,45 +398,45 @@ export default function SurveyCreate() {
       )}
 
       {activeTab === 'settings' && (
-        <div className="glass-card p-6 space-y-6 animate-fade-in">
+        <div className="card p-6 space-y-6 animate-enter">
           <h3 className="section-title">Response Settings</h3>
 
-          <label className="flex items-center justify-between p-4 rounded-xl bg-surface-50 cursor-pointer group">
+          <label className="flex items-center justify-between p-4 rounded-xl bg-canvas cursor-pointer group">
             <div>
-              <p className="text-sm font-semibold text-surface-700">Allow Anonymous Responses</p>
-              <p className="text-xs text-surface-500">Respondents don't need to provide their identity</p>
+              <p className="text-sm font-semibold text-ink-700">Allow Anonymous Responses</p>
+              <p className="text-xs text-ink-500">Respondents don't need to provide their identity</p>
             </div>
             <input
               type="checkbox"
               checked={survey.allow_anonymous}
               onChange={(e) => updateSurvey('allow_anonymous', e.target.checked)}
-              className="w-5 h-5 rounded border-surface-300 text-nexora-600 focus:ring-nexora-500"
+              className="w-5 h-5 rounded border-ink-300 text-pri-600 focus:ring-pri-500"
             />
           </label>
 
-          <label className="flex items-center justify-between p-4 rounded-xl bg-surface-50 cursor-pointer">
+          <label className="flex items-center justify-between p-4 rounded-xl bg-canvas cursor-pointer">
             <div>
-              <p className="text-sm font-semibold text-surface-700">Require Email</p>
-              <p className="text-xs text-surface-500">Ask respondents for their email before starting</p>
+              <p className="text-sm font-semibold text-ink-700">Require Email</p>
+              <p className="text-xs text-ink-500">Ask respondents for their email before starting</p>
             </div>
             <input
               type="checkbox"
               checked={survey.require_email}
               onChange={(e) => updateSurvey('require_email', e.target.checked)}
-              className="w-5 h-5 rounded border-surface-300 text-nexora-600 focus:ring-nexora-500"
+              className="w-5 h-5 rounded border-ink-300 text-pri-600 focus:ring-pri-500"
             />
           </label>
 
-          <label className="flex items-center justify-between p-4 rounded-xl bg-surface-50 cursor-pointer">
+          <label className="flex items-center justify-between p-4 rounded-xl bg-canvas cursor-pointer">
             <div>
-              <p className="text-sm font-semibold text-surface-700">Show Progress Bar</p>
-              <p className="text-xs text-surface-500">Display completion progress to respondents</p>
+              <p className="text-sm font-semibold text-ink-700">Show Progress Bar</p>
+              <p className="text-xs text-ink-500">Display completion progress to respondents</p>
             </div>
             <input
               type="checkbox"
               checked={survey.show_progress_bar}
               onChange={(e) => updateSurvey('show_progress_bar', e.target.checked)}
-              className="w-5 h-5 rounded border-surface-300 text-nexora-600 focus:ring-nexora-500"
+              className="w-5 h-5 rounded border-ink-300 text-pri-600 focus:ring-pri-500"
             />
           </label>
         </div>

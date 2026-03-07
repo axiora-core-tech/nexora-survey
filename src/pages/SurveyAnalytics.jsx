@@ -9,7 +9,7 @@ import { Doughnut, Bar, Line } from 'react-chartjs-2';
 
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, Filler);
 
-const chartColors = ['#5c7cfa', '#e69748', '#51cf66', '#ff6b6b', '#845ef7', '#20c997', '#fcc419', '#339af0', '#f06595', '#a9e34b'];
+const chartColors = ['#8b5cf6', '#f97316', '#51cf66', '#ff6b6b', '#845ef7', '#20c997', '#fcc419', '#339af0', '#f06595', '#a9e34b'];
 
 export default function SurveyAnalytics() {
   const { id } = useParams();
@@ -70,12 +70,12 @@ export default function SurveyAnalytics() {
     datasets: [{
       label: 'Responses',
       data: Object.values(responsesByDay),
-      borderColor: '#5c7cfa',
-      backgroundColor: 'rgba(92, 124, 250, 0.1)',
+      borderColor: '#8b5cf6',
+      backgroundColor: 'rgba(139, 92, 246, 0.1)',
       fill: true,
       tension: 0.4,
       pointRadius: 4,
-      pointBackgroundColor: '#5c7cfa',
+      pointBackgroundColor: '#8b5cf6',
     }],
   };
 
@@ -203,8 +203,8 @@ export default function SurveyAnalytics() {
     a.click();
   }
 
-  if (loading) return <div className="text-center py-20 text-surface-400">Loading analytics...</div>;
-  if (!survey) return <div className="text-center py-20 text-surface-400">Survey not found</div>;
+  if (loading) return <div className="text-center py-20 text-ink-400">Loading analytics...</div>;
+  if (!survey) return <div className="text-center py-20 text-ink-400">Survey not found</div>;
 
   const chartOpts = {
     responsive: true,
@@ -213,18 +213,18 @@ export default function SurveyAnalytics() {
   };
 
   return (
-    <div className="animate-fade-in">
+    <div className="animate-enter">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <Link to={`/surveys/${id}/edit`} className="text-sm text-nexora-600 hover:text-nexora-700 flex items-center gap-1 mb-2">
+          <Link to={`/surveys/${id}/edit`} className="text-sm text-pri-600 hover:text-pri-700 flex items-center gap-1 mb-2">
             <HiOutlineArrowLeft className="w-4 h-4" /> Back to Survey
           </Link>
           <h1 className="page-title flex items-center gap-3">
-            <HiOutlineChartBar className="w-7 h-7 text-nexora-500" />
+            <HiOutlineChartBar className="w-7 h-7 text-pri-500" />
             {survey.title}
           </h1>
-          <p className="text-surface-500 mt-1">Response analytics and insights</p>
+          <p className="text-ink-500 mt-1">Response analytics and insights</p>
         </div>
         <button onClick={exportCSV} className="btn-secondary">
           <HiOutlineDownload className="w-4 h-4" /> Export CSV
@@ -234,10 +234,10 @@ export default function SurveyAnalytics() {
       {/* Summary stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
-          { label: 'Total Responses', value: totalResponses, icon: HiOutlineUsers, color: 'bg-nexora-50 text-nexora-600 border-nexora-100' },
-          { label: 'Completed', value: completedResponses, icon: HiOutlineCheckCircle, color: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
-          { label: 'Completion Rate', value: `${completionRate}%`, icon: HiOutlineChartBar, color: 'bg-warm-50 text-warm-600 border-warm-100' },
-          { label: 'Avg. Time', value: avgTime > 0 ? `${Math.round(avgTime / 60)}m` : '—', icon: HiOutlineClock, color: 'bg-purple-50 text-purple-600 border-purple-100' },
+          { label: 'Total Responses', value: totalResponses, icon: HiOutlineUsers, color: 'bg-pri-50 text-pri-600 ring-1 ring-pri-100' },
+          { label: 'Completed', value: completedResponses, icon: HiOutlineCheckCircle, color: 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100' },
+          { label: 'Completion Rate', value: `${completionRate}%`, icon: HiOutlineChartBar, color: 'bg-acc-50 text-acc-600 ring-1 ring-acc-100' },
+          { label: 'Avg. Time', value: avgTime > 0 ? `${Math.round(avgTime / 60)}m` : '—', icon: HiOutlineClock, color: 'bg-purple-50 text-purple-600 ring-1 ring-purple-100' },
         ].map((stat, i) => (
           <div key={i} className="stat-card">
             <div className={`w-10 h-10 rounded-xl border flex items-center justify-center mb-3 ${stat.color}`}>
@@ -251,7 +251,7 @@ export default function SurveyAnalytics() {
 
       {/* Response trend */}
       {Object.keys(responsesByDay).length > 1 && (
-        <div className="glass-card p-6 mb-8">
+        <div className="card p-6 mb-8">
           <h3 className="section-title mb-4">Response Trend</h3>
           <div className="h-[200px]">
             <Line data={timeChartData} options={{ ...chartOpts, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }} />
@@ -265,19 +265,19 @@ export default function SurveyAnalytics() {
         {questions.map((q, idx) => {
           const analytics = getQuestionAnalytics(q);
           return (
-            <div key={q.id} className="glass-card p-6">
+            <div key={q.id} className="card p-6">
               <div className="flex items-start gap-3 mb-4">
-                <span className="w-7 h-7 rounded-lg bg-nexora-50 border border-nexora-100 flex items-center justify-center text-xs font-bold text-nexora-600 flex-shrink-0">
+                <span className="w-7 h-7 rounded-lg bg-pri-50 border ring-1 ring-pri-100 flex items-center justify-center text-xs font-bold text-pri-600 flex-shrink-0">
                   {idx + 1}
                 </span>
                 <div>
-                  <h4 className="font-semibold text-surface-800">{q.question_text}</h4>
-                  <p className="text-xs text-surface-400 mt-0.5">{analytics?.total || 0} responses</p>
+                  <h4 className="font-semibold text-ink-800">{q.question_text}</h4>
+                  <p className="text-xs text-ink-400 mt-0.5">{analytics?.total || 0} responses</p>
                 </div>
               </div>
 
               {!analytics ? (
-                <p className="text-sm text-surface-400 italic">No responses yet</p>
+                <p className="text-sm text-ink-400 italic">No responses yet</p>
               ) : analytics.type === 'doughnut' ? (
                 <div className="flex items-center gap-8">
                   <div className="w-[160px] h-[160px]">
@@ -288,9 +288,9 @@ export default function SurveyAnalytics() {
                       <div key={i} className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 rounded-full" style={{ backgroundColor: chartColors[i] }} />
-                          <span className="text-sm text-surface-700">{label}</span>
+                          <span className="text-sm text-ink-700">{label}</span>
                         </div>
-                        <span className="text-sm font-semibold text-surface-600">
+                        <span className="text-sm font-semibold text-ink-600">
                           {analytics.data.datasets[0].data[i]} ({Math.round((analytics.data.datasets[0].data[i] / analytics.total) * 100)}%)
                         </span>
                       </div>
@@ -300,7 +300,7 @@ export default function SurveyAnalytics() {
               ) : analytics.type === 'bar' ? (
                 <div>
                   {analytics.average && (
-                    <p className="text-sm text-surface-500 mb-3">Average: <span className="font-bold text-surface-800 text-lg">{analytics.average}</span></p>
+                    <p className="text-sm text-ink-500 mb-3">Average: <span className="font-bold text-ink-800 text-lg">{analytics.average}</span></p>
                   )}
                   <div className="h-[180px]">
                     <Bar data={analytics.data} options={{ ...chartOpts, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } }, x: { grid: { display: false } } } }} />
@@ -309,12 +309,12 @@ export default function SurveyAnalytics() {
               ) : analytics.type === 'text' ? (
                 <div className="max-h-48 overflow-y-auto space-y-2">
                   {analytics.responses.slice(0, 20).map((resp, i) => (
-                    <div key={i} className="text-sm text-surface-700 bg-surface-50 rounded-lg px-3 py-2">
+                    <div key={i} className="text-sm text-ink-700 bg-canvas rounded-lg px-3 py-2">
                       {resp}
                     </div>
                   ))}
                   {analytics.responses.length > 20 && (
-                    <p className="text-xs text-surface-400">...and {analytics.responses.length - 20} more</p>
+                    <p className="text-xs text-ink-400">...and {analytics.responses.length - 20} more</p>
                   )}
                 </div>
               ) : null}
@@ -324,26 +324,26 @@ export default function SurveyAnalytics() {
       </div>
 
       {/* Individual responses table */}
-      <div className="glass-card p-6 mt-8">
+      <div className="card p-6 mt-8">
         <h3 className="section-title mb-4">Individual Responses</h3>
         {responses.length === 0 ? (
-          <p className="text-sm text-surface-400">No responses yet.</p>
+          <p className="text-sm text-ink-400">No responses yet.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-surface-200">
-                  <th className="text-left py-3 px-3 font-semibold text-surface-500">#</th>
-                  <th className="text-left py-3 px-3 font-semibold text-surface-500">Status</th>
-                  <th className="text-left py-3 px-3 font-semibold text-surface-500">Email</th>
-                  <th className="text-left py-3 px-3 font-semibold text-surface-500">Started</th>
-                  <th className="text-left py-3 px-3 font-semibold text-surface-500">Completed</th>
+                <tr className="border-b border-ink-200">
+                  <th className="text-left py-3 px-3 font-semibold text-ink-500">#</th>
+                  <th className="text-left py-3 px-3 font-semibold text-ink-500">Status</th>
+                  <th className="text-left py-3 px-3 font-semibold text-ink-500">Email</th>
+                  <th className="text-left py-3 px-3 font-semibold text-ink-500">Started</th>
+                  <th className="text-left py-3 px-3 font-semibold text-ink-500">Completed</th>
                 </tr>
               </thead>
               <tbody>
                 {responses.slice(0, 50).map((r, i) => (
-                  <tr key={r.id} className="border-b border-surface-100 hover:bg-surface-50">
-                    <td className="py-2.5 px-3 text-surface-400">{i + 1}</td>
+                  <tr key={r.id} className="border-b border-ink-100 hover:bg-canvas">
+                    <td className="py-2.5 px-3 text-ink-400">{i + 1}</td>
                     <td className="py-2.5 px-3">
                       <span className={`badge text-[10px] border ${
                         r.status === 'completed' ? 'badge-active' : r.status === 'in_progress' ? 'badge bg-blue-50 text-blue-600 border-blue-200' : 'badge-closed'
@@ -351,9 +351,9 @@ export default function SurveyAnalytics() {
                         {r.status}
                       </span>
                     </td>
-                    <td className="py-2.5 px-3 text-surface-600">{r.respondent_email || '—'}</td>
-                    <td className="py-2.5 px-3 text-surface-500">{formatDateTime(r.started_at)}</td>
-                    <td className="py-2.5 px-3 text-surface-500">{r.completed_at ? formatDateTime(r.completed_at) : '—'}</td>
+                    <td className="py-2.5 px-3 text-ink-600">{r.respondent_email || '—'}</td>
+                    <td className="py-2.5 px-3 text-ink-500">{formatDateTime(r.started_at)}</td>
+                    <td className="py-2.5 px-3 text-ink-500">{r.completed_at ? formatDateTime(r.completed_at) : '—'}</td>
                   </tr>
                 ))}
               </tbody>
