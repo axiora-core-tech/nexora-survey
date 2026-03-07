@@ -18,9 +18,12 @@ import ProtectedRoute from './components/ProtectedRoute';
 
 function Loader() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-canvas">
-      <div className="flex gap-1">
-        {[0,1,2].map(i => <div key={i} className="w-1.5 h-1.5 rounded-full bg-ink-300 animate-pulse" style={{animationDelay:`${i*150}ms`}}/>)}
+    <div className="min-h-screen flex items-center justify-center gradient-bg">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-brand flex items-center justify-center">
+          <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+        </div>
+        <div className="flex gap-1">{[0,1,2].map(i=><div key={i} className="w-1.5 h-1.5 rounded-full bg-brand/40 animate-pulse" style={{animationDelay:`${i*200}ms`}}/>)}</div>
       </div>
     </div>
   );
@@ -34,8 +37,8 @@ export default function App() {
   return (
     <>
       <Toaster position="top-center" toastOptions={{ duration: 3500, style: {
-        borderRadius:'10px', background:'#1c1917', color:'#fafaf9', fontSize:'13px',
-        fontFamily:'"DM Sans",sans-serif', padding:'10px 16px', maxWidth:'420px',
+        borderRadius: '8px', background: '#1A1A1A', color: '#fff', fontSize: '13px',
+        fontFamily: 'Inter, sans-serif', padding: '10px 16px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
       }}} />
       <Routes>
         <Route path="/" element={<Landing />} />
