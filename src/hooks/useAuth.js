@@ -1,9 +1,10 @@
 import { create } from 'zustand';
 import { supabase } from '../lib/supabase';
 
-// Module-level flags — both must be module-level (not store state) so they are
+// Module-level flags — must be module-level (not store state) so they are
 // set synchronously and visible to a second StrictMode call before any await.
 let _authSubscription = null;
+let _visibilityHandler = null;
 let _initializing = false;  // synchronous guard — prevents StrictMode double-invoke race
 
 const useAuthStore = create((set, get) => ({
@@ -14,10 +15,9 @@ const useAuthStore = create((set, get) => ({
   initialized: false,
 
   initialize: async () => {
-    // BUG FIX (updated): The previous guard checked get().initialized which is set
-    // in a finally block after async work — too late to block a StrictMode second call
-    // that arrives while the first is still awaiting getSession().
-    // Using a module-level sync flag instead blocks the second call immediately.
+    // Guard against double-initialization. React StrictMode calls effects twice
+    // in dev. Using a module-level sync flag blocks the second call immediately,
+    // before any await — the previous store-state guard was too late.
     if (_initializing || get().initialized) return;
     _initializing = true;
 
@@ -42,19 +42,74 @@ const useAuthStore = create((set, get) => ({
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_IN' && session?.user) {
         await get().loadProfile(session.user);
+
+      } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+        // STALE SESSION FIX: Supabase refreshed the JWT (e.g. after a suspended tab
+        // wakes up). If the profile was cleared during the idle period, reload it.
+        // If profile is already set, this is a noop — no unnecessary re-fetch.
+        if (!get().profile) {
+          await get().loadProfile(session.user);
+        } else {
+          // Still update the user reference so the new JWT is reflected everywhere
+          set({ user: session.user });
+        }
+
       } else if (event === 'SIGNED_OUT') {
         set({ user: null, profile: null, tenant: null });
       }
     });
 
     _authSubscription = subscription;
+
+    // STALE SESSION FIX: When the tab returns from the background, the browser
+    // may have suspended JS timers and Supabase's proactive token refresh may have
+    // missed its window. On visibility change we re-check the session so that
+    // any navigation the user makes immediately after will have a valid token.
+    if (_visibilityHandler) {
+      document.removeEventListener('visibilitychange', _visibilityHandler);
+    }
+    _visibilityHandler = async () => {
+      if (document.visibilityState !== 'visible') return;
+      await get().checkSession();
+    };
+    document.addEventListener('visibilitychange', _visibilityHandler);
+  },
+
+  // STALE SESSION FIX: Single entry-point for session validation.
+  // Called on tab focus and on every navigation from DashboardLayout.
+  //   - Session valid   + profile set   → noop (fast path, no network call)
+  //   - Session valid   + profile null  → reload profile (sets loading: true during fetch)
+  //   - Session expired                 → clear state (ProtectedRoute will redirect to /login)
+  checkSession: async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (session?.user) {
+        if (!get().profile) {
+          // Profile was wiped during idle — reload it. Setting loading: true prevents
+          // DashboardLayout from rendering child pages until the profile is back.
+          set({ loading: true });
+          await get().loadProfile(session.user);
+        }
+        // If profile exists, session is fine — nothing to do.
+        return true;
+      } else {
+        // No valid session — sign out cleanly so ProtectedRoute redirects to /login.
+        // Avoid calling supabase.auth.signOut() here because the session is already
+        // gone; just clear the local store state.
+        set({ user: null, profile: null, tenant: null, loading: false });
+        return false;
+      }
+    } catch (err) {
+      console.error('Session check error:', err);
+      return false;
+    }
   },
 
   loadProfile: async (user) => {
     try {
-      // BUG FIX: Added retry — if the profile fetch fails transiently (e.g. network
-      // hiccup on startup), pages that gate their data load on profile?.id would
-      // never fire because user was set but profile remained null.
+      // Retry once on transient failure — if the profile fetch fails, pages that
+      // gate their data load on profile?.id never fire, showing blank forever.
       let profile, profileErr;
       for (let attempt = 0; attempt < 2; attempt++) {
         ({ data: profile, error: profileErr } = await supabase
@@ -63,7 +118,7 @@ const useAuthStore = create((set, get) => ({
           .eq('id', user.id)
           .single());
         if (!profileErr) break;
-        if (attempt === 0) await new Promise(r => setTimeout(r, 800)); // brief pause before retry
+        if (attempt === 0) await new Promise(r => setTimeout(r, 800));
       }
 
       if (profileErr) throw profileErr;
@@ -147,8 +202,6 @@ const useAuthStore = create((set, get) => ({
     return data;
   },
 
-  // BUG FIX: New method — Settings was updating Supabase directly but never
-  // syncing back to the Zustand store, so the nav header showed a stale org name.
   updateTenant: async (updates) => {
     const { tenant } = get();
     if (!tenant) throw new Error('Organisation not loaded.');

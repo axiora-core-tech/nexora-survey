@@ -14,25 +14,37 @@ const NAV = [
 ];
 
 export default function DashboardLayout() {
-  const { profile, tenant, signOut, loading } = useAuthStore();
-
-  // BUG FIX: If profile is still null (e.g. loadProfile failed/retrying),
-  // render a loader instead of passing null profile to child pages where
-  // useEffect gates on profile?.id — without this, pages show empty forever.
-  if (loading || !profile) return <PageLoader label="Loading workspace…" />;
+  const { profile, tenant, signOut, loading, checkSession } = useAuthStore();
   const [userMenu, setUserMenu]   = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const nav = useNavigate();
   const loc = useLocation();
 
-  // ── Custom cursor (issue #7) ─────────────────────────────────
+  // STALE SESSION FIX: On every navigation, verify the session is still alive
+  // before child pages fire their data-loading useEffects.
+  //
+  // Why this works: checkSession() immediately sets loading: true if the profile
+  // needs to be reloaded, which causes DashboardLayout to return <PageLoader>
+  // below — preventing child pages from mounting until the session is confirmed.
+  // If the session is gone entirely, checkSession clears user from the store and
+  // ProtectedRoute (which wraps this layout) redirects to /login.
+  //
+  // Fast path: if session is valid and profile is set, checkSession returns
+  // instantly with no network call — no visible delay for healthy sessions.
+  useEffect(() => {
+    checkSession();
+  }, [loc.key]);
+
+  // ── Custom cursor refs — must be declared before any early return ──────────
   const cursorRef = useRef(null);
   const ringRef   = useRef(null);
   const mouse     = useRef({ x: 0, y: 0 });
   const ring      = useRef({ x: 0, y: 0 });
   const raf       = useRef(null);
 
+  // Custom cursor effect — runs only when profile is set (cursor DOM nodes exist)
   useEffect(() => {
+    if (!profile) return; // guard: cursor elements not in DOM during loading state
     const dot  = cursorRef.current;
     const rng  = ringRef.current;
     if (!dot || !rng) return;
@@ -73,6 +85,11 @@ export default function DashboardLayout() {
       document.body.classList.remove('np-hovering', 'np-clicking');
     };
   }, []);
+
+  // All hooks declared above — safe to early-return now.
+  // If loading or profile is null (session expired / being recovered), block
+  // child pages from mounting until the session is confirmed and profile is set.
+  if (loading || !profile) return <PageLoader label="Loading workspace…" />;
 
   const items = NAV.filter(n => !n.perm || hasPermission(profile?.role, n.perm));
   const initials = (profile?.full_name || '?').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
