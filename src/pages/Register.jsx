@@ -4,74 +4,133 @@ import { motion } from 'framer-motion';
 import useAuthStore from '../hooks/useAuth';
 import toast from 'react-hot-toast';
 
+const Logo = ({ dark }) => (
+  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0, lineHeight: 1 }}>
+    <span style={{ fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: dark ? 'rgba(253,245,232,0.35)' : 'rgba(22,15,8,0.35)', marginRight: 8, position: 'relative', top: -2 }}>Nexora</span>
+    <span style={{ fontFamily: 'Playfair Display, serif', fontWeight: 900, fontSize: 24, letterSpacing: '-1px', color: dark ? 'var(--cream)' : 'var(--espresso)', lineHeight: 1 }}>Pulse</span>
+    <div style={{ position: 'relative', width: 9, height: 9, background: 'var(--coral)', borderRadius: '50%', boxShadow: '0 0 10px rgba(255,69,0,0.55)', alignSelf: 'flex-start', marginTop: 5, marginLeft: 8, flexShrink: 0 }}>
+      <div className="sonar-ring" /><div className="sonar-ring" /><div className="sonar-ring" />
+    </div>
+  </div>
+);
+
 export default function Register() {
   const [f, sf] = useState({ fullName: '', email: '', password: '', tenantName: '', tenantSlug: '' });
-  const [busy, setBusy] = useState(false); const { signUp } = useAuthStore(); const nav = useNavigate();
+  const [busy, setBusy] = useState(false);
+  const { signUp } = useAuthStore();
+  const nav = useNavigate();
   const s = (k, v) => sf(p => { const n = { ...p, [k]: v }; if (k === 'tenantName') n.tenantSlug = v.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); return n; });
 
-  const go = async e => { e.preventDefault();
+  const go = async e => {
+    e.preventDefault();
     if (!f.fullName || !f.email || !f.password || !f.tenantName) return toast.error('Fill all fields');
-    if (f.password.length < 6) return toast.error('Password ≥ 6 chars');
+    if (f.password.length < 6) return toast.error('Password needs 6+ characters');
     setBusy(true);
     try {
       const r = await signUp(f.email, f.password, f.tenantName, f.tenantSlug, f.fullName);
       if (r.existing) { toast.success(r.message); r.session ? nav('/dashboard') : nav('/login'); }
-      else if (r.needsConfirmation) { toast.success('Check your email!', { duration: 8000 }); nav('/login'); }
-      else { toast.success('Welcome!'); nav('/dashboard'); }
+      else if (r.needsConfirmation) { toast.success('Check your email to confirm!', { duration: 8000 }); nav('/login'); }
+      else { toast.success('Welcome to Nexora Pulse!'); nav('/dashboard'); }
     } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   };
 
-  const Field = ({ label, children }) => (
-    <div><label className="text-xs font-semibold text-muted uppercase tracking-wider block mb-2">{label}</label>{children}</div>
-  );
-  const inp = "w-full px-0 py-3 border-0 border-b-2 border-gray-200 text-dark text-base placeholder:text-gray-300 focus:outline-none focus:border-accent transition-colors";
+  const inputStyle = { width: '100%', boxSizing: 'border-box', padding: '0 0 12px', background: 'transparent', border: 'none', borderBottom: '2px solid rgba(22,15,8,0.12)', fontFamily: 'Fraunces, serif', fontSize: 16, color: 'var(--espresso)', outline: 'none', transition: 'border-color 0.2s' };
+  const labelStyle = { fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.4)', display: 'block', marginBottom: 10 };
 
   return (
-    <div className="min-h-screen flex">
-      <div className="hidden lg:flex lg:w-1/2 bg-dark items-center justify-center relative overflow-hidden">
-        <div className="absolute bottom-[20%] right-[10%] w-[500px] h-[500px] bg-purple-500/8 rounded-full blur-[120px]" />
-        <div className="absolute top-[10%] left-[30%] w-[300px] h-[300px] bg-accent/10 rounded-full blur-[100px]" />
-        <motion.div initial={{ opacity: 0, x: -30 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-          className="relative z-10 px-16 max-w-lg">
-          <p className="text-accent text-sm font-semibold tracking-[0.2em] uppercase mb-6">Get started</p>
-          <h1 className="text-5xl font-extrabold text-white leading-[1.1] tracking-tight">
-            Build something<br />your users love.
-          </h1>
-          <p className="text-white/30 mt-6 leading-relaxed">Create your workspace in under a minute. No credit card needed.</p>
-        </motion.div>
+    <div style={{ minHeight: '100vh', display: 'grid', gridTemplateColumns: '1fr 480px' }}>
+
+      {/* ── LEFT: dark editorial panel ── */}
+      <div style={{ background: 'var(--espresso)', position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '80px 72px', overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+          <div style={{ position: 'absolute', width: 700, height: 700, borderRadius: '50%', filter: 'blur(90px)', background: 'radial-gradient(circle,rgba(255,69,0,0.3),transparent 70%)', top: -200, left: -150 }} />
+          <div style={{ position: 'absolute', width: 400, height: 400, borderRadius: '50%', filter: 'blur(80px)', background: 'radial-gradient(circle,rgba(255,184,0,0.18),transparent 70%)', bottom: -80, right: -80 }} />
+        </div>
+        <div className="grain" style={{ opacity: 0.035 }} />
+        <div style={{ position: 'absolute', bottom: -30, right: -20, fontFamily: 'Playfair Display, serif', fontWeight: 900, fontSize: 'clamp(120px,15vw,200px)', color: 'transparent', WebkitTextStroke: '1px rgba(253,245,232,0.04)', letterSpacing: -5, lineHeight: 1, userSelect: 'none', pointerEvents: 'none' }}>Nexora</div>
+
+        <div style={{ position: 'relative', zIndex: 1 }}>
+          <div style={{ marginBottom: 72 }}><Logo dark /></div>
+          <h2 style={{ fontFamily: 'Playfair Display, serif', fontSize: 'clamp(34px,3.5vw,50px)', fontWeight: 900, lineHeight: 1.05, letterSpacing: '-1.5px', color: 'var(--cream)', marginBottom: 24 }}>
+            Insights your team{' '}
+            <em style={{ fontStyle: 'italic', color: 'var(--saffron)' }}>actually</em>
+            {' '}trust.
+          </h2>
+          <p style={{ fontFamily: 'Fraunces, serif', fontSize: 17, fontWeight: 300, lineHeight: 1.7, color: 'rgba(253,245,232,0.5)', maxWidth: 380, marginBottom: 60 }}>
+            Set up your workspace in under a minute. No credit card needed. Built for researchers who mean business.
+          </p>
+          <div style={{ display: 'flex', gap: 40 }}>
+            {[{ val: '< 1', unit: 'min', lbl: 'Setup time' }, { val: '24+', unit: '', lbl: 'Question types' }, { val: '99.9', unit: '%', lbl: 'Uptime SLA' }].map(st => (
+              <div key={st.lbl}>
+                <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 32, fontWeight: 900, color: 'var(--cream)', lineHeight: 1 }}>
+                  {st.val}<span style={{ color: 'var(--saffron)' }}>{st.unit}</span>
+                </div>
+                <div style={{ fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(253,245,232,0.3)', marginTop: 4 }}>{st.lbl}</div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      <div className="flex-1 flex items-center justify-center px-8 py-12 overflow-y-auto">
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
-          className="w-full max-w-[380px]">
-          <Link to="/" className="text-2xl font-bold text-dark tracking-tight mb-12 block">nexora</Link>
-          <h2 className="text-3xl font-bold text-dark tracking-tight mb-2">Create workspace</h2>
-          <p className="text-muted mb-8">Set up your team's survey platform</p>
+      {/* ── RIGHT: form panel ── */}
+      <div style={{ background: 'var(--warm-white)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '48px 56px', borderLeft: '1px solid rgba(22,15,8,0.06)', overflowY: 'auto' }}>
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} style={{ width: '100%', maxWidth: 340 }}>
+          <Link to="/" style={{ textDecoration: 'none', display: 'block', marginBottom: 40 }}><Logo dark={false} /></Link>
 
-          <form onSubmit={go} className="space-y-4">
-            <Field label="Your name"><input value={f.fullName} onChange={e => s('fullName', e.target.value)} className={inp} placeholder="Jane Smith" /></Field>
-            <Field label="Work email"><input type="email" value={f.email} onChange={e => s('email', e.target.value)} className={inp} placeholder="jane@company.com" /></Field>
-            <Field label="Password"><input type="password" value={f.password} onChange={e => s('password', e.target.value)} className={inp} placeholder="Min 6 characters" /></Field>
-            <Field label="Organization"><input value={f.tenantName} onChange={e => s('tenantName', e.target.value)} className={inp} placeholder="Acme Inc." /></Field>
-            <Field label="Workspace URL">
-              <div className="flex items-baseline border-b-2 border-gray-200 focus-within:border-accent transition-colors">
-                <input value={f.tenantSlug} onChange={e => s('tenantSlug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
-                  className="flex-1 py-3 border-0 text-dark text-base placeholder:text-gray-300 focus:outline-none font-mono" placeholder="acme" />
-                <span className="text-muted text-sm pb-3">.nexora.io</span>
+          <h2 style={{ fontFamily: 'Playfair Display, serif', fontWeight: 900, fontSize: 30, letterSpacing: '-1px', color: 'var(--espresso)', marginBottom: 6 }}>Create workspace</h2>
+          <p style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 15, color: 'rgba(22,15,8,0.45)', marginBottom: 36 }}>Set up your team's survey platform</p>
+
+          <form onSubmit={go} style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            {[
+              { label: 'Your name',    key: 'fullName',   type: 'text',     ph: 'Jane Smith' },
+              { label: 'Work email',   key: 'email',      type: 'email',    ph: 'jane@company.com' },
+              { label: 'Password',     key: 'password',   type: 'password', ph: 'Min 6 characters' },
+              { label: 'Organisation', key: 'tenantName', type: 'text',     ph: 'Acme Research' },
+            ].map(field => (
+              <div key={field.key}>
+                <label style={labelStyle}>{field.label}</label>
+                <input type={field.type} value={f[field.key]} onChange={e => s(field.key, e.target.value)} placeholder={field.ph}
+                  style={inputStyle}
+                  onFocus={e => e.target.style.borderBottomColor = 'var(--coral)'}
+                  onBlur={e => e.target.style.borderBottomColor = 'rgba(22,15,8,0.12)'}
+                />
               </div>
-            </Field>
+            ))}
+
+            <div>
+              <label style={labelStyle}>Workspace URL</label>
+              <div style={{ display: 'flex', alignItems: 'baseline', borderBottom: '2px solid rgba(22,15,8,0.12)', transition: 'border-color 0.2s' }}
+                onFocusCapture={e => e.currentTarget.style.borderBottomColor = 'var(--coral)'}
+                onBlurCapture={e => e.currentTarget.style.borderBottomColor = 'rgba(22,15,8,0.12)'}>
+                <input value={f.tenantSlug} onChange={e => s('tenantSlug', e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''))}
+                  placeholder="acme"
+                  style={{ ...inputStyle, flex: 1, border: 'none', borderBottom: 'none', fontFamily: 'Fraunces, serif' }}
+                />
+                <span style={{ fontFamily: 'Syne, sans-serif', fontSize: 11, color: 'rgba(22,15,8,0.3)', paddingBottom: 12, whiteSpace: 'nowrap' }}>.nexora.io</span>
+              </div>
+            </div>
+
             <motion.button whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.98 }}
               type="submit" disabled={busy}
-              className="w-full py-4 bg-dark text-white font-semibold rounded-full text-base hover:bg-accent transition-colors duration-300 disabled:opacity-40 mt-2">
-              {busy ? 'Creating...' : 'Create workspace →'}
+              style={{ marginTop: 4, padding: '16px 28px', background: busy ? 'rgba(22,15,8,0.4)' : 'var(--espresso)', color: 'var(--cream)', border: 'none', borderRadius: 999, fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 12, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: busy ? 'not-allowed' : 'pointer', transition: 'background 0.25s ease' }}
+              onMouseEnter={e => { if (!busy) e.currentTarget.style.background = 'var(--coral)'; }}
+              onMouseLeave={e => { if (!busy) e.currentTarget.style.background = 'var(--espresso)'; }}>
+              {busy ? 'Creating…' : 'Create workspace →'}
             </motion.button>
           </form>
 
-          <p className="text-muted text-sm mt-8 text-center">
-            Have an account? <Link to="/login" className="text-dark font-semibold hover:text-accent transition-colors">Sign in →</Link>
+          <p style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 14, color: 'rgba(22,15,8,0.4)', marginTop: 36, textAlign: 'center' }}>
+            Have an account?{' '}
+            <Link to="/login" style={{ color: 'var(--espresso)', fontWeight: 500, textDecoration: 'none', borderBottom: '1px solid rgba(22,15,8,0.2)', paddingBottom: 1 }}
+              onMouseEnter={e => { e.currentTarget.style.color = 'var(--coral)'; e.currentTarget.style.borderBottomColor = 'var(--coral)'; }}
+              onMouseLeave={e => { e.currentTarget.style.color = 'var(--espresso)'; e.currentTarget.style.borderBottomColor = 'rgba(22,15,8,0.2)'; }}>
+              Sign in →
+            </Link>
           </p>
         </motion.div>
       </div>
+
+      <style>{`@media (max-width: 900px) { div[style*="gridTemplateColumns: '1fr 480px'"] { grid-template-columns: 1fr !important; } }`}</style>
     </div>
   );
 }

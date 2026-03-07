@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 /* ─────────────────────────────────────────────────────────────────
    LANDING PAGE — Nexora Pulse
@@ -534,7 +535,9 @@ const CSS = `
 `;
 
 // ─── COMPONENT ───────────────────────────────────────────────────────────────
-export default function Landing({ onEnterApp }) {
+export default function Landing() {
+  const navigate = useNavigate();
+  const onEnterApp = () => navigate('/login');
   const bodyRef = useRef(null);
 
   // Inject CSS once

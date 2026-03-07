@@ -40,17 +40,33 @@ export function hasPermission(userRole, action) {
 }
 
 export const QUESTION_TYPES = [
-  { value: 'short_text', label: 'Short Text', icon: '✏️' },
-  { value: 'long_text', label: 'Long Text', icon: '📝' },
-  { value: 'single_choice', label: 'Single Choice', icon: '⭕' },
-  { value: 'multiple_choice', label: 'Multiple Choice', icon: '☑️' },
-  { value: 'rating', label: 'Star Rating', icon: '⭐' },
-  { value: 'scale', label: 'Scale (1-10)', icon: '📊' },
-  { value: 'yes_no', label: 'Yes / No', icon: '👍' },
-  { value: 'dropdown', label: 'Dropdown', icon: '📋' },
-  { value: 'number', label: 'Number', icon: '🔢' },
-  { value: 'email', label: 'Email', icon: '📧' },
-  { value: 'date', label: 'Date', icon: '📅' },
+  { value: 'short_text',      label: 'Short Text',      icon: '✏️' },
+  { value: 'long_text',       label: 'Long Text',        icon: '📝' },
+  { value: 'single_choice',   label: 'Single Choice',    icon: '⭕' },
+  { value: 'multiple_choice', label: 'Multiple Choice',  icon: '☑️' },
+  { value: 'rating',          label: 'Star Rating',      icon: '⭐' },
+  { value: 'scale',           label: 'Scale (1–10)',     icon: '📊' },
+  { value: 'yes_no',          label: 'Yes / No',         icon: '👍' },
+  { value: 'dropdown',        label: 'Dropdown',         icon: '📋' },
+  { value: 'number',          label: 'Number',           icon: '🔢' },
+  { value: 'email',           label: 'Email',            icon: '📧' },
+  { value: 'date',            label: 'Date',             icon: '📅' },
+  { value: 'ranking',         label: 'Ranking',          icon: '🏆' },
+  { value: 'slider',          label: 'Slider',           icon: '🎚️' },
+  { value: 'matrix',          label: 'Matrix / Grid',    icon: '🔲' },
+];
+
+// Question types that use options arrays
+export const OPTION_TYPES = [
+  'single_choice', 'multiple_choice', 'dropdown', 'ranking',
+];
+
+// Matrix needs a special options structure { rows, columns }
+export const MATRIX_TYPE = 'matrix';
+
+// Question types where options are NOT needed
+export const TEXT_TYPES = [
+  'short_text', 'long_text', 'email', 'number', 'date', 'slider',
 ];
 
 export const SURVEY_STATUS = {

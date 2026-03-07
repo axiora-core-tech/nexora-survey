@@ -6,7 +6,7 @@ export default function ProtectedRoute() {
   const { user, profile, loading } = useAuthStore();
 
   if (loading) return null;
-  if (!user || !profile) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/login" replace />;
 
   return <Outlet />;
 }

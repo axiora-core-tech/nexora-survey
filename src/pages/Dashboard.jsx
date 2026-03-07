@@ -4,7 +4,32 @@ import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import useAuthStore from '../hooks/useAuth';
 import { hasPermission, timeAgo, SURVEY_STATUS } from '../lib/constants';
-import { HiOutlineArrowRight, HiOutlinePlus } from 'react-icons/hi';
+
+const S = {
+  page: { },
+  header: { display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 56, position: 'relative', zIndex: 1 },
+  tag: { fontFamily: "'Syne', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--coral)', marginBottom: 12 },
+  h1: { fontFamily: "'Playfair Display', serif", fontWeight: 900, fontSize: 'clamp(34px,4vw,52px)', letterSpacing: '-2px', color: 'var(--espresso)', lineHeight: 1.05, margin: 0 },
+  statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px,1fr))', gap: 20, marginBottom: 64, position: 'relative', zIndex: 1 },
+  statCard: (accent) => ({ background: 'var(--warm-white)', borderRadius: 20, padding: '28px 28px 22px', border: '1px solid rgba(22,15,8,0.07)', borderTop: `3px solid ${accent}`, cursor: 'default' }),
+  statNum: { fontFamily: "'Playfair Display', serif", fontWeight: 900, fontSize: 48, letterSpacing: '-3px', color: 'var(--espresso)', lineHeight: 1, marginBottom: 8 },
+  statLabel: { fontFamily: "'Syne', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.35)' },
+  sectionHead: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, position: 'relative', zIndex: 1 },
+  sectionTitle: { fontFamily: "'Syne', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.35)' },
+  viewAll: { fontFamily: "'Syne', sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--espresso)', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, opacity: 0.55, transition: 'opacity 0.2s', },
+  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px,1fr))', gap: 20, position: 'relative', zIndex: 1 },
+  surveyCard: { background: 'var(--warm-white)', borderRadius: 20, padding: 24, border: '1px solid rgba(22,15,8,0.07)', textDecoration: 'none', display: 'flex', flexDirection: 'column', height: '100%', transition: 'all 0.3s ease' },
+  cardTitle: { fontFamily: "'Playfair Display', serif", fontWeight: 700, fontSize: 18, color: 'var(--espresso)', marginBottom: 8, lineHeight: 1.3, transition: 'color 0.2s' },
+  cardMeta: { fontFamily: "'Fraunces', serif", fontSize: 12, color: 'rgba(22,15,8,0.35)', fontWeight: 300 },
+  cardFooter: { marginTop: 'auto', paddingTop: 16, borderTop: '1px solid rgba(22,15,8,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
+  emptyState: { background: 'var(--warm-white)', borderRadius: 24, border: '1px solid rgba(22,15,8,0.07)', textAlign: 'center', padding: '80px 40px', position: 'relative', zIndex: 1 },
+  emptyTitle: { fontFamily: "'Playfair Display', serif", fontWeight: 700, fontSize: 28, color: 'var(--espresso)', marginBottom: 12, letterSpacing: '-0.5px' },
+  emptyBody: { fontFamily: "'Fraunces', serif", fontWeight: 300, fontSize: 16, color: 'rgba(22,15,8,0.45)', marginBottom: 32, lineHeight: 1.7 },
+  cta: { display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--espresso)', color: 'var(--cream)', fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', padding: '14px 28px', borderRadius: 999, textDecoration: 'none', transition: 'background 0.25s ease' },
+  skeleton: { background: 'var(--cream-deep)', borderRadius: 20, height: 160, animation: 'nx-shimmer 1.8s ease-in-out infinite' },
+};
+
+const STAT_ACCENTS = ['var(--coral)', 'var(--espresso)', 'var(--saffron)', 'var(--coral)'];
 
 export default function Dashboard() {
   const { profile, tenant } = useAuthStore();
@@ -17,13 +42,13 @@ export default function Dashboard() {
   async function load() {
     setLoading(true);
     try {
-      const [s, r, c, t] = await Promise.all([
+      const [sv, r, c, t] = await Promise.all([
         supabase.from('surveys').select('*', { count: 'exact', head: true }),
         supabase.from('survey_responses').select('*', { count: 'exact', head: true }),
         supabase.from('survey_responses').select('*', { count: 'exact', head: true }).eq('status', 'completed'),
         supabase.from('user_profiles').select('*', { count: 'exact', head: true }),
       ]);
-      setStats({ surveys: s.count || 0, responses: r.count || 0, completions: c.count || 0, team: t.count || 0 });
+      setStats({ surveys: sv.count || 0, responses: r.count || 0, completions: c.count || 0, team: t.count || 0 });
       const { data } = await supabase.from('surveys').select('*, creator:user_profiles!created_by(full_name)').order('created_at', { ascending: false }).limit(6);
       setRecent(data || []);
     } catch (e) { console.error(e); }
@@ -32,94 +57,106 @@ export default function Dashboard() {
 
   const h = new Date().getHours();
   const greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-
+  const firstName = profile?.full_name?.split(' ')[0] || 'there';
   const statItems = [
-    { label: 'Total Surveys', val: stats.surveys, color: 'bg-accent' },
-    { label: 'Responses', val: stats.responses, color: 'bg-dark' },
-    { label: 'Completed', val: stats.completions, color: 'bg-accent' },
-    { label: 'Team Members', val: stats.team, color: 'bg-dark' },
+    { label: 'Total Surveys',  val: stats.surveys },
+    { label: 'Responses',      val: stats.responses },
+    { label: 'Completed',      val: stats.completions },
+    { label: 'Team Members',   val: stats.team },
   ];
 
   return (
-    <div>
-      {/* Hero greeting — big, bold */}
-      <div className="flex items-end justify-between mb-12">
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-          <p className="text-accent text-sm font-semibold tracking-[0.15em] uppercase mb-2">{tenant?.name}</p>
-          <h1 className="text-4xl md:text-5xl font-extrabold text-dark tracking-tight leading-tight">
-            {greet},<br />{profile?.full_name?.split(' ')[0] || 'there'}
+    <div style={S.page}>
+      {/* Header */}
+      <div style={S.header}>
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5, ease: [0.16,1,0.3,1] }}>
+          {tenant?.name && <div style={S.tag}>{tenant.name}</div>}
+          <h1 style={S.h1}>
+            {greet}, <em style={{ fontStyle: 'italic', color: 'var(--coral)' }}>{firstName}</em>
           </h1>
         </motion.div>
+
         {hasPermission(profile?.role, 'create_survey') && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
-            <Link to="/surveys/new" className="bg-dark text-white px-6 py-3 rounded-full text-sm font-semibold hover:bg-accent transition-colors duration-300 flex items-center gap-2">
-              <HiOutlinePlus className="w-4 h-4" /> New Survey
+            <Link to="/surveys/new" style={S.cta}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--coral)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'var(--espresso)'}>
+              + New Survey
             </Link>
           </motion.div>
         )}
       </div>
 
-      {/* Stats — horizontal row, large numbers */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-16">
-        {statItems.map((s, i) => (
+      {/* Stat cards */}
+      <div style={S.statsGrid}>
+        {statItems.map((item, i) => (
           <motion.div key={i}
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.08, ease: [0.16, 1, 0.3, 1] }}
-            className="bg-white rounded-2xl p-6 border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
-            <p className="text-4xl md:text-5xl font-extrabold text-dark tracking-tight">{loading ? '—' : s.val}</p>
-            <p className="text-muted text-sm mt-2 font-medium">{s.label}</p>
-            <div className={`w-8 h-1 rounded-full mt-4 ${s.color}`} />
+            transition={{ delay: i * 0.07, ease: [0.16,1,0.3,1] }}
+            whileHover={{ y: -4, boxShadow: '0 24px 60px rgba(22,15,8,0.1)' }}
+            style={S.statCard(STAT_ACCENTS[i])}>
+            <div style={S.statNum}>{loading ? '—' : item.val}</div>
+            <div style={S.statLabel}>{item.label}</div>
           </motion.div>
         ))}
       </div>
 
-      {/* Recent surveys — horizontal scroll on mobile, grid on desktop */}
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-sm font-bold text-muted uppercase tracking-[0.15em]">Recent Surveys</h2>
-        <Link to="/surveys" className="text-sm font-semibold text-dark hover:text-accent transition-colors flex items-center gap-1">
-          View all <HiOutlineArrowRight className="w-4 h-4" />
+      {/* Recent surveys */}
+      <div style={S.sectionHead}>
+        <div style={S.sectionTitle}>Recent Surveys</div>
+        <Link to="/surveys" style={S.viewAll}
+          onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+          onMouseLeave={e => e.currentTarget.style.opacity = '0.55'}>
+          View all →
         </Link>
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {[1, 2, 3].map(i => <div key={i} className="h-40 bg-gray-100 rounded-2xl animate-pulse" />)}
+        <div style={S.grid}>
+          {[1,2,3].map(i => <div key={i} style={S.skeleton} />)}
         </div>
       ) : recent.length === 0 ? (
-        <div className="bg-white rounded-3xl border border-gray-100 text-center py-20">
-          <p className="text-5xl mb-4">📋</p>
-          <p className="text-muted mb-6">No surveys yet. Let's change that.</p>
+        <div style={S.emptyState}>
+          <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 72, color: 'rgba(22,15,8,0.06)', fontWeight: 900, marginBottom: 16, letterSpacing: -4 }}>Empty</div>
+          <h3 style={S.emptyTitle}>No surveys yet</h3>
+          <p style={S.emptyBody}>Your research journey starts here.<br />Create your first survey and see insights flow in.</p>
           {hasPermission(profile?.role, 'create_survey') && (
-            <Link to="/surveys/new" className="bg-dark text-white px-8 py-3 rounded-full text-sm font-semibold hover:bg-accent transition-colors inline-flex items-center gap-2">
-              <HiOutlinePlus className="w-4 h-4" /> Create your first survey
+            <Link to="/surveys/new" style={S.cta}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--coral)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'var(--espresso)'}>
+              Create first survey
             </Link>
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {recent.map((s, i) => (
-            <motion.div key={s.id}
+        <div style={S.grid}>
+          {recent.map((sv, i) => (
+            <motion.div key={sv.id}
               initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 + i * 0.05 }}>
-              <Link to={`/surveys/${s.id}/edit`}
-                className="block bg-white rounded-2xl border border-gray-100 p-6 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group h-full">
-                <div className="flex items-center justify-between mb-4">
-                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: s.theme_color || '#10B981' }} />
-                  <span className={SURVEY_STATUS[s.status]?.class || 'badge-draft'}>{SURVEY_STATUS[s.status]?.label}</span>
+              transition={{ delay: 0.1 + i * 0.05 }}
+              whileHover={{ y: -4, boxShadow: '0 24px 60px rgba(22,15,8,0.1)' }}>
+              <Link to={`/surveys/${sv.id}/edit`} style={S.surveyCard} className="survey-card-link">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: '50%', background: sv.theme_color || 'var(--coral)', boxShadow: `0 0 8px ${sv.theme_color || 'rgba(255,69,0,0.4)'}` }} />
+                  <span className={`p-badge ${SURVEY_STATUS[sv.status]?.class || 'p-badge-draft'}`} style={{ fontFamily: "'Syne', sans-serif" }}>
+                    {SURVEY_STATUS[sv.status]?.label || 'Draft'}
+                  </span>
                 </div>
-                <h3 className="text-lg font-bold text-dark group-hover:text-accent transition-colors mb-2 line-clamp-2">{s.title}</h3>
-                <p className="text-xs text-muted">
-                  {timeAgo(s.created_at)} · {s.creator?.full_name || '—'}
-                </p>
-                <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
-                  <span className="text-xs font-medium text-muted">View details</span>
-                  <HiOutlineArrowRight className="w-4 h-4 text-muted group-hover:text-accent group-hover:translate-x-1 transition-all" />
+                <div style={S.cardTitle}>{sv.title}</div>
+                <div style={S.cardMeta}>{timeAgo(sv.created_at)} · {sv.creator?.full_name || '—'}</div>
+                <div style={S.cardFooter}>
+                  <span style={{ fontFamily: "'Syne', sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.3)' }}>Open</span>
+                  <span style={{ color: 'rgba(22,15,8,0.25)', fontSize: 16 }}>→</span>
                 </div>
               </Link>
             </motion.div>
           ))}
         </div>
       )}
+
+      <style>{`
+        .survey-card-link:hover .card-title { color: var(--coral) !important; }
+      `}</style>
     </div>
   );
 }

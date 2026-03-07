@@ -38,6 +38,12 @@ export default {
         'espresso-mid':  '#2C1A0E',   // Elevated surfaces on espresso
         'espresso-light':'#3D2515',   // Borders, subtle dividers on espresso
 
+        // ── Utility aliases (map page components → design tokens) ──
+        dark:            '#160F08',   // alias → espresso
+        accent:          '#FF4500',   // alias → coral
+        soft:            '#FDF5E8',   // alias → cream (light bg)
+        muted:           '#7A5C44',   // warm mid-tone for secondary text
+
         // ── Semantic palette ──
         sage:            '#1E7A4A',   // Success, promoters, positive signals
         cobalt:          '#0047FF',   // Info, links

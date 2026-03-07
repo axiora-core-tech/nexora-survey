@@ -2,7 +2,9 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
-import './styles/index.css';
+import './index.css';                 // Tailwind base + design tokens
+import './styles/index.css';          // App component styles
+import './styles/app-overrides.css';  // Nexora Pulse visual overrides
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
