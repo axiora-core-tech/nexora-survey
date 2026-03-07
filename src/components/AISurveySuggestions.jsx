@@ -32,6 +32,10 @@ export default function AISurveySuggestions({ survey, questions = [], onAdd, tc 
   const [suggestions, setSuggestions] = useState([]);
   const [added,       setAdded]       = useState(new Set());
   const lastFetchKey  = useRef('');
+  // FIX: ref mirrors state so fetchSuggestions() always reads the current value,
+  // not a stale closure capture. Without this, the auto-trigger useEffect could
+  // call fetchSuggestions() while a previous fetch was still in flight.
+  const isLoading     = useRef(false);
 
   // Auto-suggest when question count hits meaningful milestones and survey has a title
   const fetchKey = `${survey?.title}__${questions.length}`;
@@ -44,7 +48,8 @@ export default function AISurveySuggestions({ survey, questions = [], onAdd, tc 
   }, [questions.length, survey?.title]); // eslint-disable-line
 
   async function fetchSuggestions() {
-    if (state === 'loading') return;
+    if (isLoading.current) return;
+    isLoading.current = true;
     setState('loading');
     setSuggestions([]);
     setAdded(new Set());
@@ -76,6 +81,8 @@ export default function AISurveySuggestions({ survey, questions = [], onAdd, tc 
     } catch (e) {
       console.error('AI suggestions:', e);
       setState('error');
+    } finally {
+      isLoading.current = false;
     }
   }
 

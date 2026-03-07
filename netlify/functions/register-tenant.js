@@ -77,14 +77,25 @@ export async function handler(event) {
     // If userId was fake/missing, look up by email
     if (!realUserId) {
       console.log(`userId ${userId} not found in auth.users, searching by email: ${email}`);
-      const { data: listData, error: listErr } = await supabase.auth.admin.listUsers();
-      if (listErr) {
-        console.error('listUsers error:', listErr);
-        throw new Error('Failed to look up user account.');
+      // BUG FIX: listUsers() returns max 1000 users with no pagination.
+      // On larger installs this would silently miss users beyond page 1.
+      // Use perPage=1000 + page loop to be safe, but also Supabase recommends
+      // using getUserByEmail when available (admin API v2+). We use pagination
+      // as a safe fallback that works on all Supabase versions.
+      let matchedUser = null;
+      let page = 1;
+      while (!matchedUser) {
+        const { data: listData, error: listErr } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
+        if (listErr) {
+          console.error('listUsers error:', listErr);
+          throw new Error('Failed to look up user account.');
+        }
+        matchedUser = listData?.users?.find(
+          (u) => u.email?.toLowerCase() === email.toLowerCase()
+        );
+        if (!matchedUser && (listData?.users?.length ?? 0) < 1000) break; // last page
+        if (!matchedUser) page++;
       }
-      const matchedUser = listData?.users?.find(
-        (u) => u.email?.toLowerCase() === email.toLowerCase()
-      );
       if (matchedUser) {
         realUserId = matchedUser.id;
         console.log(`Found user by email lookup: ${realUserId}`);

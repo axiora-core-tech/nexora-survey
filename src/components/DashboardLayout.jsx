@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAuthStore from '../hooks/useAuth';
+import PageLoader from '../pages/PageLoader';
 import { hasPermission, ROLE_LABELS } from '../lib/constants';
 
 // Nav items — Settings removed (lives in avatar menu now)
@@ -13,7 +14,12 @@ const NAV = [
 ];
 
 export default function DashboardLayout() {
-  const { profile, tenant, signOut } = useAuthStore();
+  const { profile, tenant, signOut, loading } = useAuthStore();
+
+  // BUG FIX: If profile is still null (e.g. loadProfile failed/retrying),
+  // render a loader instead of passing null profile to child pages where
+  // useEffect gates on profile?.id — without this, pages show empty forever.
+  if (loading || !profile) return <PageLoader label="Loading workspace…" />;
   const [userMenu, setUserMenu]   = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const nav = useNavigate();
@@ -49,10 +55,12 @@ export default function DashboardLayout() {
     const up    = () => document.body.classList.remove('np-clicking');
 
     window.addEventListener('mousemove', move);
-    document.querySelectorAll('a,button,[role=button]').forEach(el => {
-      el.addEventListener('mouseenter', over);
-      el.addEventListener('mouseleave', out);
-    });
+    // BUG FIX: Use event delegation on document instead of attaching
+    // mouseenter/mouseleave listeners to every individual element.
+    // The old approach: (1) missed dynamically added React elements,
+    // (2) created O(n) listeners with no cleanup — a memory leak.
+    document.addEventListener('mouseover',  e => { if (e.target.closest('a,button,[role=button]')) over(); });
+    document.addEventListener('mouseout',   e => { if (e.target.closest('a,button,[role=button]')) out();  });
     window.addEventListener('mousedown', down);
     window.addEventListener('mouseup', up);
     raf.current = requestAnimationFrame(loop);
@@ -62,6 +70,7 @@ export default function DashboardLayout() {
       window.removeEventListener('mousedown', down);
       window.removeEventListener('mouseup', up);
       cancelAnimationFrame(raf.current);
+      document.body.classList.remove('np-hovering', 'np-clicking');
     };
   }, []);
 

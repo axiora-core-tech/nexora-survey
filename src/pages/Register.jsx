@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import useAuthStore from '../hooks/useAuth';
 import toast from 'react-hot-toast';
@@ -17,8 +17,11 @@ const Logo = ({ dark }) => (
 export default function Register() {
   const [f, sf] = useState({ fullName: '', email: '', password: '', tenantName: '', tenantSlug: '' });
   const [busy, setBusy] = useState(false);
-  const { signUp } = useAuthStore();
+  const { signUp, user, initialized } = useAuthStore();
   const nav = useNavigate();
+
+  // BUG FIX: Redirect already-authenticated users away from the register page.
+  if (initialized && user) return <Navigate to="/dashboard" replace />;
   const s = (k, v) => sf(p => { const n = { ...p, [k]: v }; if (k === 'tenantName') n.tenantSlug = v.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); return n; });
 
   const go = async e => {

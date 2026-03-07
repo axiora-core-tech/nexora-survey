@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import useAuthStore from '../hooks/useAuth';
@@ -37,7 +37,8 @@ export default function Dashboard() {
   const [recent, setRecent] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => { if (profile?.id) load(); }, [profile?.id]);
+  const location = useLocation();
+  useEffect(() => { if (profile?.id) load(); }, [profile?.id, location.key]);
 
   async function load() {
     setLoading(true);

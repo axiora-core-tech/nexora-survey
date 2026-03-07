@@ -1,106 +1,73 @@
-/**
- * useConditionalLogic
- * Evaluates which questions should be visible given current answers.
- *
- * Usage in SurveyRespond:
- *   const { isVisible, visibleQuestions, nextVisible, prevVisible } = useConditionalLogic(questions, answers);
- *
- * Supports operators:
- *   equals, not_equals, contains, not_contains, includes, not_includes,
- *   gte, lte, first_is
- */
+import { useMemo } from 'react';
+
 export function useConditionalLogic(questions = [], answers = {}) {
 
-  /**
-   * Evaluate a single condition rule against current answers.
-   * Returns true if the question SHOULD be shown.
-   */
   function evaluate(rule, answers) {
-    if (!rule?.show_if) return true; // no rule → always show
-
+    if (!rule?.show_if) return true;
     const { question_id, operator, value } = rule.show_if;
     const ans = answers[question_id];
-
-    // No answer yet on the source question → hide dependent question
     if (ans === undefined || ans === null || ans === '') return false;
-
     const normalize = v => String(v ?? '').toLowerCase().trim();
     const ansStr    = normalize(ans);
     const valStr    = normalize(value);
-
     switch (operator) {
       case 'equals':       return ansStr === valStr;
       case 'not_equals':   return ansStr !== valStr;
       case 'contains':     return ansStr.includes(valStr);
       case 'not_contains': return !ansStr.includes(valStr);
-
-      case 'includes':     // multiple_choice: val is array
+      case 'includes':
         if (Array.isArray(ans)) return ans.map(normalize).includes(valStr);
         return ansStr.includes(valStr);
-
       case 'not_includes':
         if (Array.isArray(ans)) return !ans.map(normalize).includes(valStr);
         return !ansStr.includes(valStr);
-
       case 'gte':          return Number(ans) >= Number(value);
       case 'lte':          return Number(ans) <= Number(value);
-
-      case 'first_is':     // ranking: first item in array
+      case 'first_is':
         if (Array.isArray(ans)) return normalize(ans[0]) === valStr;
         return false;
-
-      default:             return true;
+      default: return true;
     }
   }
 
-  /**
-   * Build visibility map: { [question.id]: boolean }
-   * Uses the question's _id (local) or id (DB).
-   */
-  function buildVisibility() {
+  // PERF FIX: buildVisibility() was called on every render with no memoization.
+  // On surveys with many questions and fast-typing users, this caused expensive
+  // re-evaluations of all conditional rules on every keystroke.
+  // Now memoized on [questions, answers] — only recomputes when they change.
+  const visibility = useMemo(() => {
     const map = {};
     for (const q of questions) {
-      const key    = q._id || q.id;
-      map[key]     = evaluate(q.conditional_logic, answers);
+      const key = q._id || q.id;
+      map[key]  = evaluate(q.conditional_logic, answers);
     }
     return map;
-  }
+  }, [questions, answers]);
 
-  const visibility = buildVisibility();
+  const visibleQuestions = useMemo(
+    () => questions.filter(q => visibility[q._id || q.id]),
+    [questions, visibility]
+  );
 
-  /** Filtered list — only questions the respondent should see */
-  const visibleQuestions = questions.filter(q => visibility[q._id || q.id]);
-
-  /**
-   * Given current visible index, find the next visible question index
-   * in the full questions array (skip hidden ones).
-   */
   function nextVisible(currentIndex) {
     for (let i = currentIndex + 1; i < questions.length; i++) {
       if (visibility[questions[i]._id || questions[i].id]) return i;
     }
-    return null; // no next visible → end of survey
+    return null;
   }
 
   function prevVisible(currentIndex) {
     for (let i = currentIndex - 1; i >= 0; i--) {
       if (visibility[questions[i]._id || questions[i].id]) return i;
     }
-    return null; // no prev → go to welcome screen
+    return null;
   }
 
-  /** Is a specific question visible? */
   function isVisible(questionId) {
     return visibility[questionId] !== false;
   }
 
-  /** Total number of visible questions (for progress bar) */
   const visibleCount = visibleQuestions.length;
 
-  /**
-   * Progress percentage for a respondent at a given full-array index.
-   * Only counts visible questions answered so far.
-   */
   function progressAt(currentIndex) {
     const visibleSoFar = questions
       .slice(0, currentIndex + 1)
@@ -108,20 +75,9 @@ export function useConditionalLogic(questions = [], answers = {}) {
     return visibleCount ? Math.round((visibleSoFar / visibleCount) * 100) : 0;
   }
 
-  return {
-    visibility,
-    visibleQuestions,
-    visibleCount,
-    isVisible,
-    nextVisible,
-    prevVisible,
-    progressAt,
-  };
+  return { visibility, visibleQuestions, visibleCount, isVisible, nextVisible, prevVisible, progressAt };
 }
 
-/**
- * Standalone evaluator — use outside of React (e.g. in analytics or exports)
- */
 export function evaluateCondition(rule, answers) {
   if (!rule?.show_if) return true;
   const { question_id, operator, value } = rule.show_if;

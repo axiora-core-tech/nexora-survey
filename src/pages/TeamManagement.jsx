@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
+import { useLocation } from 'react-router-dom';
 import useAuthStore from '../hooks/useAuth';
 import { ROLE_LABELS, hasPermission } from '../lib/constants';
 import toast from 'react-hot-toast';
@@ -17,10 +18,11 @@ export default function TeamManagement() {
   const [iE, sIE] = useState(''); const [iR, sIR] = useState('viewer'); const [iN, sIN] = useState('');
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => { if (profile?.id) load(); }, [profile?.id]);
+  const location = useLocation();
+  useEffect(() => { if (profile?.id) load(); }, [profile?.id, location.key]);
 
   async function load() {
-    const { data } = await supabase.from('user_profiles').select('*').order('created_at');
+    const { data } = await supabase.from('user_profiles').select('*').eq('tenant_id', profile.tenant_id).order('created_at');
     setMembers(data || []); setLoading(false);
   }
   async function invite(e) {

@@ -22,7 +22,7 @@ const S = {
   statNum:  { fontFamily: 'Playfair Display, serif', fontWeight: 900, fontSize: 48, letterSpacing: '-3px', color: 'var(--espresso)', lineHeight: 1 },
   statLbl:  { fontFamily: 'Syne, sans-serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.35)', marginTop: 8 },
   textResp: { fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 14, color: 'var(--espresso)', background: 'var(--cream)', borderRadius: 12, padding: '12px 16px', lineHeight: 1.6, borderLeft: '3px solid var(--coral)' },
-  exportBtn:{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 24px', borderRadius: 999, border: '1px solid rgba(22,15,8,0.12)', background: 'transparent', color: 'rgba(22,15,8,0.55)', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'none', transition: 'all 0.2s' },
+  exportBtn:{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 24px', borderRadius: 999, border: '1px solid rgba(22,15,8,0.12)', background: 'transparent', color: 'rgba(22,15,8,0.55)', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s' },
   backLink: { display: 'inline-flex', alignItems: 'center', gap: 6, fontFamily: 'Syne, sans-serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.35)', textDecoration: 'none', marginBottom: 14, transition: 'color 0.2s' },
 };
 
@@ -40,6 +40,7 @@ export default function SurveyAnalytics() {
   useEffect(() => { if (profile?.id) load(); }, [id, profile?.id]);
 
   async function load() {
+    setL(true);
     try {
       const { data: s }  = await supabase.from('surveys').select('*').eq('id', id).single();
       setSv(s);
@@ -47,6 +48,8 @@ export default function SurveyAnalytics() {
       sQs(q || []);
       const { data: r }  = await supabase.from('survey_responses').select('*').eq('survey_id', id).order('started_at');
       sRs(r || []);
+      // BUG FIX: always reset answers to avoid stale data from a previous survey
+      sAns([]);
       if (r?.length) {
         const { data: a } = await supabase.from('survey_answers').select('*').in('response_id', r.map(x => x.id));
         sAns(a || []);

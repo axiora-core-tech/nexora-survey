@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase';
 import useAuthStore from '../hooks/useAuth';
 import { QUESTION_TYPES, hasPermission, SURVEY_STATUS, formatDate, isExpired } from '../lib/constants';
 import toast from 'react-hot-toast';
+import PageLoader from './PageLoader';
 import { HiOutlinePlus, HiOutlineTrash, HiOutlineArrowUp, HiOutlineArrowDown, HiOutlineSave, HiOutlineX, HiOutlineLink, HiOutlineChartBar, HiOutlinePlay, HiOutlinePause, HiOutlineRefresh, HiOutlineShare } from 'react-icons/hi';
 const hasO=t=>['single_choice','multiple_choice','dropdown'].includes(t);
 const inp="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-dark text-sm placeholder:text-gray-400 focus:outline-none focus:border-accent transition-colors";
@@ -28,7 +29,8 @@ export default function SurveyEdit(){
   async function chg(st){const u={status:st};if(st==='active'&&isExpired(sv.expires_at)){const d=prompt('Days:','7');if(!d)return;const x=new Date();x.setDate(x.getDate()+parseInt(d));u.expires_at=x.toISOString();}await supabase.from('surveys').update(u).eq('id',id);toast.success('Updated');load();}
   async function share(uid){await supabase.from('survey_shares').upsert({survey_id:id,shared_with:uid,shared_by:profile.id,permission:'view_analytics'});toast.success('Shared');load();}
   function copyLink(){navigator.clipboard.writeText(`${window.location.origin}/s/${sv.slug}`);toast.success('Copied!');}
-  if(loading)return<div style={{ textAlign:'center',padding:'80px 0',fontFamily:'Fraunces,serif',color:'rgba(22,15,8,0.35)' }}>Loading…</div>;
+  // BUG FIX: replaced plain-text loading state with branded PageLoader
+  if(loading)return<PageLoader label="Loading survey…" />;
   if(!sv)return<div style={{ textAlign:'center',padding:'80px 0',fontFamily:'Fraunces,serif',color:'rgba(22,15,8,0.35)' }}>Survey not found</div>;
   const tabs=[{id:'details',l:'Details'},{id:'questions',l:`Questions (${qs.length})`},{id:'settings',l:'Settings'}];
   const eSty = {

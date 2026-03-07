@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import useAuthStore from '../hooks/useAuth';
@@ -17,7 +17,8 @@ export default function SurveyList() {
   const [filter, setFilter] = useState('all');
   const [menu, setMenu] = useState(null);
 
-  useEffect(() => { if (profile?.id) load(); }, [profile?.id]);
+  const location = useLocation();
+  useEffect(() => { if (profile?.id) load(); }, [profile?.id, location.key]);
 
   async function load() {
     setLoading(true);

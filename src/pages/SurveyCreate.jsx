@@ -209,9 +209,9 @@ export default function SurveyCreate() {
           </button>
           {/* ── AI question suggestions ── */}
           <AISurveySuggestions
-            survey={sv}
+            survey={f}
             questions={qs}
-            tc={sv.theme_color || '#FF4500'}
+            tc={f.theme_color || '#FF4500'}
             onAdd={q => sQs(a => [...a, { ...newQ(), ...q, _id: 'new_' + Math.random().toString(36).slice(2) }])}
           />
         </div>

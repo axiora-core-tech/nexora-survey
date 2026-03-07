@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { supabase } from '../lib/supabase';
 import useAuthStore from '../hooks/useAuth';
 import { hasPermission, ROLE_LABELS } from '../lib/constants';
 import toast from 'react-hot-toast';
@@ -12,7 +11,10 @@ const btn   = { padding: '13px 28px', borderRadius: 999, border: 'none', backgro
 const secH  = { fontFamily: 'Syne, sans-serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.35)', marginBottom: 28 };
 
 export default function Settings() {
-  const { profile, tenant, updateProfile } = useAuthStore();
+  // BUG FIX: Destructure updateTenant from the store — previously the org save
+  // updated Supabase but never synced back to Zustand, so the nav header kept
+  // showing the old org name until a full page refresh.
+  const { profile, tenant, updateProfile, updateTenant } = useAuthStore();
   const [pF, sPF] = useState({ full_name: profile?.full_name || '' });
   const [tF, sTF] = useState({ name: tenant?.name || '', primary_color: tenant?.primary_color || '#FF4500' });
   const [sP, sSP] = useState(false);
@@ -23,14 +25,16 @@ export default function Settings() {
     try { await updateProfile({ full_name: pF.full_name }); toast.success('Profile saved'); }
     catch (e) { toast.error(e.message); } finally { sSP(false); }
   }
+
   async function saveT(e) {
     e.preventDefault();
     if (!tenant?.id) return toast.error('Organisation not loaded');
     sST(true);
     try {
-      const { data, error } = await supabase.from('tenants').update({ name: tF.name, primary_color: tF.primary_color }).eq('id', tenant.id).select().single();
-      if (error) throw error;
-      if (!data) throw new Error('Insufficient permissions');
+      // BUG FIX: Use updateTenant from the store instead of calling supabase directly.
+      // This updates both the DB and the Zustand store in one step, so the nav
+      // header reflects the new name immediately without a page refresh.
+      await updateTenant({ name: tF.name, primary_color: tF.primary_color });
       toast.success('Organisation saved');
     } catch (e) { toast.error(e.message); } finally { sST(false); }
   }

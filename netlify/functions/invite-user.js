@@ -89,25 +89,33 @@ export async function handler(event) {
       };
     }
 
-    // Verify inviter has permission (is admin in same tenant)
-    if (invitedBy) {
-      const { data: inviter } = await supabase
-        .from('user_profiles')
-        .select('role, tenant_id')
-        .eq('id', invitedBy)
-        .maybeSingle();
+    // SECURITY FIX: invitedBy was optional — omitting it entirely bypassed the
+    // permission check, letting anyone who knew a tenantId invite users to it.
+    // Now required; request is rejected if not supplied.
+    if (!invitedBy) {
+      return {
+        statusCode: 403,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ error: 'invitedBy is required' }),
+      };
+    }
 
-      if (
-        !inviter ||
-        inviter.tenant_id !== tenantId ||
-        !['super_admin', 'admin'].includes(inviter.role)
-      ) {
-        return {
-          statusCode: 403,
-          headers: CORS_HEADERS,
-          body: JSON.stringify({ error: 'You do not have permission to invite users' }),
-        };
-      }
+    const { data: inviter } = await supabase
+      .from('user_profiles')
+      .select('role, tenant_id')
+      .eq('id', invitedBy)
+      .maybeSingle();
+
+    if (
+      !inviter ||
+      inviter.tenant_id !== tenantId ||
+      !['super_admin', 'admin'].includes(inviter.role)
+    ) {
+      return {
+        statusCode: 403,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ error: 'You do not have permission to invite users' }),
+      };
     }
 
     // Check if user already exists in this tenant

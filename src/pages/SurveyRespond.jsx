@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 
@@ -181,7 +182,7 @@ export default function SurveyRespond() {
     for (const q of visibleQuestions) {
       if (q.is_required && !ans[q.id]) {
         goTo(qs.indexOf(q));
-        return alert(`Please answer: "${q.question_text}"`);
+        return toast.error(`Please answer: "${q.question_text}"`);
       }
     }
     sSub(true);
@@ -195,7 +196,7 @@ export default function SurveyRespond() {
       setDone(true);
       localStorage.removeItem(`nx_${slug}`);
     } catch (e) {
-      alert('Submission failed — your answers are saved. Please try again.');
+      toast.error('Submission failed — your answers are saved. Please try again.');
     } finally { sSub(false); }
   }
 
@@ -204,7 +205,7 @@ export default function SurveyRespond() {
 
   function goNext() {
     const q = qs[step];
-    if (q?.is_required && !ans[q.id]) return alert('This question is required');
+    if (q?.is_required && !ans[q.id]) return toast.error('This question is required');
     if (q) tracker.onLeave(q.id);
     const next = nextVisible(step);
     if (next !== null) {
@@ -427,7 +428,8 @@ export default function SurveyRespond() {
                 <motion.button initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.4 }}
                   whileHover={{ scale:1.03, y:-2 }} whileTap={{ scale:0.97 }}
                   onClick={() => {
-                    if (sv.require_email && !email) return alert('Please enter your email to begin');
+                    if (sv.require_email && !email) return toast.error('Please enter your email to begin');
+                    if (sv.require_email && email && !/^[^@]+@[^@]+.[^@]+$/.test(email)) return toast.error('Please enter a valid email address');
                     setDir(1);
                     const firstVisible = qs.findIndex(q => visibleQuestions.some(vq => vq.id === q.id));
                     const idx = firstVisible >= 0 ? firstVisible : 0;
