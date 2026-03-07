@@ -21,18 +21,17 @@ export default function App() {
   useEffect(() => { initialize(); }, [initialize]);
 
   if (!initialized || loading) return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="w-10 h-10 rounded-xl bg-green-500 flex items-center justify-center animate-pulse">
-        <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/></svg>
-      </div>
+    <div className="h-screen flex items-center justify-center bg-dark">
+      <div className="flex gap-1.5">{[0,1,2].map(i=><div key={i} className="w-2 h-2 rounded-full bg-accent animate-pulse" style={{animationDelay:`${i*200}ms`}}/>)}</div>
     </div>
   );
 
   return (
     <>
-      <Toaster position="bottom-center" toastOptions={{ duration:3000, style:{
-        borderRadius:'12px', background:'#1C1917', color:'#fff', fontSize:'14px',
-        fontFamily:'"DM Sans",sans-serif', padding:'12px 18px', boxShadow:'0 12px 32px rgba(0,0,0,0.12)',
+      <Toaster position="bottom-center" toastOptions={{ duration: 3000, style: {
+        borderRadius: '100px', background: '#0A0A0A', color: '#fff', fontSize: '14px',
+        fontFamily: 'Outfit, sans-serif', padding: '12px 24px',
+        boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
       }}} />
       <Routes>
         <Route path="/" element={<Landing />} />

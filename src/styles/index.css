@@ -2,96 +2,46 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  html { scroll-behavior: smooth; }
-  body { @apply bg-n-0 text-n-900 font-sans antialiased; }
-  ::selection { background: rgba(16,185,129,0.15); }
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-thumb { background: #D6D3D1; border-radius: 99px; }
-  *:focus-visible { @apply outline-none ring-2 ring-green-500/20 ring-offset-2; }
+html { scroll-behavior: smooth; }
+body { @apply bg-white text-dark font-sans antialiased; }
+::selection { background: rgba(16,185,129,0.2); }
+::-webkit-scrollbar { width: 0; }
+*:focus-visible { @apply outline-none ring-2 ring-accent/30 ring-offset-2; }
+
+/* Survey full-screen question */
+.q-screen {
+  @apply min-h-[100dvh] flex flex-col justify-center px-6;
 }
 
-@layer components {
-  /* Buttons — rounded, friendly */
-  .btn { @apply inline-flex items-center justify-center gap-2 font-semibold rounded-xl
-    transition-all duration-200 active:scale-[0.96] disabled:opacity-40 disabled:pointer-events-none; }
-  .btn-green { @apply btn px-6 py-3 text-sm bg-green-500 text-white
-    hover:bg-green-600 hover:shadow-green hover:-translate-y-0.5; }
-  .btn-green-lg { @apply btn px-8 py-4 text-base bg-green-500 text-white rounded-2xl
-    hover:bg-green-600 hover:shadow-green-lg hover:-translate-y-0.5; }
-  .btn-dark { @apply btn px-6 py-3 text-sm bg-n-900 text-white
-    hover:bg-n-800 hover:-translate-y-0.5; }
-  .btn-outline { @apply btn px-6 py-3 text-sm bg-white text-n-700 border border-n-200
-    hover:border-n-300 hover:shadow-soft hover:-translate-y-0.5; }
-  .btn-ghost { @apply btn px-3 py-2 text-sm text-n-500 hover:text-n-800 hover:bg-n-100 rounded-xl; }
-
-  /* Inputs */
-  .input { @apply w-full px-4 py-3 bg-white border border-n-200 rounded-xl text-n-900 text-sm
-    placeholder:text-n-400 transition-all duration-200
-    hover:border-n-300 focus:outline-none focus:border-green-500 focus:ring-2 focus:ring-green-500/10; }
-  .input-label { @apply block text-sm font-medium text-n-600 mb-1.5; }
-
-  /* Cards */
-  .card { @apply bg-white rounded-2xl border border-n-200/60 shadow-soft; }
-
-  /* Badges */
-  .badge { @apply inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold; }
-  .badge-active { @apply badge bg-green-50 text-green-700; }
-  .badge-draft { @apply badge bg-n-100 text-n-500; }
-  .badge-expired { @apply badge bg-amber-50 text-amber-700; }
-  .badge-closed { @apply badge bg-red-50 text-red-600; }
-  .badge-paused { @apply badge bg-yellow-50 text-yellow-700; }
-
-  /* Role badges */
-  .role-super_admin { @apply bg-plum-50 text-plum-500; }
-  .role-admin { @apply bg-coral-50 text-coral-600; }
-  .role-manager { @apply bg-green-50 text-green-700; }
-  .role-creator { @apply bg-blue-50 text-blue-600; }
-  .role-viewer { @apply bg-n-100 text-n-500; }
-
-  /* Survey answer options — big, friendly, tactile */
-  .option-card {
-    @apply flex items-center gap-4 w-full text-left p-5 rounded-2xl bg-white
-      border-2 border-n-200/80 cursor-pointer select-none
-      transition-all duration-200
-      hover:border-green-400/50 hover:bg-green-50/30 hover:shadow-soft hover:-translate-y-0.5
-      active:scale-[0.98];
-  }
-  .option-card.picked {
-    @apply border-green-500 bg-green-50 shadow-green;
-  }
+/* Answer option — large, tactile */
+.ans-opt {
+  @apply flex items-center gap-5 w-full text-left px-6 py-5 rounded-2xl
+    bg-white border-2 border-gray-200 cursor-pointer select-none
+    transition-all duration-300 ease-out
+    hover:border-accent/40 hover:bg-accent/[0.03] hover:-translate-y-1 hover:shadow-lg
+    active:scale-[0.98];
+}
+.ans-opt.picked {
+  @apply border-accent bg-accent/5 shadow-glow;
 }
 
-/* Gradient shapes for landing */
-.blob-green {
-  background: radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 70%);
-}
-.blob-coral {
-  background: radial-gradient(circle, rgba(255,87,51,0.06) 0%, transparent 70%);
-}
-.blob-plum {
-  background: radial-gradient(circle, rgba(139,92,246,0.05) 0%, transparent 70%);
+/* Underline input */
+.u-input {
+  @apply w-full bg-transparent border-0 border-b-2 border-gray-300
+    text-3xl md:text-4xl font-light text-dark placeholder:text-gray-300
+    focus:outline-none focus:border-accent
+    transition-colors duration-300 py-4;
 }
 
-/* Sticky note — Lyssna-inspired */
-.sticky {
-  @apply rounded-xl p-3 text-xs font-medium shadow-soft;
-  transform: rotate(var(--rotate, -2deg));
-}
-
-/* Confetti */
-.confetti-bit {
-  position: absolute; width: 8px; height: 8px; border-radius: 2px;
-  animation: confetti 1.2s ease-out forwards;
-}
-
-/* Progress bar smooth */
-.progress-track { @apply h-1 bg-n-100 rounded-full overflow-hidden; }
-.progress-fill { @apply h-full rounded-full transition-all duration-700 ease-out; }
-
-/* Animated check */
-.draw-check { stroke-dasharray: 80; stroke-dashoffset: 80; animation: draw-check 0.5s ease-out 0.2s forwards; }
-@keyframes draw-check { to { stroke-dashoffset: 0; } }
-
-/* Page title */
-.page-title { @apply text-xl font-bold text-n-900; }
+/* Badge */
+.badge { @apply inline-flex items-center px-2.5 py-1 rounded-lg text-[11px] font-bold tracking-wide; }
+.badge-active { @apply badge bg-accent/10 text-accent; }
+.badge-draft { @apply badge bg-gray-100 text-gray-500; }
+.badge-expired { @apply badge bg-amber-50 text-amber-600; }
+.badge-closed { @apply badge bg-red-50 text-red-500; }
+.badge-paused { @apply badge bg-yellow-50 text-yellow-600; }
+.role-super_admin { @apply bg-purple-50 text-purple-600; }
+.role-admin { @apply bg-rose-50 text-rose-600; }
+.role-manager { @apply bg-emerald-50 text-emerald-600; }
+.role-creator { @apply bg-blue-50 text-blue-600; }
+.role-viewer { @apply bg-gray-100 text-gray-500; }

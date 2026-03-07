@@ -1,171 +1,229 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { motion, useScroll, useTransform, useInView } from 'framer-motion';
 import useAuthStore from '../hooks/useAuth';
-import { HiOutlineArrowRight, HiOutlineStar, HiOutlineCheck } from 'react-icons/hi';
+import { HiOutlineArrowRight } from 'react-icons/hi';
+
+function Reveal({ children, className = '', delay = 0 }) {
+  const ref = useRef(null);
+  const inView = useInView(ref, { once: true, margin: '-80px' });
+  return (
+    <motion.div ref={ref} className={className}
+      initial={{ opacity: 0, y: 40 }}
+      animate={inView ? { opacity: 1, y: 0 } : {}}
+      transition={{ duration: 0.7, delay, ease: [0.16, 1, 0.3, 1] }}>
+      {children}
+    </motion.div>
+  );
+}
 
 export default function Landing() {
   const { user } = useAuthStore();
+  const heroRef = useRef(null);
+  const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.8], [1, 0]);
+  const heroScale = useTransform(scrollYProgress, [0, 0.8], [1, 0.95]);
 
   return (
-    <div className="min-h-screen bg-n-0 overflow-hidden">
-      {/* Background blobs — alive, breathing */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-[600px] h-[600px] blob-green animate-float" />
-        <div className="absolute top-[50%] -left-20 w-[500px] h-[500px] blob-coral animate-float-slow" />
-        <div className="absolute -bottom-20 right-[30%] w-[400px] h-[400px] blob-plum animate-float" style={{animationDelay:'2s'}} />
-      </div>
-
-      {/* Nav */}
-      <nav className="relative z-20 max-w-6xl mx-auto px-6 h-20 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-green-500 flex items-center justify-center shadow-green">
-            <svg className="w-4.5 h-4.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7"/></svg>
+    <div className="bg-white">
+      {/* ═══════ STICKY NAV — transparent, floats over hero ═══════ */}
+      <nav className="fixed top-0 w-full z-50 mix-blend-difference">
+        <div className="max-w-[1400px] mx-auto px-8 h-20 flex items-center justify-between">
+          <span className="text-xl font-bold text-white tracking-tight">nexora</span>
+          <div className="flex items-center gap-6">
+            {user ? (
+              <Link to="/dashboard" className="text-sm font-medium text-white hover:text-accent transition-colors">Dashboard →</Link>
+            ) : (
+              <>
+                <Link to="/login" className="text-sm font-medium text-white/70 hover:text-white transition-colors">Sign in</Link>
+                <Link to="/register" className="text-sm font-medium text-dark bg-white px-5 py-2.5 rounded-full hover:bg-accent hover:text-white transition-all duration-300">
+                  Get Started
+                </Link>
+              </>
+            )}
           </div>
-          <span className="text-xl font-bold text-n-900">Nexora</span>
-        </div>
-        <div className="flex items-center gap-3">
-          {user ? (
-            <Link to="/dashboard" className="btn-green text-sm">Dashboard</Link>
-          ) : (
-            <>
-              <Link to="/login" className="btn-ghost">Log in</Link>
-              <Link to="/register" className="btn-green">Get started free</Link>
-            </>
-          )}
         </div>
       </nav>
 
-      {/* Hero */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 pt-16 pb-24">
-        <div className="grid lg:grid-cols-2 gap-16 items-center">
-          <div>
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-green-50 rounded-full text-sm font-semibold text-green-700 mb-6 animate-in">
-              <HiOutlineStar className="w-4 h-4" /> Trusted by 500+ teams
-            </div>
+      {/* ═══════ HERO — full viewport, dark, massive type ═══════ */}
+      <motion.section ref={heroRef} style={{ opacity: heroOpacity, scale: heroScale }}
+        className="h-screen bg-dark relative flex items-center overflow-hidden">
+        {/* Gradient orbs */}
+        <div className="absolute top-[20%] left-[10%] w-[500px] h-[500px] bg-accent/10 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[10%] right-[15%] w-[400px] h-[400px] bg-purple-500/8 rounded-full blur-[100px]" />
 
-            <h1 className="text-[3rem] md:text-[3.5rem] lg:text-[4rem] font-extrabold text-n-900 leading-[1.1] tracking-tight mb-6 animate-in-delay-1">
-              Let user research be
-              <br />your{' '}
-              <span className="text-green-500">superpower</span>
-            </h1>
+        <div className="relative z-10 max-w-[1400px] mx-auto px-8 w-full">
+          <motion.p
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="text-accent font-medium text-sm tracking-[0.2em] uppercase mb-8">
+            Survey Platform for Modern Teams
+          </motion.p>
 
-            <p className="text-lg text-n-500 leading-relaxed mb-8 max-w-lg animate-in-delay-2">
-              Beautiful surveys that people actually enjoy filling out.
-              Gather feedback, understand behavior, and build what users love.
-            </p>
+          <motion.h1
+            initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            className="text-[clamp(3rem,8vw,7rem)] font-extrabold text-white leading-[0.95] tracking-tight max-w-[900px]">
+            Surveys that
+            <br />
+            <span className="text-accent">people love</span>
+            <br />
+            to complete
+          </motion.h1>
 
-            <div className="flex items-center gap-4 animate-in-delay-3">
-              <Link to="/register" className="btn-green-lg">
-                Start for free <HiOutlineArrowRight className="w-5 h-5" />
-              </Link>
-              <Link to="/login" className="btn-outline px-8 py-4 rounded-2xl">Log in</Link>
-            </div>
+          <motion.p
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.7 }}
+            className="text-xl text-white/50 mt-8 max-w-[500px] leading-relaxed font-light">
+            Psychology-driven design that turns survey fatigue into survey delight. Built for teams who care about every response.
+          </motion.p>
 
-            <p className="text-sm text-n-400 mt-4 flex items-center gap-2">
-              <HiOutlineCheck className="w-4 h-4 text-green-500" /> No credit card required
-            </p>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.9 }}
+            className="flex items-center gap-5 mt-12">
+            <Link to="/register" className="group bg-accent text-white px-8 py-4 rounded-full text-base font-semibold hover:bg-white hover:text-dark transition-all duration-300 flex items-center gap-2">
+              Start Free <HiOutlineArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+            </Link>
+            <Link to="/login" className="text-white/60 hover:text-white text-sm font-medium transition-colors">
+              or sign in →
+            </Link>
+          </motion.div>
+        </div>
+
+        {/* Scroll indicator */}
+        <motion.div
+          animate={{ y: [0, 8, 0] }} transition={{ repeat: Infinity, duration: 2 }}
+          className="absolute bottom-10 left-1/2 -translate-x-1/2">
+          <div className="w-6 h-10 rounded-full border-2 border-white/20 flex items-start justify-center p-1.5">
+            <div className="w-1.5 h-3 bg-white/40 rounded-full" />
           </div>
+        </motion.div>
+      </motion.section>
 
-          {/* Right — Live product preview (Lyssna-style) */}
-          <div className="hidden lg:block relative animate-in-delay-2">
-            {/* Floating sticky notes */}
-            <div className="sticky bg-yellow-100 text-yellow-800 absolute -top-4 -left-6 z-10 animate-float" style={{'--rotate':'-3deg'}}>
-              📝 Quick feedback
-            </div>
-            <div className="sticky bg-green-100 text-green-800 absolute -bottom-2 -right-4 z-10 animate-float-slow" style={{'--rotate':'2deg'}}>
-              ✅ 87% completion rate
-            </div>
-
-            {/* Main survey preview card */}
-            <div className="card p-6 relative">
-              <div className="flex items-center gap-2 mb-5">
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse-soft" />
-                <span className="text-xs font-semibold text-n-500">Live Survey</span>
-                <span className="badge-active ml-auto">Active</span>
-              </div>
-
-              <p className="font-bold text-n-900 text-lg mb-5">How would you rate your overall experience?</p>
-
-              {/* Star rating preview */}
-              <div className="flex gap-2 mb-6">
-                {[1,2,3,4,5].map(i => (
-                  <div key={i} className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl transition-all ${i<=4 ? 'bg-yellow-50 border-2 border-yellow-300 scale-105' : 'bg-n-100 border border-n-200'}`}>
-                    {i<=4 ? '⭐' : '☆'}
-                  </div>
-                ))}
-              </div>
-
-              {/* Option preview */}
-              <div className="space-y-2.5">
-                {['Very satisfied','Somewhat satisfied','Neutral'].map((opt,i) => (
-                  <div key={i} className={`flex items-center gap-3 p-3.5 rounded-xl border transition-all ${i===0 ? 'border-green-500 bg-green-50' : 'border-n-200'}`}>
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${i===0 ? 'border-green-500 bg-green-500' : 'border-n-300'}`}>
-                      {i===0 && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" strokeWidth={3} viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>}
-                    </div>
-                    <span className={`text-sm font-medium ${i===0 ? 'text-green-700' : 'text-n-600'}`}>{opt}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Floating stats card */}
-            <div className="card p-4 absolute -bottom-8 -left-8 w-48 animate-float" style={{animationDelay:'1.5s'}}>
-              <p className="text-[10px] font-bold text-n-400 uppercase tracking-wider mb-1">Responses today</p>
-              <div className="flex items-end gap-1">
-                <span className="text-2xl font-extrabold text-n-900">247</span>
-                <span className="text-xs font-bold text-green-500 mb-1">+23%</span>
-              </div>
-              <div className="flex gap-0.5 mt-2">
-                {[40,60,35,80,65,90,55].map((h,i) => (
-                  <div key={i} className="flex-1 bg-green-200 rounded-full" style={{height:`${h*0.3}px`}} />
-                ))}
-              </div>
-            </div>
+      {/* ═══════ NUMBERS — big, impactful, edge-to-edge ═══════ */}
+      <section className="py-24 border-b border-gray-100">
+        <div className="max-w-[1400px] mx-auto px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-4">
+            {[
+              { n: '87%', label: 'Average completion rate' },
+              { n: '10k+', label: 'Surveys created' },
+              { n: '2.4s', label: 'Avg response per question' },
+              { n: '500+', label: 'Teams worldwide' },
+            ].map((s, i) => (
+              <Reveal key={i} delay={i * 0.1} className="text-center md:text-left">
+                <p className="text-[clamp(2.5rem,5vw,4.5rem)] font-extrabold text-dark tracking-tight leading-none">{s.n}</p>
+                <p className="text-muted text-sm mt-2 font-medium">{s.label}</p>
+              </Reveal>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Features */}
-      <section className="relative z-10 max-w-5xl mx-auto px-6 pb-24">
-        <div className="text-center mb-14">
-          <p className="text-sm font-bold text-green-600 uppercase tracking-wider mb-3">Everything you need</p>
-          <h2 className="text-3xl md:text-4xl font-extrabold text-n-900 tracking-tight">
-            Research made simple and beautiful
-          </h2>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-6">
+      {/* ═══════ FEATURES — large alternating sections ═══════ */}
+      <section className="py-32">
+        <div className="max-w-[1400px] mx-auto px-8 space-y-32">
           {[
-            { emoji:'🎯', title:'Smart Surveys', desc:'11 question types, conditional logic, and auto-save that never loses a response.' },
-            { emoji:'👥', title:'Team Workspace', desc:'Multi-tenant isolation with roles. Every organization gets its own secure space.' },
-            { emoji:'📊', title:'Live Analytics', desc:'Charts, trends, and CSV export. See insights the moment responses land.' },
-          ].map((f,i) => (
-            <div key={i} className="card p-7 hover:shadow-card-hover hover:-translate-y-1 transition-all duration-300 animate-in" style={{animationDelay:`${0.2+i*0.1}s`}}>
-              <span className="text-3xl block mb-4">{f.emoji}</span>
-              <h3 className="text-lg font-bold text-n-900 mb-2">{f.title}</h3>
-              <p className="text-sm text-n-500 leading-relaxed">{f.desc}</p>
+            {
+              tag: '01 — Create', title: 'Build surveys in\nminutes, not hours',
+              desc: '11 question types. Drag-and-drop builder. Conditional logic. Beautiful by default.',
+              visual: (
+                <div className="bg-soft rounded-3xl p-8 h-[400px] flex items-center justify-center relative overflow-hidden">
+                  <div className="space-y-4 w-full max-w-sm">
+                    {['How satisfied are you?', 'What could we improve?', 'Would you recommend us?'].map((q, i) => (
+                      <motion.div key={i} whileHover={{ x: 8, scale: 1.02 }}
+                        className="bg-white rounded-xl p-4 shadow-sm border border-gray-200/60 cursor-pointer">
+                        <p className="text-xs text-muted mb-1">Question {i + 1}</p>
+                        <p className="text-sm font-semibold text-dark">{q}</p>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              ),
+            },
+            {
+              tag: '02 — Collect', title: 'One link.\nThousands of insights.',
+              desc: 'Auto-save every 2 responses. Resume where you left off. Expiry dates with one-click resume.',
+              visual: (
+                <div className="bg-dark rounded-3xl p-8 h-[400px] flex items-center justify-center relative overflow-hidden">
+                  <div className="text-center">
+                    <p className="text-white/40 text-xs tracking-widest uppercase mb-6">nexora.io/s/abc123</p>
+                    <p className="text-white text-2xl font-bold mb-8">How would you rate<br/>your experience?</p>
+                    <div className="flex gap-3 justify-center">
+                      {['😢', '😐', '🙂', '😊', '🤩'].map((e, i) => (
+                        <motion.div key={i} whileHover={{ scale: 1.3, y: -8 }}
+                          className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl cursor-pointer transition-colors ${i === 4 ? 'bg-accent/20 ring-2 ring-accent' : 'bg-white/10'}`}>
+                          {e}
+                        </motion.div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ),
+            },
+            {
+              tag: '03 — Analyze', title: 'Insights that\nspeak for themselves',
+              desc: 'Real-time charts. Drop-off analysis. One-click CSV export. Share within your team only.',
+              visual: (
+                <div className="bg-soft rounded-3xl p-8 h-[400px] flex items-center justify-center">
+                  <div className="space-y-6 w-full max-w-sm">
+                    {[
+                      { label: 'Very satisfied', pct: 68, color: 'bg-accent' },
+                      { label: 'Satisfied', pct: 22, color: 'bg-accent/60' },
+                      { label: 'Neutral', pct: 7, color: 'bg-gray-300' },
+                      { label: 'Unsatisfied', pct: 3, color: 'bg-gray-200' },
+                    ].map((bar, i) => (
+                      <Reveal key={i} delay={i * 0.1}>
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="text-sm font-medium text-dark">{bar.label}</span>
+                          <span className="text-sm font-bold text-dark">{bar.pct}%</span>
+                        </div>
+                        <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }} whileInView={{ width: `${bar.pct}%` }}
+                            transition={{ duration: 1, delay: i * 0.15, ease: [0.16, 1, 0.3, 1] }}
+                            viewport={{ once: true }}
+                            className={`h-full rounded-full ${bar.color}`} />
+                        </div>
+                      </Reveal>
+                    ))}
+                  </div>
+                </div>
+              ),
+            },
+          ].map((feat, i) => (
+            <div key={i} className={`grid lg:grid-cols-2 gap-16 items-center ${i % 2 === 1 ? 'lg:flex-row-reverse' : ''}`}>
+              <Reveal className={i % 2 === 1 ? 'lg:order-2' : ''}>
+                <p className="text-accent font-medium text-xs tracking-[0.2em] uppercase mb-4">{feat.tag}</p>
+                <h2 className="text-[clamp(2rem,4vw,3.5rem)] font-extrabold text-dark leading-[1.1] tracking-tight whitespace-pre-line mb-6">{feat.title}</h2>
+                <p className="text-muted text-lg leading-relaxed max-w-md">{feat.desc}</p>
+              </Reveal>
+              <Reveal delay={0.2} className={i % 2 === 1 ? 'lg:order-1' : ''}>
+                {feat.visual}
+              </Reveal>
             </div>
           ))}
         </div>
       </section>
 
-      {/* CTA — dark section (Yellow Slice-inspired) */}
-      <section className="relative z-10 bg-n-900 rounded-t-[32px]">
-        <div className="max-w-4xl mx-auto px-6 py-20 text-center">
-          <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight mb-5">
-            Ready to understand your users?
+      {/* ═══════ CTA — full dark section ═══════ */}
+      <section className="bg-dark py-32 relative overflow-hidden">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-accent/10 rounded-full blur-[150px]" />
+        <Reveal className="relative z-10 text-center max-w-3xl mx-auto px-8">
+          <h2 className="text-[clamp(2rem,5vw,4rem)] font-extrabold text-white tracking-tight leading-tight mb-6">
+            Ready to build surveys<br/>people actually enjoy?
           </h2>
-          <p className="text-n-400 text-lg mb-8 max-w-md mx-auto">
-            Start creating surveys in minutes. No credit card, no commitment.
-          </p>
-          <Link to="/register" className="btn-green-lg">
-            Get started — it's free <HiOutlineArrowRight className="w-5 h-5" />
+          <p className="text-white/40 text-lg mb-10 font-light">Free to start. No credit card required.</p>
+          <Link to="/register" className="group inline-flex items-center gap-2 bg-accent text-white px-10 py-5 rounded-full text-lg font-semibold hover:bg-white hover:text-dark transition-all duration-300">
+            Get Started Free <HiOutlineArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
           </Link>
-        </div>
-        <div className="border-t border-n-800 py-6 px-6 text-center text-sm text-n-600">
-          © {new Date().getFullYear()} Nexora Survey
-        </div>
+        </Reveal>
       </section>
+
+      {/* Footer */}
+      <footer className="py-8 px-8 text-center text-xs text-muted border-t border-gray-100">
+        © {new Date().getFullYear()} Nexora Survey. All rights reserved.
+      </footer>
     </div>
   );
 }
