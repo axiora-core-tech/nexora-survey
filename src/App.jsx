@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
+import PageLoader from "./pages/PageLoader";
 
 // ── Layout & guards ──────────────────────────────────────────────
 import DashboardLayout  from './components/DashboardLayout';
@@ -30,7 +31,7 @@ export default function App() {
 
   useEffect(() => { initialize(); }, []);
 
-  if (!initialized) return null;
+  if (!initialized) return <PageLoader />;
 
   return (
     <>
