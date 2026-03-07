@@ -546,11 +546,26 @@ export default function Landing({ onEnterApp }) {
       link.href = "https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700;1,900&family=Syne:wght@400;500;600;700;800&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;1,9..144,300;1,9..144,400&display=swap";
       document.head.appendChild(link);
     }
-    const el = document.createElement("style");
-    el.id = "lp-styles";
-    el.textContent = CSS;
-    document.head.appendChild(el);
-    return () => el.remove();
+    // Keep style tag alive across remounts to avoid animation flicker
+    if (!document.getElementById("lp-styles")) {
+      const el = document.createElement("style");
+      el.id = "lp-styles";
+      el.textContent = CSS;
+      document.head.appendChild(el);
+    }
+  }, []);
+
+  // Force hero CSS animations to replay on every mount
+  useEffect(() => {
+    const heroAnims = document.querySelectorAll(
+      ".lp-h-tag, .lp-h-word, .lp-h-sub, .lp-h-ctas, .lp-hero-cards, .lp-scroll-cue"
+    );
+    heroAnims.forEach(el => {
+      el.style.animation = "none";
+      // Trigger reflow
+      void el.offsetWidth;
+      el.style.animation = "";
+    });
   }, []);
 
   // Custom cursor
@@ -592,19 +607,28 @@ export default function Landing({ onEnterApp }) {
 
   // Scroll reveal
   useEffect(() => {
-    const runObserver = () => {
-      const obs = new IntersectionObserver(entries => {
-        entries.forEach(e => { if (e.isIntersecting) e.target.classList.add("vis"); });
-      }, { threshold: 0.12, rootMargin: "0px 0px -40px 0px" });
-      document.querySelectorAll(".lp-sr").forEach(el => obs.observe(el));
-      return obs;
-    };
-    // Small delay ensures React has painted all DOM nodes
+    let obs;
     const t = setTimeout(() => {
-      const obs = runObserver();
-      return () => obs.disconnect();
+      const elements = document.querySelectorAll(".lp-sr");
+
+      // Any element already scrolled past or in view should be visible immediately
+      elements.forEach(el => {
+        const rect = el.getBoundingClientRect();
+        if (rect.top < window.innerHeight) el.classList.add("vis");
+      });
+
+      // Observer handles the rest as user scrolls down
+      obs = new IntersectionObserver(entries => {
+        entries.forEach(e => { if (e.isIntersecting) e.target.classList.add("vis"); });
+      }, { threshold: 0.12 });
+
+      elements.forEach(el => obs.observe(el));
     }, 80);
-    return () => clearTimeout(t);
+
+    return () => {
+      clearTimeout(t);
+      if (obs) obs.disconnect();
+    };
   }, []);
 
 
@@ -621,6 +645,10 @@ export default function Landing({ onEnterApp }) {
       };
       requestAnimationFrame(step);
     };
+
+    // Reset to zero so they re-count on remount
+    document.querySelectorAll("[data-counter]").forEach(el => { el.textContent = "0"; });
+
     const ctrObs = new IntersectionObserver(entries => {
       entries.forEach(e => {
         if (e.isIntersecting) {
