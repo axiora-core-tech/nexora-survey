@@ -1,3 +1,4 @@
+import Landing from "./Landing";
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis,
@@ -478,9 +479,62 @@ function Sidebar({ page, onNav, user, onLogout }) {
 }
 
 // ─── LOGIN ─────────────────────────────────────────────────────────────────────
+// ── Floating-label input — faithful recreation of pulse-v10 lf-input ──
+function FloatingInput({ id, label, type = "text", value, onChange, rightSlot }) {
+  const [focused, setFocused] = useState(false);
+  const floated = focused || value.length > 0;
+  return (
+    <div style={{ position: "relative", paddingTop: 20 }}>
+      <label htmlFor={id} style={{
+        position: "absolute", left: 0,
+        top: floated ? 0 : 32,
+        fontFamily: "Syne, sans-serif",
+        fontSize: floated ? 10 : 11,
+        fontWeight: 700,
+        letterSpacing: "0.1em",
+        textTransform: "uppercase",
+        color: floated ? "var(--coral)" : "rgba(22,15,8,0.35)",
+        transition: "all 0.3s cubic-bezier(0.34,1.56,0.64,1)",
+        pointerEvents: "none",
+      }}>{label}</label>
+      <input
+        id={id}
+        type={type}
+        value={value}
+        onChange={e => onChange(e.target.value)}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={{
+          width: "100%", border: "none",
+          borderBottom: `1.5px solid ${focused ? "var(--coral)" : "rgba(22,15,8,0.12)"}`,
+          background: "none",
+          padding: "12px 0",
+          paddingRight: rightSlot ? 36 : 0,
+          fontFamily: "Fraunces, serif",
+          fontSize: 18, fontWeight: 300,
+          color: "var(--espresso)", outline: "none",
+          transition: "border-color 0.3s ease",
+        }}
+      />
+      {/* animated underline */}
+      <div style={{
+        position: "absolute", bottom: 0, left: 0,
+        height: 1.5, borderRadius: 2,
+        background: "linear-gradient(90deg, var(--coral), var(--saffron))",
+        width: focused ? "100%" : "0%",
+        transition: "width 0.4s ease",
+      }} />
+      {rightSlot && <div style={{ position: "absolute", right: 0, bottom: 10 }}>{rightSlot}</div>}
+    </div>
+  );
+}
+
 function LoginPage({ onLogin }) {
+  const [tab, setTab] = useState("signin");
   const [email, setEmail] = useState("");
-  const [pw, setPw] = useState("password123");
+  const [pw, setPw] = useState("");
+  const [name, setName] = useState("");
+  const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -492,7 +546,7 @@ function LoginPage({ onLogin }) {
 
   const doLogin = async (loginEmail) => {
     setLoading(true); setError("");
-    await new Promise(r => setTimeout(r, 700));
+    await new Promise(r => setTimeout(r, 800));
     const roleMap = { "admin@nexora.io": "admin", "creator@nexora.io": "creator", "manager@nexora.io": "manager" };
     const e = loginEmail || email;
     const role = roleMap[e] || "manager";
@@ -500,131 +554,215 @@ function LoginPage({ onLogin }) {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "var(--espresso)", display: "flex", overflow: "hidden", position: "relative" }}>
-      {/* Mesh BG */}
-      <div className="mesh-bg">
-        <div className="mb mb1" />
-        <div className="mb mb2" />
-        <div className="grain" />
-      </div>
+    <div style={{ minHeight: "100vh", display: "grid", gridTemplateColumns: "1fr 480px", overflow: "hidden" }}>
 
-      {/* Left Panel */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center", padding: "80px 80px", position: "relative", zIndex: 2 }}>
-        {/* Logo */}
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 0, marginBottom: 80 }}>
-          <div>
-            <span style={{ fontFamily: "Syne, sans-serif", fontSize: 8, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(253,245,232,0.3)", display: "block", marginBottom: 3 }}>Nexora</span>
-            <span style={{ fontFamily: "Playfair Display, serif", fontSize: 32, fontWeight: 900, letterSpacing: "-1.5px", color: "var(--cream)", lineHeight: 1 }}>Pulse</span>
+      {/* ── LEFT ART PANEL — espresso dark, editorial ── */}
+      <div style={{
+        background: "var(--espresso)", position: "relative",
+        display: "flex", flexDirection: "column", justifyContent: "center",
+        padding: "80px 72px", overflow: "hidden",
+      }}>
+        {/* Mesh blobs */}
+        <div style={{ position: "absolute", inset: 0, pointerEvents: "none" }}>
+          <div style={{ position: "absolute", width: 600, height: 600, borderRadius: "50%", filter: "blur(80px)", background: "radial-gradient(circle, rgba(255,69,0,0.35), transparent 70%)", top: -150, right: -150 }} />
+          <div style={{ position: "absolute", width: 400, height: 400, borderRadius: "50%", filter: "blur(80px)", background: "radial-gradient(circle, rgba(255,184,0,0.2), transparent 70%)", bottom: -100, left: -100 }} />
+        </div>
+        {/* Grain */}
+        <div className="grain" style={{ opacity: 0.035 }} />
+        {/* Ghost text */}
+        <div style={{
+          position: "absolute", bottom: -30, left: -10, pointerEvents: "none",
+          fontFamily: "Playfair Display, serif", fontWeight: 900,
+          fontSize: "clamp(120px,15vw,220px)",
+          color: "transparent", WebkitTextStroke: "1px rgba(253,245,232,0.04)",
+          letterSpacing: "-5px", lineHeight: 1, userSelect: "none",
+        }}>Pulse</div>
+
+        {/* Content */}
+        <div style={{ position: "relative", zIndex: 1 }}>
+          {/* Logo */}
+          <div style={{ display: "flex", alignItems: "flex-start", marginBottom: 80 }}>
+            <div>
+              <span style={{ fontFamily: "Syne, sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: "0.2em", textTransform: "uppercase", color: "rgba(253,245,232,0.35)", display: "block", marginBottom: 3 }}>Nexora</span>
+              <span style={{ fontFamily: "Playfair Display, serif", fontSize: 28, fontWeight: 900, letterSpacing: "-1px", color: "var(--cream)", lineHeight: 1 }}>Pulse</span>
+            </div>
+            <div style={{ position: "relative", width: 9, height: 9, background: "var(--coral)", borderRadius: "50%", boxShadow: "0 0 10px rgba(255,69,0,0.55)", marginLeft: 10, marginTop: 5, flexShrink: 0 }}>
+              <div className="sonar-ring" /><div className="sonar-ring" /><div className="sonar-ring" />
+            </div>
           </div>
-          <div className="sonar-dot" style={{ position: "relative", width: 10, height: 10, background: "var(--coral)", borderRadius: "50%", marginLeft: 10, marginTop: 16 }}>
-            <div className="sonar-ring" style={{ width: 10, height: 10 }} />
-            <div className="sonar-ring" style={{ width: 10, height: 10 }} />
+
+          {/* Headline */}
+          <h2 style={{
+            fontFamily: "Playfair Display, serif",
+            fontSize: "clamp(34px, 3.5vw, 52px)",
+            fontWeight: 900, lineHeight: 1.05, letterSpacing: "-1.5px",
+            color: "var(--cream)", marginBottom: 28,
+          }}>
+            Research that{" "}
+            <em style={{ fontStyle: "italic", color: "var(--saffron)" }}>holds up</em>
+            {" "}in a room.
+          </h2>
+
+          <p style={{
+            fontFamily: "Fraunces, serif", fontSize: 17, fontWeight: 300,
+            lineHeight: 1.7, color: "rgba(253,245,232,0.55)",
+            maxWidth: 380, marginBottom: 64,
+          }}>
+            Trusted by insight leads at India's largest FMCG, financial, and consumer brands — for studies that drive decisions, not decks.
+          </p>
+
+          {/* Stats */}
+          <div style={{ display: "flex", gap: 48 }}>
+            {[
+              { val: "2.4", unit: "k", lbl: "Research teams" },
+              { val: "84",  unit: "%", lbl: "Median incidence" },
+              { val: "4.9", unit: "★", lbl: "Practitioner rating" },
+            ].map(s => (
+              <div key={s.lbl}>
+                <div style={{ fontFamily: "Playfair Display, serif", fontSize: 36, fontWeight: 900, color: "var(--cream)", marginBottom: 4, lineHeight: 1 }}>
+                  {s.val}<span style={{ color: "var(--saffron)" }}>{s.unit}</span>
+                </div>
+                <div style={{ fontFamily: "Syne, sans-serif", fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(253,245,232,0.35)" }}>
+                  {s.lbl}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
+      </div>
 
-        <div className="sec-tag on-dark rise-1">Survey Science Platform</div>
-
-        <h1 style={{
-          fontFamily: "Playfair Display, serif",
-          fontSize: "clamp(52px, 5vw, 84px)",
-          fontWeight: 900,
-          lineHeight: 0.95,
-          letterSpacing: "-3px",
-          color: "var(--cream)",
-          marginBottom: 28,
-        }} className="rise-2">
-          Turn feedback<br />into <em style={{ fontStyle: "italic", color: "var(--saffron)" }}>decisions</em>
-        </h1>
-
-        <p style={{ fontFamily: "Fraunces, serif", fontSize: 18, fontWeight: 300, lineHeight: 1.7, color: "rgba(253,245,232,0.5)", maxWidth: 420, marginBottom: 60 }} className="rise-3">
-          Market research tools built for people who take insight seriously. Beautiful surveys, real intelligence.
-        </p>
-
-        {/* Feature chips */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }} className="rise-4">
-          {[
-            ["AI-powered deep insights", "var(--coral)"],
-            ["Real-time response tracking", "var(--saffron)"],
-            ["Enterprise-grade security", "var(--sage)"],
-          ].map(([text, color]) => (
-            <div key={text} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ width: 6, height: 6, borderRadius: "50%", background: color, flexShrink: 0 }} />
-              <span style={{ fontFamily: "Syne, sans-serif", fontSize: 12, fontWeight: 500, letterSpacing: "0.06em", color: "rgba(253,245,232,0.5)" }}>{text}</span>
-            </div>
+      {/* ── RIGHT FORM PANEL — warm white, inviting ── */}
+      <div style={{
+        background: "var(--warm-white)",
+        display: "flex", flexDirection: "column", justifyContent: "center",
+        padding: "80px 72px", position: "relative",
+      }}>
+        {/* Tab toggle */}
+        <div style={{
+          display: "flex", alignItems: "center",
+          background: "var(--blush)", borderRadius: 9999,
+          padding: 4, marginBottom: 48, width: "fit-content",
+        }}>
+          {[["signin","Sign In"], ["signup","Create Account"]].map(([key, label]) => (
+            <button key={key} onClick={() => setTab(key)} style={{
+              fontFamily: "Syne, sans-serif", fontSize: 12, fontWeight: 700,
+              letterSpacing: "0.08em", textTransform: "uppercase",
+              padding: "10px 24px", borderRadius: 9999, border: "none",
+              background: tab === key ? "#fff" : "none",
+              color: "var(--espresso)",
+              opacity: tab === key ? 1 : 0.45,
+              boxShadow: tab === key ? "0 2px 12px rgba(22,15,8,0.08)" : "none",
+              cursor: "pointer", transition: "all 0.3s ease",
+            }}>{label}</button>
           ))}
         </div>
-      </div>
 
-      {/* Right Panel */}
-      <div style={{ width: 480, display: "flex", alignItems: "center", justifyContent: "center", padding: 48, position: "relative", zIndex: 2 }}>
-        <motion.div
-          initial={{ opacity: 0, x: 32 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6, ease: [0.34, 1.56, 0.64, 1] }}
-          style={{
-            background: "rgba(253,245,232,0.04)",
-            border: "1px solid rgba(253,245,232,0.1)",
-            borderRadius: 28,
-            padding: 48,
-            width: "100%",
-            backdropFilter: "blur(20px)",
-          }}
-        >
-          <div style={{ marginBottom: 40 }}>
-            <h2 style={{ fontFamily: "Playfair Display, serif", fontSize: 32, fontWeight: 700, color: "var(--cream)", letterSpacing: "-1px", marginBottom: 8 }}>
-              Welcome back
-            </h2>
-            <p style={{ fontFamily: "Fraunces, serif", fontSize: 15, fontWeight: 300, color: "rgba(253,245,232,0.45)" }}>
-              Sign in to your workspace
-            </p>
-          </div>
+        <h2 style={{
+          fontFamily: "Playfair Display, serif", fontSize: 38, fontWeight: 900,
+          letterSpacing: "-1.5px", color: "var(--espresso)", marginBottom: 10,
+        }}>
+          {tab === "signin" ? "Back to your research." : "Start your research."}
+        </h2>
+        <p style={{
+          fontFamily: "Fraunces, serif", fontSize: 16, fontWeight: 300,
+          lineHeight: 1.6, color: "var(--espresso)", opacity: 0.55, marginBottom: 44,
+        }}>
+          {tab === "signin" ? "Your studies, trackers, and panel data are waiting." : "Create an account and launch your first survey today."}
+        </p>
 
-          <form onSubmit={e => { e.preventDefault(); doLogin(); }} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-            <Input label="Work Email" type="email" value={email} onChange={setEmail} placeholder="you@company.com" required dark />
-            <Input label="Password" type="password" value={pw} onChange={setPw} placeholder="••••••••" required dark />
+        <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+          {tab === "signup" && (
+            <FloatingInput id="lf-name" label="Full Name" value={name} onChange={setName} />
+          )}
+          <FloatingInput id="lf-email" label="Work Email" type="email" value={email} onChange={setEmail} />
+          <FloatingInput
+            id="lf-pw" label="Password"
+            type={showPw ? "text" : "password"}
+            value={pw} onChange={setPw}
+            rightSlot={
+              <button onClick={() => setShowPw(v => !v)} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--espresso)", opacity: 0.3, padding: 0, display: "flex" }}>
+                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                  <path d="M1 9s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6z" stroke="currentColor" strokeWidth="1.5"/>
+                  <circle cx="9" cy="9" r="2.5" stroke="currentColor" strokeWidth="1.5"/>
+                </svg>
+              </button>
+            }
+          />
 
-            {error && (
-              <div style={{ background: "rgba(214,59,31,0.15)", border: "1px solid rgba(214,59,31,0.3)", borderRadius: 12, padding: "12px 16px", fontFamily: "Syne, sans-serif", fontSize: 12, color: "#fca5a5" }}>
-                {error}
-              </div>
-            )}
-
-            <button type="submit" disabled={loading} className="btn-fire" style={{ width: "100%", justifyContent: "center", marginTop: 4 }}>
-              <span>{loading ? "Signing in…" : "Enter Workspace"}</span>
-              {!loading && (
-                <div style={{ width: 22, height: 22, border: "1.5px solid rgba(255,255,255,0.4)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
-                </div>
-              )}
-            </button>
-          </form>
-
-          {/* Demo accounts */}
-          <div style={{ marginTop: 36, paddingTop: 28, borderTop: "1px solid rgba(253,245,232,0.08)" }}>
-            <p style={{ fontFamily: "Syne, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(253,245,232,0.25)", textAlign: "center", marginBottom: 16 }}>
-              Demo Accounts
-            </p>
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
-              {demos.map(d => (
-                <button
-                  key={d.label}
-                  onClick={() => doLogin(d.email)}
-                  style={{
-                    display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
-                    padding: "14px 8px", borderRadius: 14,
-                    background: "rgba(253,245,232,0.04)", border: "1px solid rgba(253,245,232,0.08)",
-                    cursor: "pointer", transition: "all 0.25s ease"
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(255,69,0,0.4)"; e.currentTarget.style.background = "rgba(255,69,0,0.08)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(253,245,232,0.08)"; e.currentTarget.style.background = "rgba(253,245,232,0.04)"; }}
-                >
-                  <span style={{ fontFamily: "Syne, sans-serif", fontSize: 12, fontWeight: 700, color: "var(--cream)" }}>{d.label}</span>
-                  <span style={{ fontFamily: "Fraunces, serif", fontSize: 11, fontWeight: 300, color: "rgba(253,245,232,0.35)" }}>{d.role}</span>
-                </button>
-              ))}
+          {error && (
+            <div style={{ background: "rgba(214,59,31,0.08)", border: "1px solid rgba(214,59,31,0.2)", borderRadius: 12, padding: "12px 16px", fontFamily: "Syne, sans-serif", fontSize: 12, color: "var(--terracotta)" }}>
+              {error}
             </div>
+          )}
+
+          <button
+            onClick={() => doLogin()}
+            disabled={loading}
+            style={{
+              width: "100%", padding: "20px", borderRadius: 9999, border: "none",
+              background: loading ? "rgba(255,69,0,0.6)" : "var(--coral)",
+              color: "#fff",
+              fontFamily: "Syne, sans-serif", fontSize: 14, fontWeight: 700,
+              letterSpacing: "0.08em", textTransform: "uppercase",
+              cursor: loading ? "not-allowed" : "pointer", marginTop: 8,
+              transition: "transform 0.3s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.3s ease",
+            }}
+            onMouseEnter={e => { if (!loading) { e.currentTarget.style.transform = "translateY(-3px)"; e.currentTarget.style.boxShadow = "0 20px 44px rgba(255,69,0,0.35)"; }}}
+            onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.boxShadow = "none"; }}
+          >
+            {loading ? "Signing in…" : tab === "signin" ? "Sign In →" : "Create Account →"}
+          </button>
+
+          {/* Divider */}
+          <div style={{ display: "flex", alignItems: "center", gap: 16, margin: "4px 0" }}>
+            <div style={{ flex: 1, height: 1, background: "rgba(22,15,8,0.1)" }} />
+            <span style={{ fontFamily: "Syne, sans-serif", fontSize: 10, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "var(--espresso)", opacity: 0.3 }}>or continue with</span>
+            <div style={{ flex: 1, height: 1, background: "rgba(22,15,8,0.1)" }} />
           </div>
-        </motion.div>
+
+          {/* Social buttons */}
+          <div style={{ display: "flex", gap: 12 }}>
+            {[
+              { name: "Google", icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M15.68 8.18c0-.57-.05-1.11-.14-1.64H8v3.1h4.3a3.7 3.7 0 01-1.6 2.42v2h2.58c1.51-1.39 2.4-3.44 2.4-5.88z" fill="#4285F4"/><path d="M8 16c2.16 0 3.97-.72 5.3-1.94l-2.58-2a4.8 4.8 0 01-7.14-2.52H.96v2.07A8 8 0 008 16z" fill="#34A853"/><path d="M3.58 9.54A4.8 4.8 0 013.32 8c0-.54.09-1.06.26-1.54V4.39H.96A8 8 0 000 8c0 1.3.31 2.52.96 3.61l2.62-2.07z" fill="#FBBC05"/><path d="M8 3.18c1.22 0 2.31.42 3.17 1.24l2.37-2.37A8 8 0 00.96 4.39L3.58 6.46A4.77 4.77 0 018 3.18z" fill="#EA4335"/></svg> },
+              { name: "GitHub", icon: <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg> },
+            ].map(s => (
+              <button key={s.name} style={{
+                flex: 1, padding: "14px", borderRadius: 14,
+                border: "1.5px solid rgba(22,15,8,0.1)", background: "none",
+                fontFamily: "Syne, sans-serif", fontSize: 12, fontWeight: 600,
+                letterSpacing: "0.06em", color: "var(--espresso)",
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                cursor: "pointer", transition: "all 0.3s ease",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "var(--coral)"; e.currentTarget.style.background = "rgba(255,69,0,0.04)"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(22,15,8,0.1)"; e.currentTarget.style.background = "none"; }}
+              >{s.icon}{s.name}</button>
+            ))}
+          </div>
+        </div>
+
+        {/* Demo accounts */}
+        <div style={{ marginTop: 44, paddingTop: 32, borderTop: "1px solid rgba(22,15,8,0.08)" }}>
+          <p style={{ fontFamily: "Syne, sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(22,15,8,0.25)", textAlign: "center", marginBottom: 16 }}>
+            Demo Accounts
+          </p>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+            {demos.map(d => (
+              <button key={d.label} onClick={() => doLogin(d.email)} style={{
+                display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+                padding: "14px 8px", borderRadius: 14,
+                background: "rgba(22,15,8,0.03)", border: "1.5px solid rgba(22,15,8,0.08)",
+                cursor: "pointer", transition: "all 0.25s ease",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = "rgba(255,69,0,0.35)"; e.currentTarget.style.background = "rgba(255,69,0,0.05)"; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = "rgba(22,15,8,0.08)"; e.currentTarget.style.background = "rgba(22,15,8,0.03)"; }}
+              >
+                <span style={{ fontFamily: "Syne, sans-serif", fontSize: 12, fontWeight: 700, color: "var(--espresso)" }}>{d.label}</span>
+                <span style={{ fontFamily: "Fraunces, serif", fontSize: 11, fontWeight: 300, color: "rgba(22,15,8,0.35)" }}>{d.role}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -1765,6 +1903,7 @@ const INIT_USERS = [
 
 // ─── ROOT APP ─────────────────────────────────────────────────────────────────
 export default function App() {
+  const [showLanding, setShowLanding] = useState(true);
   const [user, setUser] = useState(null);
   const [page, setPage] = useState("dashboard");
   const [surveys, setSurveys] = useState(INIT_SURVEYS);
@@ -1779,6 +1918,8 @@ export default function App() {
 
   const nav = (p) => { setPage(p); setViewId(null); };
   const logout = () => { setUser(null); setPage("dashboard"); setSessionExpired(false); };
+
+  if (showLanding) return <Landing onEnterApp={() => setShowLanding(false)} />;
 
   if (!user) return <LoginPage onLogin={setUser} />;
 
