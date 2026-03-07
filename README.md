@@ -29,7 +29,7 @@ A beautiful, multi-tenant SaaS survey platform built with React, Supabase, and T
 ## Project Structure
 
 ```
-nexora-survey/
+nexora-pulse/
 ├── netlify/functions/         # Serverless API functions
 │   ├── register-tenant.js     # New org registration
 │   └── invite-user.js         # User invitation
@@ -86,8 +86,8 @@ nexora-survey/
 
 ```bash
 # Clone the repo
-git clone https://github.com/axiora-core-tech/nexora-survey.git
-cd nexora-survey
+git clone https://github.com/axiora-core-tech/nexora-pulse.git
+cd nexora-pulse
 
 # Install dependencies
 npm install
