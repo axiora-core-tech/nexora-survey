@@ -181,7 +181,7 @@ function TabBar({ active, onChange }) {
 // ─────────────────────────────────────────────────────────────────────────────
 // TAB 1: OVERVIEW
 // ─────────────────────────────────────────────────────────────────────────────
-function OverviewTab({ analytics }) {
+function OverviewTab({ analytics, trendDays, setTrendDays }) {
   const { total, completedCount, abandonedCount, completionRate, abandonRate, avgTimeMin, nps, responseTrend, deviceBreakdown, milestones } = analytics;
   const inProgress = total - completedCount - abandonedCount;
 
@@ -262,15 +262,45 @@ function OverviewTab({ analytics }) {
         </motion.div>
       )}
 
-      {/* 14-day trend */}
+      {/* Response trend — floating day-range pill, zero layout impact */}
       {hasTrend ? (
-        <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.25 }} style={S.card}>
-          <div style={S.secLabel}>14-Day Response Trend</div>
+        <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.25 }}
+          style={{ ...S.card, position:'relative' }}>
+          {/* Floating segmented control — overlays card, takes no vertical space */}
+          <div style={{ position:'absolute', top:20, right:22, display:'flex', background:'var(--cream-deep)', borderRadius:999, padding:3, gap:2, zIndex:2 }}>
+            {[7, 14, 30, 90].map(d => (
+              <button key={d} onClick={() => setTrendDays(d)} style={{
+                fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700,
+                letterSpacing:'0.1em', textTransform:'uppercase',
+                padding:'5px 11px', borderRadius:999, border:'none',
+                background: trendDays===d ? 'var(--espresso)' : 'transparent',
+                color: trendDays===d ? 'var(--cream)' : 'rgba(22,15,8,0.38)',
+                cursor:'pointer', transition:'all 0.15s',
+              }}>{d}D</button>
+            ))}
+          </div>
+          <div style={S.secLabel}>{trendDays}-Day Response Trend</div>
           <div style={{ height:210 }}><Line options={lineOpts} data={trendData} /></div>
         </motion.div>
       ) : (
-        <div style={{ ...S.card, textAlign:'center', padding:'32px' }}>
-          <p style={{ ...S.body, color:'rgba(22,15,8,0.50)', margin:0 }}>No responses in the last 14 days.</p>
+        <div style={{ ...S.card, position:'relative' }}>
+          {/* Still show segment control even when no data — allows switching */}
+          <div style={{ position:'absolute', top:20, right:22, display:'flex', background:'var(--cream-deep)', borderRadius:999, padding:3, gap:2, zIndex:2 }}>
+            {[7, 14, 30, 90].map(d => (
+              <button key={d} onClick={() => setTrendDays(d)} style={{
+                fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700,
+                letterSpacing:'0.1em', textTransform:'uppercase',
+                padding:'5px 11px', borderRadius:999, border:'none',
+                background: trendDays===d ? 'var(--espresso)' : 'transparent',
+                color: trendDays===d ? 'var(--cream)' : 'rgba(22,15,8,0.38)',
+                cursor:'pointer', transition:'all 0.15s',
+              }}>{d}D</button>
+            ))}
+          </div>
+          <div style={S.secLabel}>{trendDays}-Day Response Trend</div>
+          <div style={{ textAlign:'center', padding:'24px 0' }}>
+            <p style={{ ...S.body, color:'rgba(22,15,8,0.40)', margin:0 }}>No responses in the last {trendDays} days.</p>
+          </div>
         </div>
       )}
 
@@ -969,13 +999,6 @@ export default function SurveyAnalytics() {
           </div>
         </div>
         <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
-          {/* Date range */}
-          {[7, 14, 30, 90].map(d => (
-            <button key={d} onClick={() => setTrendDays(d)}
-              style={{ ...S.exportBtn, background: trendDays === d ? 'var(--espresso)' : 'transparent', color: trendDays === d ? 'var(--cream)' : 'rgba(22,15,8,0.55)', borderColor: trendDays === d ? 'transparent' : 'rgba(22,15,8,0.12)', padding: '8px 14px' }}>
-              {d}d
-            </button>
-          ))}
           <div style={{ width: 1, height: 24, background: 'rgba(22,15,8,0.1)', margin: '0 4px' }} />
           <button onClick={() => { navigator.clipboard.writeText(window.location.href); import('react-hot-toast').then(m => m.default.success('Analytics link copied!')); }} style={{ ...S.exportBtn, display: 'flex', alignItems: 'center', gap: 5 }}
             onMouseEnter={e=>{ e.currentTarget.style.borderColor='var(--coral)'; e.currentTarget.style.color='var(--coral)'; }}
@@ -1007,7 +1030,7 @@ export default function SurveyAnalytics() {
           initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-6 }}
           transition={{ duration:0.2, ease:[0.16,1,0.3,1] }}>
 
-          {tab === 'Overview'     && <OverviewTab     analytics={analytics} />}
+          {tab === 'Overview'     && <OverviewTab     analytics={analytics} trendDays={trendDays} setTrendDays={setTrendDays} />}
           {tab === 'Dropoff'      && <DropoffTab      analytics={analytics} />}
           {tab === 'Questions'    && <QuestionsTab    analytics={analytics} />}
           {tab === 'TextInsights' && <TextInsightsTab analytics={analytics} />}

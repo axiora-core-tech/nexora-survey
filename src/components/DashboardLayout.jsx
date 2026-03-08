@@ -21,6 +21,19 @@ export default function DashboardLayout() {
   const [userMenu, setUserMenu]   = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cmdOpen, setCmdOpen]     = useState(false);
+  const avatarRef = useRef(null);
+
+  // Close avatar dropdown on outside click — reliable across all browsers
+  useEffect(() => {
+    if (!userMenu) return;
+    const handler = (e) => {
+      if (avatarRef.current && !avatarRef.current.contains(e.target)) {
+        setUserMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [userMenu]);
 
   // Global ⌘K / Ctrl+K to open command palette
   useEffect(() => {
@@ -252,7 +265,7 @@ export default function DashboardLayout() {
           {/* Notifications */}
           <NotificationFeed />
 
-          <div style={{ position: 'relative' }}>
+          <div style={{ position: 'relative' }} ref={avatarRef}>
             <button onClick={() => setUserMenu(v => !v)}
               style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--espresso)', color: 'var(--cream)', border: 'none', cursor: 'none', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 11, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.2s' }}
               onMouseEnter={e => e.currentTarget.style.background = 'var(--coral)'}
@@ -263,7 +276,6 @@ export default function DashboardLayout() {
             <AnimatePresence>
               {userMenu && (
                 <>
-                  <div style={{ position: 'fixed', inset: 0, zIndex: 10 }} onClick={() => setUserMenu(false)} />
                   <motion.div
                     initial={{ opacity: 0, scale: 0.95, y: -6 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: -6 }}
                     transition={{ duration: 0.15 }}

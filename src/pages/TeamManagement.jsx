@@ -7,10 +7,23 @@ import toast from 'react-hot-toast';
 import { useLoading } from '../context/LoadingContext';
 import ConfirmModal from '../components/ConfirmModal';
 
-const ROLE_COLORS = { super_admin: 'rgba(139,92,246,0.12)', admin: 'rgba(255,69,0,0.1)', manager: 'rgba(255,184,0,0.12)', creator: 'rgba(30,122,74,0.1)', viewer: 'rgba(22,15,8,0.06)' };
-const ROLE_TEXT   = { super_admin: '#7C3AED', admin: 'var(--coral)', manager: '#A07000', creator: 'var(--sage)', viewer: 'rgba(22,15,8,0.4)' };
-const inp = { width: '100%', boxSizing: 'border-box', padding: '14px 18px', background: 'var(--cream)', border: '1px solid rgba(22,15,8,0.1)', borderRadius: 12, fontFamily: 'Fraunces, serif', fontSize: 15, color: 'var(--espresso)', outline: 'none', transition: 'border-color 0.2s' };
-const label = { fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.38)', display: 'block', marginBottom: 10 };
+const ROLE_COLORS = { super_admin: 'rgba(139,92,246,0.10)', admin: 'rgba(255,69,0,0.10)', manager: 'rgba(255,184,0,0.12)', creator: 'rgba(30,122,74,0.10)', viewer: 'rgba(22,15,8,0.06)' };
+const ROLE_TEXT   = { super_admin: '#7C3AED', admin: 'var(--coral)', manager: '#A07000', creator: 'var(--sage)', viewer: 'rgba(22,15,8,0.38)' };
+
+/* Shared field styles — mirrors SurveyCreate / SurveyEdit */
+const inp   = { width: '100%', boxSizing: 'border-box', padding: '14px 18px', background: 'var(--cream)', border: '1.5px solid rgba(22,15,8,0.1)', borderRadius: 14, fontFamily: 'Fraunces, serif', fontSize: 15, color: 'var(--espresso)', outline: 'none', transition: 'border-color 0.2s, box-shadow 0.2s' };
+const lbl   = { fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.38)', display: 'block', marginBottom: 10 };
+
+/* Pill button that matches espresso save / submit buttons */
+const pillBtn = (active) => ({
+  display: 'inline-flex', alignItems: 'center', gap: 6,
+  padding: '10px 22px', borderRadius: 999, border: 'none',
+  background: active ? 'var(--espresso)' : 'var(--cream-deep)',
+  color: active ? 'var(--cream)' : 'rgba(22,15,8,0.5)',
+  fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 10,
+  letterSpacing: '0.12em', textTransform: 'uppercase',
+  cursor: 'pointer', transition: 'all 0.2s',
+});
 
 export default function TeamManagement() {
   const { profile } = useAuthStore();
@@ -55,6 +68,11 @@ export default function TeamManagement() {
     await supabase.from('user_profiles').update({ is_active: false }).eq('id', deactivateTarget);
     toast.success('Member deactivated'); load();
   }
+  async function reactivate(uid) {
+    if (uid === profile.id) return;
+    await supabase.from('user_profiles').update({ is_active: true }).eq('id', uid);
+    toast.success('Member reactivated'); load();
+  }
 
   return (
     <div>
@@ -85,46 +103,72 @@ export default function TeamManagement() {
       </div>
 
       {/* Member grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px,1fr))', gap: 16 }}>
-          {members.map(m => (
-            <div key={m.id} style={{ background: 'var(--warm-white)', borderRadius: 18, border: '1px solid rgba(22,15,8,0.07)', padding: 20, display: 'flex', alignItems: 'center', gap: 16, opacity: m.is_active === false ? 0.4 : 1, transition: 'box-shadow 0.2s' }}
-              onMouseEnter={e => e.currentTarget.style.boxShadow = '0 12px 40px rgba(22,15,8,0.08)'}
-              onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
-              {/* Avatar */}
-              <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--espresso)', color: 'var(--cream)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 16, flexShrink: 0 }}>
-                {m.full_name?.[0]?.toUpperCase() || '?'}
-              </div>
-              {/* Info */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: 'Playfair Display, serif', fontWeight: 700, fontSize: 16, color: 'var(--espresso)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px,1fr))', gap: 16 }}>
+        {members.map(m => (
+          <div key={m.id}
+            style={{ background: 'var(--warm-white)', borderRadius: 20, border: `1.5px solid ${m.is_active === false ? 'rgba(214,59,31,0.12)' : 'rgba(22,15,8,0.07)'}`, padding: '20px 22px', display: 'flex', alignItems: 'center', gap: 16, opacity: m.is_active === false ? 0.6 : 1, transition: 'box-shadow 0.2s, opacity 0.3s' }}
+            onMouseEnter={e => e.currentTarget.style.boxShadow = '0 12px 40px rgba(22,15,8,0.08)'}
+            onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}>
+
+            {/* Avatar */}
+            <div style={{ width: 46, height: 46, borderRadius: '50%', background: 'var(--espresso)', color: 'var(--cream)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Playfair Display, serif', fontWeight: 900, fontSize: 17, flexShrink: 0, letterSpacing: '-0.5px' }}>
+              {m.full_name?.[0]?.toUpperCase() || '?'}
+            </div>
+
+            {/* Info — name, email, role badge */}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 2 }}>
+                <div style={{ fontFamily: 'Playfair Display, serif', fontWeight: 700, fontSize: 15, color: 'var(--espresso)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {m.full_name || 'Unnamed'}
-                  {m.id === profile.id && <span style={{ fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', color: 'rgba(22,15,8,0.3)', marginLeft: 8 }}>YOU</span>}
                 </div>
-                <div style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 12, color: 'rgba(22,15,8,0.4)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.email}</div>
+                {m.id === profile.id && (
+                  <span style={{ fontFamily: 'Syne, sans-serif', fontSize: 8, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.3)', background: 'var(--cream-deep)', padding: '3px 8px', borderRadius: 999 }}>You</span>
+                )}
+                {m.is_active === false && (
+                  <span style={{ fontFamily: 'Syne, sans-serif', fontSize: 8, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--terracotta)', background: 'rgba(214,59,31,0.08)', padding: '3px 8px', borderRadius: 999 }}>Disabled</span>
+                )}
               </div>
-              {/* Role */}
+              <div style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 12, color: 'rgba(22,15,8,0.38)', marginBottom: 10, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.email}</div>
+
+              {/* Role — native select styled to match design system, or static badge */}
               {hasPermission(profile?.role, 'manage_team') && m.id !== profile.id ? (
-                <select value={m.role} onChange={e => chgRole(m.id, e.target.value)}
-                  style={{ fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '6px 12px', borderRadius: 999, border: `1px solid ${ROLE_COLORS[m.role]}`, background: ROLE_COLORS[m.role], color: ROLE_TEXT[m.role], cursor: 'pointer', outline: 'none' }}>
-                  {Object.entries(ROLE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                </select>
+                <div style={{ position: 'relative', display: 'inline-block' }}>
+                  <select value={m.role} onChange={e => chgRole(m.id, e.target.value)}
+                    style={{ appearance: 'none', WebkitAppearance: 'none', fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', padding: '6px 28px 6px 12px', borderRadius: 999, border: `1.5px solid ${ROLE_COLORS[m.role]}`, background: ROLE_COLORS[m.role], color: ROLE_TEXT[m.role], cursor: 'pointer', outline: 'none', transition: 'all 0.2s' }}>
+                    {Object.entries(ROLE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                  </select>
+                  {/* Chevron icon */}
+                  <svg style={{ position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} width="8" height="8" viewBox="0 0 24 24" fill="none" stroke={ROLE_TEXT[m.role]} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </div>
               ) : (
-                <span style={{ fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '6px 12px', borderRadius: 999, background: ROLE_COLORS[m.role], color: ROLE_TEXT[m.role] }}>
+                <span style={{ display: 'inline-block', fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', padding: '6px 12px', borderRadius: 999, background: ROLE_COLORS[m.role], color: ROLE_TEXT[m.role] }}>
                   {ROLE_LABELS[m.role]}
                 </span>
               )}
-              {/* Deactivate */}
-              {hasPermission(profile?.role, 'manage_team') && m.id !== profile.id && m.is_active !== false && (
-                <button onClick={() => deactivate(m.id)}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '6px 8px', borderRadius: 8, color: 'rgba(22,15,8,0.2)', fontSize: 16, lineHeight: 1, transition: 'all 0.2s' }}
+            </div>
+
+            {/* Action — enable / deactivate */}
+            {hasPermission(profile?.role, 'manage_team') && m.id !== profile.id && (
+              m.is_active === false ? (
+                <button onClick={() => reactivate(m.id)} title="Re-enable member"
+                  style={{ flexShrink: 0, padding: '8px 16px', borderRadius: 999, border: 'none', background: 'rgba(30,122,74,0.1)', color: 'var(--sage)', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--sage)'; e.currentTarget.style.color = '#fff'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(30,122,74,0.1)'; e.currentTarget.style.color = 'var(--sage)'; }}>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  Enable
+                </button>
+              ) : (
+                <button onClick={() => deactivate(m.id)} title="Deactivate member"
+                  style={{ flexShrink: 0, width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'none', color: 'rgba(22,15,8,0.2)', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
                   onMouseEnter={e => { e.currentTarget.style.color = 'var(--terracotta)'; e.currentTarget.style.background = 'rgba(214,59,31,0.06)'; }}
                   onMouseLeave={e => { e.currentTarget.style.color = 'rgba(22,15,8,0.2)'; e.currentTarget.style.background = 'none'; }}>
                   ✕
                 </button>
-              )}
-            </div>
-          ))}
-        </div>
+              )
+            )}
+          </div>
+        ))}
+      </div>
 
       {/* Invite modal */}
       {showModal && (
@@ -141,7 +185,7 @@ export default function TeamManagement() {
             <form onSubmit={invite} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
               {[{ l: 'Name', v: iN, sv: sIN, t: 'text', ph: 'Jane Smith' }, { l: 'Email *', v: iE, sv: sIE, t: 'email', ph: 'jane@company.com' }].map(f => (
                 <div key={f.l}>
-                  <label style={label}>{f.l}</label>
+                  <label style={lbl}>{f.l}</label>
                   <input type={f.t} value={f.v} onChange={e => f.sv(e.target.value)} placeholder={f.ph} required={f.t === 'email'}
                     style={inp}
                     onFocus={e => e.target.style.borderColor = 'var(--coral)'}
@@ -149,7 +193,7 @@ export default function TeamManagement() {
                 </div>
               ))}
               <div>
-                <label style={label}>Role</label>
+                <label style={lbl}>Role</label>
                 <select value={iR} onChange={e => sIR(e.target.value)} style={inp}
                   onFocus={e => e.target.style.borderColor = 'var(--coral)'}
                   onBlur={e => e.target.style.borderColor = 'rgba(22,15,8,0.1)'}>

@@ -31,6 +31,121 @@ export default function SurveyCreate() {
   const [qs, sQs]         = useState([newQ()]);
   const [dirty, setDirty] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [tmplTab, setTmplTab]             = useState('gallery'); // 'gallery' | 'mine'
+  const [catFilter, setCatFilter]         = useState('All');
+  const [showCreateTmpl, setShowCreateTmpl] = useState(false);
+  const [tmplName, setTmplName]           = useState('');
+  const [tmplCat, setTmplCat]             = useState('');
+  const [tmplDesc, setTmplDesc]           = useState('');
+  const [tmplNewCat, setTmplNewCat]       = useState('');
+  const [customTemplates, setCustomTemplates] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('np-custom-templates') || '[]'); } catch { return []; }
+  });
+
+  const persistCustom = (list) => {
+    setCustomTemplates(list);
+    localStorage.setItem('np-custom-templates', JSON.stringify(list));
+  };
+
+  function saveAsTemplate() {
+    if (!tmplName.trim()) return toast.error('Template name required');
+    const cat = (tmplNewCat.trim() || tmplCat || 'Custom');
+    const newT = {
+      id: Math.random().toString(36).slice(2),
+      name: tmplName.trim(),
+      category: cat,
+      desc: tmplDesc.trim() || 'Custom template',
+      time: `${Math.max(1, Math.ceil(qs.length * 0.5))} min`,
+      createdAt: new Date().toISOString(),
+      qs: qs.map(q => ({ question_text: q.question_text, question_type: q.question_type, options: q.options, is_required: q.is_required, description: q.description })),
+    };
+    persistCustom([newT, ...customTemplates]);
+    toast.success(`Template "${newT.name}" saved!`);
+    setShowCreateTmpl(false);
+    setTmplName(''); setTmplDesc(''); setTmplCat(''); setTmplNewCat('');
+    setTmplTab('mine');
+  }
+
+  function deleteCustomTemplate(id) {
+    persistCustom(customTemplates.filter(t => t.id !== id));
+    toast.success('Template deleted');
+  }
+
+  function loadTemplate(t) {
+    sf(p => ({ ...p, title: t.name }));
+    sQs(t.qs.map(q => ({ ...q, _id: Math.random().toString(36).slice(2), options: q.options || [], description: q.description || '' })));
+    setDirty(true); setShowTemplates(false); setTab('questions');
+    toast.success(`"${t.name}" loaded!`);
+  }
+
+  const GALLERY_TEMPLATES = [
+                { name:'NPS Survey', category:'Customer', desc:'Measure customer loyalty with the Net Promoter Score methodology.', time:'2 min', icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>, qs:[
+                  {question_text:'How likely are you to recommend us to a friend or colleague?',question_type:'scale',is_required:true,description:'0 = Not at all likely, 10 = Extremely likely'},
+                  {question_text:'What is the main reason for your score?',question_type:'long_text',is_required:false,description:''},
+                  {question_text:'What could we do to improve your experience?',question_type:'long_text',is_required:false,description:''},
+                ]},
+                { name:'Product Feedback', category:'Product', desc:'Gather actionable feedback on your product features and UX.', time:'3 min', icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>, qs:[
+                  {question_text:'How satisfied are you with the product overall?',question_type:'rating',is_required:true,description:''},
+                  {question_text:'Which features do you use most often?',question_type:'multiple_choice',is_required:false,options:[{label:'Dashboard',value:'dashboard'},{label:'Analytics',value:'analytics'},{label:'Sharing',value:'sharing'},{label:'Integrations',value:'integrations'}]},
+                  {question_text:'What feature would you most like to see added?',question_type:'long_text',is_required:false},
+                  {question_text:'How easy is the product to use?',question_type:'scale',is_required:true,description:'1 = Very difficult, 10 = Very easy'},
+                ]},
+                { name:'Employee Pulse', category:'HR', desc:'Quick check-in on team morale, workload, and engagement.', time:'4 min', icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>, qs:[
+                  {question_text:'How satisfied are you with your work environment?',question_type:'rating',is_required:true},
+                  {question_text:'How manageable is your current workload?',question_type:'scale',is_required:true,description:'1 = Overwhelmed, 10 = Very manageable'},
+                  {question_text:'Do you feel your contributions are recognised?',question_type:'yes_no',is_required:true},
+                  {question_text:'What would most improve your day-to-day experience?',question_type:'long_text',is_required:false},
+                ]},
+                { name:'Event Feedback', category:'Events', desc:'Collect structured feedback right after an event or workshop.', time:'2 min', icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>, qs:[
+                  {question_text:'How would you rate this event overall?',question_type:'rating',is_required:true},
+                  {question_text:'How well did the event meet your expectations?',question_type:'scale',is_required:true,description:'1 = Far below, 10 = Far exceeded'},
+                  {question_text:'What was the highlight of the event?',question_type:'short_text',is_required:false},
+                  {question_text:'What could be improved for next time?',question_type:'long_text',is_required:false},
+                ]},
+                { name:'Market Research', category:'Research', desc:'Understand your audience segments and buying intent.', time:'5 min', icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 20h18M7 20V12M11 20V8M15 20V14M19 20V4"/></svg>, qs:[
+                  {question_text:'Which of the following best describes your role?',question_type:'single_choice',is_required:true,options:[{label:'Individual Contributor',value:'ic'},{label:'Manager',value:'manager'},{label:'Director or above',value:'director'},{label:'Founder/Owner',value:'founder'}]},
+                  {question_text:'What is your primary challenge in your work today?',question_type:'long_text',is_required:true},
+                  {question_text:'Which tools do you currently use?',question_type:'multiple_choice',is_required:false,options:[{label:'Spreadsheets',value:'spreadsheets'},{label:'Survey tools',value:'survey'},{label:'CRM',value:'crm'},{label:'BI tools',value:'bi'}]},
+                  {question_text:'How important is this problem for your team?',question_type:'scale',is_required:true,description:'1 = Nice to solve, 10 = Critical'},
+                ]},
+                { name:'Patient Satisfaction', category:'Healthcare', desc:'Measure patient experience and care quality standards.', time:'4 min', icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>, qs:[
+                  {question_text:'How would you rate your overall care experience?',question_type:'rating',is_required:true},
+                  {question_text:'How clearly did our staff explain your treatment?',question_type:'scale',is_required:true,description:'1 = Not at all clear, 10 = Completely clear'},
+                  {question_text:'Did you feel listened to and respected?',question_type:'yes_no',is_required:true},
+                  {question_text:'What would improve your experience?',question_type:'long_text',is_required:false},
+                ]},
+                { name:'Student Course Eval', category:'Education', desc:'Evaluate course quality, instructor effectiveness, and learning outcomes.', time:'5 min', icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>, qs:[
+                  {question_text:'How would you rate this course overall?',question_type:'rating',is_required:true},
+                  {question_text:'How effective was the instructor at explaining concepts?',question_type:'scale',is_required:true,description:'1 = Not effective, 10 = Extremely effective'},
+                  {question_text:'Was the course material relevant to your learning goals?',question_type:'yes_no',is_required:true},
+                  {question_text:'What would you change about this course?',question_type:'long_text',is_required:false},
+                ]},
+                { name:'SaaS Onboarding', category:'Product', desc:'Understand friction in your onboarding flow and time-to-value.', time:'3 min', icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>, qs:[
+                  {question_text:'How easy was it to get started with our product?',question_type:'scale',is_required:true,description:'1 = Very difficult, 10 = Effortless'},
+                  {question_text:'Did you feel ready to use the product after onboarding?',question_type:'yes_no',is_required:true},
+                  {question_text:'What resources would have helped you most?',question_type:'long_text',is_required:false},
+                ]},
+                { name:'Restaurant & Dining', category:'Hospitality', desc:'Capture diner experience across food, service, and ambiance.', time:'2 min', icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8h1a4 4 0 0 1 0 8h-1"/><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z"/><line x1="6" y1="1" x2="6" y2="4"/><line x1="10" y1="1" x2="10" y2="4"/><line x1="14" y1="1" x2="14" y2="4"/></svg>, qs:[
+                  {question_text:'How would you rate the food quality?',question_type:'rating',is_required:true},
+                  {question_text:'How was the service?',question_type:'rating',is_required:true},
+                  {question_text:'Would you return and recommend us?',question_type:'yes_no',is_required:true},
+                  {question_text:'Any comments or suggestions?',question_type:'long_text',is_required:false},
+                ]},
+                { name:'Website UX Audit', category:'Digital', desc:'Measure usability, clarity, and navigation satisfaction on your website.', time:'3 min', icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>, qs:[
+                  {question_text:'How easy was it to find what you were looking for?',question_type:'scale',is_required:true,description:'1 = Very difficult, 10 = Effortless'},
+                  {question_text:'Did you encounter any issues or confusing sections?',question_type:'yes_no',is_required:true},
+                  {question_text:'What would make your experience better?',question_type:'long_text',is_required:false},
+                ]},
+                { name:'Brand Perception', category:'Marketing', desc:'Measure brand awareness, associations, and competitive positioning.', time:'4 min', icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>, qs:[
+                  {question_text:'How familiar are you with our brand?',question_type:'scale',is_required:true,description:'1 = Never heard of you, 10 = Know you very well'},
+                  {question_text:'How does our brand compare to competitors?',question_type:'single_choice',is_required:false,options:[{label:'Much better',value:'much_better'},{label:'Slightly better',value:'slightly_better'},{label:'About the same',value:'same'},{label:'Slightly worse',value:'slightly_worse'},{label:'Not sure',value:'unsure'}]},
+                  {question_text:'What would make you choose us over others?',question_type:'long_text',is_required:false},
+                ]},
+              ];
+
+  const galleryCats = ['All', ...Array.from(new Set(GALLERY_TEMPLATES.map(t => t.category)))];
+  const filteredGallery = catFilter === 'All' ? GALLERY_TEMPLATES : GALLERY_TEMPLATES.filter(t => t.category === catFilter);
+  const customCats = Array.from(new Set(customTemplates.map(t => t.category)));
 
   // ── Beforeunload guard ───────────────────────────────────────────────────
   useEffect(() => {
@@ -86,64 +201,184 @@ export default function SurveyCreate() {
       {showTemplates && (
         <div style={{ position:'fixed',inset:0,zIndex:9000,background:'rgba(22,15,8,0.55)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',padding:24 }}
           onClick={e=>{ if(e.target===e.currentTarget) setShowTemplates(false); }}>
-          <div style={{ background:'var(--warm-white)',borderRadius:24,padding:36,maxWidth:680,width:'100%',maxHeight:'80vh',overflowY:'auto',boxShadow:'0 32px 80px rgba(22,15,8,0.25)' }}>
-            <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:24 }}>
-              <h2 style={{ fontFamily:'Playfair Display,serif',fontWeight:700,fontSize:24,letterSpacing:'-0.5px',margin:0 }}>Survey Templates</h2>
-              <button onClick={()=>setShowTemplates(false)} style={{ background:'none',border:'none',cursor:'pointer',fontSize:20,color:'rgba(22,15,8,0.3)' }}>✕</button>
-            </div>
-            <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:16 }}>
-              {[
-                { name:'NPS Survey', desc:'Measure customer loyalty with the Net Promoter Score methodology.', time:'2 min', icon:'NPS', qs:[
-                  {question_text:'How likely are you to recommend us to a friend or colleague?',question_type:'scale',is_required:true,description:'0 = Not at all likely, 10 = Extremely likely'},
-                  {question_text:'What is the main reason for your score?',question_type:'long_text',is_required:false,description:''},
-                  {question_text:'What could we do to improve your experience?',question_type:'long_text',is_required:false,description:''},
-                ]},
-                { name:'Product Feedback', desc:'Gather actionable feedback on your product features and UX.', time:'3 min', icon:'UX', qs:[
-                  {question_text:'How satisfied are you with the product overall?',question_type:'rating',is_required:true,description:''},
-                  {question_text:'Which features do you use most often?',question_type:'multiple_choice',is_required:false,options:[{label:'Dashboard',value:'dashboard'},{label:'Analytics',value:'analytics'},{label:'Sharing',value:'sharing'},{label:'Integrations',value:'integrations'}]},
-                  {question_text:'What feature would you most like to see added?',question_type:'long_text',is_required:false},
-                  {question_text:'How easy is the product to use?',question_type:'scale',is_required:true,description:'1 = Very difficult, 10 = Very easy'},
-                ]},
-                { name:'Employee Pulse', desc:'Quick check-in on team morale, workload, and engagement.', time:'4 min', icon:'HR', qs:[
-                  {question_text:'How satisfied are you with your work environment?',question_type:'rating',is_required:true},
-                  {question_text:'How manageable is your current workload?',question_type:'scale',is_required:true,description:'1 = Overwhelmed, 10 = Very manageable'},
-                  {question_text:'Do you feel your contributions are recognised?',question_type:'yes_no',is_required:true},
-                  {question_text:'What would most improve your day-to-day experience?',question_type:'long_text',is_required:false},
-                ]},
-                { name:'Event Feedback', desc:'Collect structured feedback right after an event or workshop.', time:'2 min', icon:'EVT', qs:[
-                  {question_text:'How would you rate this event overall?',question_type:'rating',is_required:true},
-                  {question_text:'How well did the event meet your expectations?',question_type:'scale',is_required:true,description:'1 = Far below, 10 = Far exceeded'},
-                  {question_text:'What was the highlight of the event?',question_type:'short_text',is_required:false},
-                  {question_text:'What could be improved for next time?',question_type:'long_text',is_required:false},
-                ]},
-                { name:'Market Research', desc:'Understand your audience segments and buying intent.', time:'5 min', icon:'MKT', qs:[
-                  {question_text:'Which of the following best describes your role?',question_type:'single_choice',is_required:true,options:[{label:'Individual Contributor',value:'ic'},{label:'Manager',value:'manager'},{label:'Director or above',value:'director'},{label:'Founder/Owner',value:'founder'}]},
-                  {question_text:'What is your primary challenge in your work today?',question_type:'long_text',is_required:true},
-                  {question_text:'Which tools do you currently use?',question_type:'multiple_choice',is_required:false,options:[{label:'Spreadsheets',value:'spreadsheets'},{label:'Survey tools',value:'survey'},{label:'CRM',value:'crm'},{label:'BI tools',value:'bi'}]},
-                  {question_text:'How important is this problem for your team?',question_type:'scale',is_required:true,description:'1 = Nice to solve, 10 = Critical'},
-                ]},
-              ].map(t=>(
-                <div key={t.name} style={{ background:'var(--cream)',borderRadius:18,padding:24,border:'1px solid rgba(22,15,8,0.07)',cursor:'pointer',transition:'all 0.2s' }}
-                  onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--coral)';e.currentTarget.style.boxShadow='0 12px 40px rgba(255,69,0,0.1)';}}
-                  onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(22,15,8,0.07)';e.currentTarget.style.boxShadow='none';}}
-                  onClick={()=>{
-                    sf(p=>({...p,title:t.name}));
-                    sQs(t.qs.map(q=>({...q,_id:Math.random().toString(36).slice(2),options:q.options||[],description:q.description||''})));
-                    setDirty(true); setShowTemplates(false); setTab('questions');
-                    toast.success(`"${t.name}" template loaded!`);
-                  }}>
-                  <div style={{ fontSize:28,marginBottom:12 }}>{t.icon}</div>
-                  <div style={{ fontFamily:'Playfair Display,serif',fontWeight:700,fontSize:16,color:'var(--espresso)',marginBottom:6 }}>{t.name}</div>
-                  <div style={{ fontFamily:'Fraunces,serif',fontWeight:300,fontSize:13,color:'rgba(22,15,8,0.5)',lineHeight:1.5,marginBottom:10 }}>{t.desc}</div>
-                  <div style={{ fontFamily:'Syne,sans-serif',fontSize:9,fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(22,15,8,0.35)' }}>
-                    ~{t.time} · {t.qs.length} questions
-                  </div>
+          <div style={{ background:'var(--warm-white)',borderRadius:24,width:'100%',maxWidth:900,maxHeight:'90vh',display:'flex',flexDirection:'column',boxShadow:'0 32px 80px rgba(22,15,8,0.25)' }}>
+
+            {/* Modal header */}
+            <div style={{ padding:'28px 32px 0',flexShrink:0 }}>
+              <div style={{ display:'flex',alignItems:'flex-start',justifyContent:'space-between',marginBottom:20 }}>
+                <div>
+                  <h2 style={{ fontFamily:'Playfair Display,serif',fontWeight:900,fontSize:26,letterSpacing:'-0.5px',margin:0,color:'var(--espresso)' }}>Templates</h2>
+                  <p style={{ fontFamily:'Fraunces,serif',fontWeight:300,fontSize:13,color:'rgba(22,15,8,0.4)',marginTop:4,marginBottom:0 }}>Start fast with a curated template, or build and save your own.</p>
                 </div>
-              ))}
+                <button onClick={()=>setShowTemplates(false)} style={{ background:'none',border:'none',cursor:'pointer',fontSize:20,color:'rgba(22,15,8,0.3)',width:32,height:32,display:'flex',alignItems:'center',justifyContent:'center',borderRadius:8,transition:'all 0.15s',flexShrink:0 }}
+                  onMouseEnter={e=>{e.currentTarget.style.background='rgba(22,15,8,0.06)';e.currentTarget.style.color='var(--espresso)';}}
+                  onMouseLeave={e=>{e.currentTarget.style.background='none';e.currentTarget.style.color='rgba(22,15,8,0.3)';}}>✕</button>
+              </div>
+
+              {/* Tab bar: Gallery / My Templates */}
+              <div style={{ display:'flex',gap:0,borderBottom:'1.5px solid rgba(22,15,8,0.07)',marginBottom:0 }}>
+                {[['gallery','Gallery'],['mine',`My Templates${customTemplates.length ? ` (${customTemplates.length})` : ''}`]].map(([id,label])=>(
+                  <button key={id} onClick={()=>setTmplTab(id)} style={{ fontFamily:'Syne,sans-serif',fontSize:10,fontWeight:700,letterSpacing:'0.14em',textTransform:'uppercase',padding:'10px 20px',border:'none',background:'none',cursor:'pointer',color:tmplTab===id?'var(--espresso)':'rgba(22,15,8,0.35)',borderBottom:tmplTab===id?'2px solid var(--coral)':'2px solid transparent',transition:'all 0.2s',marginBottom:'-1.5px' }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Scrollable body */}
+            <div style={{ flex:1,overflowY:'auto',padding:'24px 32px 32px' }}>
+
+              {/* ── GALLERY TAB ── */}
+              {tmplTab==='gallery' && (<>
+                {/* Category filter chips */}
+                <div style={{ display:'flex',gap:6,flexWrap:'wrap',marginBottom:20 }}>
+                  {galleryCats.map(c=>(
+                    <button key={c} onClick={()=>setCatFilter(c)} style={{ fontFamily:'Syne,sans-serif',fontSize:9,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',padding:'6px 14px',borderRadius:999,border:'none',background:catFilter===c?'var(--espresso)':'var(--cream-deep)',color:catFilter===c?'var(--cream)':'rgba(22,15,8,0.4)',cursor:'pointer',transition:'all 0.15s' }}>
+                      {c}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(250px,1fr))',gap:14 }}>
+                  {filteredGallery.map(t=>(
+                    <div key={t.name} style={{ background:'var(--cream)',borderRadius:16,padding:20,border:'1.5px solid rgba(22,15,8,0.07)',cursor:'pointer',transition:'all 0.2s',display:'flex',flexDirection:'column',gap:10 }}
+                      onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--coral)';e.currentTarget.style.boxShadow='0 12px 40px rgba(255,69,0,0.1)';e.currentTarget.style.transform='translateY(-2px)';}}
+                      onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(22,15,8,0.07)';e.currentTarget.style.boxShadow='none';e.currentTarget.style.transform='none';}}
+                      onClick={()=>loadTemplate(t)}>
+                      <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between' }}>
+                        <div style={{ width:36,height:36,borderRadius:10,background:'rgba(255,69,0,0.08)',display:'flex',alignItems:'center',justifyContent:'center',color:'var(--coral)' }}>{t.icon}</div>
+                        <span style={{ fontFamily:'Syne,sans-serif',fontSize:8,fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(22,15,8,0.3)',background:'var(--cream-deep)',padding:'3px 8px',borderRadius:999 }}>{t.category}</span>
+                      </div>
+                      <div>
+                        <div style={{ fontFamily:'Playfair Display,serif',fontWeight:700,fontSize:15,color:'var(--espresso)',marginBottom:4 }}>{t.name}</div>
+                        <div style={{ fontFamily:'Fraunces,serif',fontWeight:300,fontSize:12,color:'rgba(22,15,8,0.5)',lineHeight:1.5 }}>{t.desc}</div>
+                      </div>
+                      <div style={{ fontFamily:'Syne,sans-serif',fontSize:9,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'rgba(22,15,8,0.3)',display:'flex',alignItems:'center',gap:8 }}>
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        ~{t.time} · {t.qs.length} questions
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>)}
+
+              {/* ── MY TEMPLATES TAB ── */}
+              {tmplTab==='mine' && (<>
+                {/* Save current survey as template */}
+                <div style={{ background:'rgba(255,69,0,0.04)',border:'1.5px solid rgba(255,69,0,0.12)',borderRadius:16,padding:'18px 22px',marginBottom:24,display:'flex',alignItems:'center',justifyContent:'space-between',gap:16,flexWrap:'wrap' }}>
+                  <div>
+                    <div style={{ fontFamily:'Playfair Display,serif',fontWeight:700,fontSize:15,color:'var(--espresso)',marginBottom:3 }}>Save current survey as template</div>
+                    <div style={{ fontFamily:'Fraunces,serif',fontWeight:300,fontSize:12,color:'rgba(22,15,8,0.45)' }}>Capture your {qs.length} question{qs.length!==1?'s':''} as a reusable template in any category.</div>
+                  </div>
+                  <button onClick={()=>setShowCreateTmpl(true)} style={{ flexShrink:0,display:'inline-flex',alignItems:'center',gap:7,padding:'10px 22px',borderRadius:999,border:'none',background:'var(--espresso)',color:'var(--cream)',fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:10,letterSpacing:'0.12em',textTransform:'uppercase',cursor:'pointer',transition:'background 0.2s' }}
+                    onMouseEnter={e=>e.currentTarget.style.background='var(--coral)'}
+                    onMouseLeave={e=>e.currentTarget.style.background='var(--espresso)'}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Save as template
+                  </button>
+                </div>
+
+                {/* Create template inline form */}
+                {showCreateTmpl && (
+                  <div style={{ background:'var(--cream)',border:'1.5px solid rgba(22,15,8,0.1)',borderRadius:18,padding:'24px 24px 20px',marginBottom:24 }}>
+                    <div style={{ fontFamily:'Playfair Display,serif',fontWeight:700,fontSize:17,color:'var(--espresso)',marginBottom:18,letterSpacing:'-0.3px' }}>New template</div>
+                    <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:16,marginBottom:16 }}>
+                      <div>
+                        <label style={{ fontFamily:'Syne,sans-serif',fontSize:9,fontWeight:700,letterSpacing:'0.18em',textTransform:'uppercase',color:'rgba(22,15,8,0.38)',display:'block',marginBottom:8 }}>Template name *</label>
+                        <input value={tmplName} onChange={e=>setTmplName(e.target.value)} placeholder="e.g. Quarterly Retro" style={{ width:'100%',boxSizing:'border-box',padding:'12px 16px',background:'var(--warm-white)',border:'1.5px solid rgba(22,15,8,0.1)',borderRadius:12,fontFamily:'Fraunces,serif',fontSize:14,color:'var(--espresso)',outline:'none' }}
+                          onFocus={e=>e.target.style.borderColor='var(--coral)'}
+                          onBlur={e=>e.target.style.borderColor='rgba(22,15,8,0.1)'} />
+                      </div>
+                      <div>
+                        <label style={{ fontFamily:'Syne,sans-serif',fontSize:9,fontWeight:700,letterSpacing:'0.18em',textTransform:'uppercase',color:'rgba(22,15,8,0.38)',display:'block',marginBottom:8 }}>Category</label>
+                        {customCats.length > 0 ? (
+                          <select value={tmplCat} onChange={e=>setTmplCat(e.target.value)} style={{ width:'100%',padding:'12px 16px',background:'var(--warm-white)',border:'1.5px solid rgba(22,15,8,0.1)',borderRadius:12,fontFamily:'Fraunces,serif',fontSize:14,color:'var(--espresso)',outline:'none',appearance:'none' }}
+                            onFocus={e=>e.target.style.borderColor='var(--coral)'}
+                            onBlur={e=>e.target.style.borderColor='rgba(22,15,8,0.1)'}>
+                            <option value="">Pick or type below…</option>
+                            {customCats.map(c=><option key={c} value={c}>{c}</option>)}
+                          </select>
+                        ) : (
+                          <input value={tmplCat} onChange={e=>setTmplCat(e.target.value)} placeholder="e.g. Internal, Clients…" style={{ width:'100%',boxSizing:'border-box',padding:'12px 16px',background:'var(--warm-white)',border:'1.5px solid rgba(22,15,8,0.1)',borderRadius:12,fontFamily:'Fraunces,serif',fontSize:14,color:'var(--espresso)',outline:'none' }}
+                            onFocus={e=>e.target.style.borderColor='var(--coral)'}
+                            onBlur={e=>e.target.style.borderColor='rgba(22,15,8,0.1)'} />
+                        )}
+                      </div>
+                    </div>
+                    {customCats.length > 0 && (
+                      <div style={{ marginBottom:16 }}>
+                        <label style={{ fontFamily:'Syne,sans-serif',fontSize:9,fontWeight:700,letterSpacing:'0.18em',textTransform:'uppercase',color:'rgba(22,15,8,0.38)',display:'block',marginBottom:8 }}>Or create new category</label>
+                        <input value={tmplNewCat} onChange={e=>setTmplNewCat(e.target.value)} placeholder="New category name…" style={{ width:'100%',boxSizing:'border-box',padding:'12px 16px',background:'var(--warm-white)',border:'1.5px solid rgba(22,15,8,0.1)',borderRadius:12,fontFamily:'Fraunces,serif',fontSize:14,color:'var(--espresso)',outline:'none' }}
+                          onFocus={e=>e.target.style.borderColor='var(--coral)'}
+                          onBlur={e=>e.target.style.borderColor='rgba(22,15,8,0.1)'} />
+                      </div>
+                    )}
+                    <div style={{ marginBottom:20 }}>
+                      <label style={{ fontFamily:'Syne,sans-serif',fontSize:9,fontWeight:700,letterSpacing:'0.18em',textTransform:'uppercase',color:'rgba(22,15,8,0.38)',display:'block',marginBottom:8 }}>Description (optional)</label>
+                      <input value={tmplDesc} onChange={e=>setTmplDesc(e.target.value)} placeholder="What is this template for?" style={{ width:'100%',boxSizing:'border-box',padding:'12px 16px',background:'var(--warm-white)',border:'1.5px solid rgba(22,15,8,0.1)',borderRadius:12,fontFamily:'Fraunces,serif',fontSize:14,color:'var(--espresso)',outline:'none' }}
+                        onFocus={e=>e.target.style.borderColor='var(--coral)'}
+                        onBlur={e=>e.target.style.borderColor='rgba(22,15,8,0.1)'} />
+                    </div>
+                    <div style={{ display:'flex',gap:10 }}>
+                      <button onClick={()=>setShowCreateTmpl(false)} style={{ flex:1,padding:'11px 0',borderRadius:999,border:'1px solid rgba(22,15,8,0.1)',background:'transparent',fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:10,letterSpacing:'0.1em',textTransform:'uppercase',color:'rgba(22,15,8,0.45)',cursor:'pointer' }}>Cancel</button>
+                      <button onClick={saveAsTemplate} style={{ flex:2,padding:'11px 0',borderRadius:999,border:'none',background:'var(--espresso)',color:'var(--cream)',fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:10,letterSpacing:'0.12em',textTransform:'uppercase',cursor:'pointer',transition:'background 0.2s' }}
+                        onMouseEnter={e=>e.currentTarget.style.background='var(--coral)'}
+                        onMouseLeave={e=>e.currentTarget.style.background='var(--espresso)'}>
+                        Save template
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Custom templates list */}
+                {customTemplates.length === 0 ? (
+                  <div style={{ textAlign:'center',padding:'48px 0',color:'rgba(22,15,8,0.3)' }}>
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginBottom:12,opacity:0.4 }}><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+                    <div style={{ fontFamily:'Syne,sans-serif',fontSize:10,fontWeight:700,letterSpacing:'0.14em',textTransform:'uppercase',marginBottom:6 }}>No custom templates yet</div>
+                    <div style={{ fontFamily:'Fraunces,serif',fontWeight:300,fontSize:13 }}>Build a survey and save it as a reusable template above.</div>
+                  </div>
+                ) : (
+                  <>
+                    {/* Group by category */}
+                    {(customCats.length > 0 ? customCats : ['']).map(cat => {
+                      const catItems = customTemplates.filter(t => t.category === cat || (!cat && !t.category));
+                      if (!catItems.length) return null;
+                      return (
+                        <div key={cat} style={{ marginBottom:24 }}>
+                          {cat && <div style={{ fontFamily:'Syne,sans-serif',fontSize:9,fontWeight:700,letterSpacing:'0.18em',textTransform:'uppercase',color:'rgba(22,15,8,0.35)',marginBottom:12 }}>{cat}</div>}
+                          <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(250px,1fr))',gap:12 }}>
+                            {catItems.map(t=>(
+                              <div key={t.id} style={{ background:'var(--cream)',borderRadius:16,padding:18,border:'1.5px solid rgba(22,15,8,0.07)',cursor:'pointer',transition:'all 0.2s',display:'flex',flexDirection:'column',gap:8,position:'relative' }}
+                                onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--coral)';e.currentTarget.style.boxShadow='0 8px 32px rgba(255,69,0,0.1)';e.currentTarget.style.transform='translateY(-1px)';}}
+                                onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(22,15,8,0.07)';e.currentTarget.style.boxShadow='none';e.currentTarget.style.transform='none';}}>
+                                <div style={{ display:'flex',alignItems:'flex-start',justifyContent:'space-between',gap:8 }}>
+                                  <div style={{ fontFamily:'Playfair Display,serif',fontWeight:700,fontSize:15,color:'var(--espresso)',flex:1 }}>{t.name}</div>
+                                  <button onClick={e=>{e.stopPropagation();deleteCustomTemplate(t.id);}} title="Delete template" style={{ flexShrink:0,background:'none',border:'none',cursor:'pointer',color:'rgba(22,15,8,0.2)',fontSize:14,padding:'2px 4px',lineHeight:1,borderRadius:6,transition:'all 0.15s' }}
+                                    onMouseEnter={e=>{e.currentTarget.style.color='var(--terracotta)';e.currentTarget.style.background='rgba(214,59,31,0.07)';}}
+                                    onMouseLeave={e=>{e.currentTarget.style.color='rgba(22,15,8,0.2)';e.currentTarget.style.background='none';}}>✕</button>
+                                </div>
+                                {t.desc && <div style={{ fontFamily:'Fraunces,serif',fontWeight:300,fontSize:12,color:'rgba(22,15,8,0.45)',lineHeight:1.5 }}>{t.desc}</div>}
+                                <div style={{ fontFamily:'Syne,sans-serif',fontSize:9,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'rgba(22,15,8,0.3)' }}>
+                                  {t.qs.length} questions · {t.time}
+                                </div>
+                                <button onClick={()=>loadTemplate(t)} style={{ marginTop:4,width:'100%',padding:'9px 0',borderRadius:999,border:'1.5px solid rgba(22,15,8,0.1)',background:'transparent',fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:9,letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(22,15,8,0.45)',cursor:'pointer',transition:'all 0.2s' }}
+                                  onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--coral)';e.currentTarget.style.color='var(--coral)';e.currentTarget.style.background='rgba(255,69,0,0.04)';}}
+                                  onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(22,15,8,0.1)';e.currentTarget.style.color='rgba(22,15,8,0.45)';e.currentTarget.style.background='transparent';}}>
+                                  Use template →
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
+              </>)}
             </div>
           </div>
         </div>
       )}
+
       {/* Header — full width, matches all other pages */}
       <div className="np-page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 40, flexWrap: 'wrap' }}>
         <div>

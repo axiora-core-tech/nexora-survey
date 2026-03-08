@@ -58,28 +58,36 @@ function AppRoutes() {
       <Toaster
         position="bottom-right"
         gutter={10}
+        containerStyle={{ bottom: 28, right: 28 }}
         toastOptions={{
-          duration: 3500,
+          duration: 4000,
           style: {
+            /* Warm cream canvas — editorial, not technical */
             fontFamily: 'Syne, sans-serif',
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: 700,
-            letterSpacing: '0.06em',
-            background: 'var(--espresso)',
-            color: 'var(--cream)',
-            borderRadius: 14,
-            padding: '14px 20px',
-            boxShadow: '0 16px 48px rgba(22,15,8,0.35), 0 2px 8px rgba(22,15,8,0.2)',
-            border: '1px solid rgba(253,245,232,0.08)',
+            letterSpacing: '0.07em',
+            background: 'var(--warm-white, #FFFBF4)',
+            color: '#160F08',
+            borderRadius: 20,
+            padding: '16px 20px 16px 18px',
+            boxShadow: '0 2px 0 0 #FF4500, 0 8px 40px rgba(255,69,0,0.18), 0 2px 12px rgba(22,15,8,0.1)',
+            border: '1px solid rgba(255,69,0,0.15)',
             maxWidth: 320,
+            minWidth: 240,
           },
           success: {
-            style: { borderLeft: '3px solid #1E7A4A' },
-            iconTheme: { primary: '#1E7A4A', secondary: 'var(--cream)' },
+            iconTheme: { primary: '#FF4500', secondary: '#FFFBF4' },
+            style: {
+              boxShadow: '0 2px 0 0 #FF4500, 0 8px 40px rgba(255,69,0,0.18), 0 2px 12px rgba(22,15,8,0.1)',
+            },
           },
           error: {
-            style: { borderLeft: '3px solid var(--terracotta)' },
-            iconTheme: { primary: 'var(--terracotta)', secondary: 'var(--cream)' },
+            iconTheme: { primary: '#D63B1F', secondary: '#FFFBF4' },
+            style: {
+              boxShadow: '0 2px 0 0 #D63B1F, 0 8px 40px rgba(214,59,31,0.18), 0 2px 12px rgba(22,15,8,0.1)',
+              border: '1px solid rgba(214,59,31,0.18)',
+            },
           },
         }}
       />
