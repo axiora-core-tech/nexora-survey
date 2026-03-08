@@ -72,7 +72,7 @@ export default function Dashboard() {
   const { stopLoading } = useLoading();
   const [stats, setStats] = useState({ surveys: 0, responses: 0, completions: 0, team: 0 });
   const [recent, setRecent] = useState([]);
-  const prevResponses = useRef(0);
+  const prevResponses = useRef(null);  // null = first load, skip celebration
 
   const location = useLocation();
   useEffect(() => { if (profile?.id) load(); else stopLoading(); }, [profile?.id, location.key]);
@@ -105,7 +105,9 @@ export default function Dashboard() {
         supabase.from('user_profiles').select('*', { count: 'exact', head: true }),
       ]);
       setStats({ surveys: sv.count || 0, responses: r.count || 0, completions: c.count || 0, team: t.count || 0 });
-      checkMilestone(prevResponses.current, r.count || 0);
+      if (prevResponses.current !== null) {
+        checkMilestone(prevResponses.current, r.count || 0);
+      }
       prevResponses.current = r.count || 0;
       const { data } = await supabase.from('surveys').select('*, creator:user_profiles!created_by(full_name)').order('created_at', { ascending: false }).limit(6);
       setRecent(data || []);

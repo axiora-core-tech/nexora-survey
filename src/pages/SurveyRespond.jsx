@@ -53,8 +53,11 @@ export default function SurveyRespond() {
   const [busy,  setBusy]  = useState(false);
   const [done,  setDone]  = useState(false);
   const [fbDone, setFbDone] = useState(false);
+  const [fbStep, setFbStep] = useState(0);   // 0=rating, 1=comment, 2=email(if required), 3=nps, 4=done
   const [fbRating, setFbRating] = useState(0);
   const [fbComment, setFbComment] = useState('');
+  const [fbNps, setFbNps] = useState(-1);
+  const [fbFeature, setFbFeature] = useState('');
   const [fbBusy, setFbBusy] = useState(false);
   const [err,   setErr]   = useState(null);
   const [email, setEmail] = useState('');
@@ -189,6 +192,10 @@ export default function SurveyRespond() {
       const id = await ensureR();
       const quality = await tracker.onSubmit(ans, qs);
       await autoSave(ans, id);
+      // If email collected at end, update it now
+      if (sv?.require_email && email) {
+        await supabase.from('survey_responses').update({ respondent_email: email }).eq('id', id);
+      }
       // Uses Netlify function (service role key) to bypass RLS which blocks setting status='completed'
       await callFunction('respond', { action: 'submit', responseId: id, metadata: { quality_score: quality } });
       setDone(true);
@@ -208,6 +215,7 @@ export default function SurveyRespond() {
     else { setDir(1); setStep(qs.length); }
   }
   function goBack() {
+    if (step === qs.length) { setDir(-1); const last = prevVisible(qs.length - 1) ?? qs.length - 1; setStep(last); return; }
     if (step >= 0 && qs[step]) tracker.onLeave(qs[step].id);
     tracker.onBack();
     setDir(-1);
@@ -221,11 +229,12 @@ export default function SurveyRespond() {
   useEffect(() => {
     const onKey = e => {
       if (e.key !== 'Enter' || e.target.tagName === 'TEXTAREA') return;
-      if (step >= 0 && step < qs.length) { nextVisible(step) === null ? submit() : goNext(); }
+      if (step === qs.length && sv?.require_email) { if (email) submit(); return; }
+      if (step >= 0 && step < qs.length) { nextVisible(step) === null ? (sv?.require_email ? setStep(qs.length) : submit()) : goNext(); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [step, qs, ans]);
+  }, [step, qs, ans, email, sv]);
 
   useEffect(() => { if (step >= 0 && qs[step]) tracker.onEnter(qs[step].id); }, []);
 
@@ -236,8 +245,8 @@ export default function SurveyRespond() {
   const pct        = step >= 0 ? progressAt(step) : 0;
   const visPos     = step >= 0 ? visibleQuestions.findIndex(vq => vq.id === q?.id) + 1 : 0;
   const visTotal   = visibleQuestions.length;
-  const isLast     = step >= 0 && nextVisible(step) === null;
-  const canBack    = step > 0 || (step === 0 && sv?.welcome_message);
+  const isLast     = step >= 0 && step < qs.length && nextVisible(step) === null;
+  const canBack    = step > 0 || (step === 0 && sv?.welcome_message) || step === qs.length;
   const remaining  = useMemo(() => visibleQuestions.filter(vq => !ans[vq.id]), [visibleQuestions, ans]);
 
   // ── Error state ───────────────────────────────────────────────────────────
@@ -258,12 +267,11 @@ export default function SurveyRespond() {
 
   // ── Thank you ─────────────────────────────────────────────────────────────
   async function submitFeedback() {
-    if (fbRating === 0) return;
     setFbBusy(true);
     try {
       await supabase.from('survey_feedback').insert({
         survey_id: sv.id,
-        rating: fbRating,
+        rating: fbRating || null,
         comment: fbComment.trim() || null,
         responded_at: new Date().toISOString(),
       }).select();
@@ -279,47 +287,95 @@ export default function SurveyRespond() {
 
       <AnimatePresence mode="wait">
 
-      {/* ── Quick feedback card (before thank-you) ── */}
+      {/* ── Multi-step feedback ── */}
       {!fbDone ? (
-        <motion.div key="feedback"
-          initial={{ opacity:0, y:24 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-16 }}
-          transition={{ duration:0.55, ease:[0.16,1,0.3,1] }}
-          style={{ position:'relative', zIndex:1, textAlign:'center', maxWidth:400, width:'100%' }}>
-          <p style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:'rgba(237,232,223,0.25)', marginBottom:20 }}>
-            One quick question
-          </p>
-          <h2 style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:'clamp(22px,4vw,32px)', letterSpacing:'-1px', color:'#EDE8DF', marginBottom:28, lineHeight:1.15 }}>
-            How was this survey experience?
-          </h2>
-          {/* Star rating */}
-          <div style={{ display:'flex', justifyContent:'center', gap:10, marginBottom:28 }}>
-            {[1,2,3,4,5].map(n => (
-              <button key={n} onClick={() => setFbRating(n)}
-                style={{ background:'none', border:'none', fontSize:32, cursor:'pointer', transition:'transform 0.15s', transform: fbRating >= n ? 'scale(1.15)' : 'scale(1)', filter: fbRating >= n ? 'brightness(1)' : 'brightness(0.35)', color: fbRating >= n ? '#FFB800' : '#EDE8DF' }}>
-                ★
-              </button>
+        <motion.div key={`fb-${fbStep}`}
+          initial={{ opacity:0, y:24 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-20 }}
+          transition={{ duration:0.5, ease:[0.16,1,0.3,1] }}
+          style={{ position:'relative', zIndex:1, textAlign:'center', maxWidth:440, width:'100%' }}>
+
+          {/* Step dots */}
+          <div style={{ display:'flex', gap:6, justifyContent:'center', marginBottom:32 }}>
+            {[0,1,2].map(n => (
+              <div key={n} style={{ width: fbStep === n ? 20 : 6, height:6, borderRadius:99, background: fbStep === n ? tc : 'rgba(237,232,223,0.2)', transition:'all 0.3s' }} />
             ))}
           </div>
-          {/* Optional comment */}
-          <textarea value={fbComment} onChange={e => setFbComment(e.target.value)}
-            placeholder="Anything we should know? (optional)"
-            rows={2}
-            style={{ width:'100%', boxSizing:'border-box', padding:'12px 16px', background:'rgba(237,232,223,0.06)', border:'1px solid rgba(237,232,223,0.12)', borderRadius:14, fontFamily:'Fraunces,serif', fontWeight:300, fontSize:15, color:'#EDE8DF', outline:'none', resize:'none', transition:'border-color 0.2s', marginBottom:20 }}
-            onFocus={e => e.target.style.borderColor = 'rgba(237,232,223,0.3)'}
-            onBlur={e => e.target.style.borderColor = 'rgba(237,232,223,0.12)'}
-          />
-          <div style={{ display:'flex', gap:10, justifyContent:'center' }}>
-            <button onClick={submitFeedback} disabled={fbRating === 0 || fbBusy}
-              style={{ padding:'13px 28px', borderRadius:999, border:'none', background: fbRating === 0 ? 'rgba(237,232,223,0.08)' : tc, color: fbRating === 0 ? 'rgba(237,232,223,0.3)' : '#fff', fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:11, letterSpacing:'0.12em', textTransform:'uppercase', cursor: fbRating === 0 ? 'not-allowed' : 'pointer', transition:'all 0.25s' }}>
-              {fbBusy ? 'Sending…' : 'Submit feedback'}
-            </button>
-            <button onClick={() => setFbDone(true)}
-              style={{ padding:'13px 20px', borderRadius:999, border:'1px solid rgba(237,232,223,0.12)', background:'transparent', color:'rgba(237,232,223,0.3)', fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:11, letterSpacing:'0.12em', textTransform:'uppercase', cursor:'pointer', transition:'all 0.2s' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor='rgba(237,232,223,0.3)'; e.currentTarget.style.color='rgba(237,232,223,0.6)'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(237,232,223,0.12)'; e.currentTarget.style.color='rgba(237,232,223,0.3)'; }}>
-              Skip
-            </button>
-          </div>
+
+          {fbStep === 0 && (<>
+            <p style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:'rgba(237,232,223,0.25)', marginBottom:20 }}>Experience</p>
+            <h2 style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:'clamp(24px,4vw,36px)', letterSpacing:'-1.5px', color:'#EDE8DF', marginBottom:32, lineHeight:1.1 }}>
+              How smooth was the survey experience?
+            </h2>
+            <div style={{ display:'flex', justifyContent:'center', gap:12, marginBottom:36 }}>
+              {[1,2,3,4,5].map(n => (
+                <button key={n} onClick={() => setFbRating(n)}
+                  style={{ background:'none', border:'none', fontSize:36, cursor:'pointer', transition:'transform 0.2s, filter 0.2s', transform: fbRating >= n ? 'scale(1.2)' : 'scale(1)', filter: fbRating >= n ? 'brightness(1)' : 'brightness(0.25)', color: fbRating >= n ? '#FFB800' : '#EDE8DF' }}>
+                  ★
+                </button>
+              ))}
+            </div>
+            <div style={{ display:'flex', gap:10, justifyContent:'center' }}>
+              <button onClick={() => fbRating > 0 && setFbStep(1)} disabled={fbRating === 0}
+                style={{ padding:'13px 32px', borderRadius:999, border:'none', background: fbRating === 0 ? 'rgba(237,232,223,0.08)' : tc, color: fbRating === 0 ? 'rgba(237,232,223,0.3)' : '#fff', fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:11, letterSpacing:'0.12em', textTransform:'uppercase', cursor: fbRating === 0 ? 'not-allowed' : 'pointer', transition:'all 0.25s' }}>
+                Next →
+              </button>
+              <button onClick={() => setFbDone(true)}
+                style={{ padding:'13px 20px', borderRadius:999, border:'1px solid rgba(237,232,223,0.12)', background:'transparent', color:'rgba(237,232,223,0.3)', fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:11, letterSpacing:'0.12em', textTransform:'uppercase', cursor:'pointer' }}>
+                Skip all
+              </button>
+            </div>
+          </>)}
+
+          {fbStep === 1 && (<>
+            <p style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:'rgba(237,232,223,0.25)', marginBottom:20 }}>Thoughts</p>
+            <h2 style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:'clamp(22px,3.5vw,32px)', letterSpacing:'-1px', color:'#EDE8DF', marginBottom:24, lineHeight:1.15 }}>
+              Anything we should improve?
+            </h2>
+            <textarea value={fbComment} onChange={e => setFbComment(e.target.value)}
+              placeholder="Question wording, length, clarity… anything helps."
+              rows={3}
+              style={{ width:'100%', boxSizing:'border-box', padding:'14px 18px', background:'rgba(237,232,223,0.06)', border:'1px solid rgba(237,232,223,0.12)', borderRadius:16, fontFamily:'Fraunces,serif', fontWeight:300, fontSize:15, color:'#EDE8DF', outline:'none', resize:'none', transition:'border-color 0.2s', marginBottom:20 }}
+              onFocus={e => e.target.style.borderColor = 'rgba(237,232,223,0.35)'}
+              onBlur={e => e.target.style.borderColor = 'rgba(237,232,223,0.12)'}
+            />
+            <div style={{ display:'flex', gap:10, justifyContent:'center' }}>
+              <button onClick={() => setFbStep(2)}
+                style={{ padding:'13px 32px', borderRadius:999, border:'none', background:tc, color:'#fff', fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:11, letterSpacing:'0.12em', textTransform:'uppercase', cursor:'pointer' }}>
+                Next →
+              </button>
+              <button onClick={() => { setFbStep(0); }}
+                style={{ padding:'13px 20px', borderRadius:999, border:'1px solid rgba(237,232,223,0.12)', background:'transparent', color:'rgba(237,232,223,0.3)', fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:11, letterSpacing:'0.12em', textTransform:'uppercase', cursor:'pointer' }}>
+                ← Back
+              </button>
+            </div>
+          </>)}
+
+          {fbStep === 2 && (<>
+            <p style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:'rgba(237,232,223,0.25)', marginBottom:20 }}>Recommend</p>
+            <h2 style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:'clamp(22px,3.5vw,32px)', letterSpacing:'-1px', color:'#EDE8DF', marginBottom:12, lineHeight:1.15 }}>
+              How likely are you to recommend Nexora?
+            </h2>
+            <p style={{ fontFamily:'Fraunces,serif', fontWeight:300, fontSize:13, color:'rgba(237,232,223,0.3)', marginBottom:24 }}>0 = Not at all likely · 10 = Extremely likely</p>
+            <div style={{ display:'flex', gap:6, justifyContent:'center', flexWrap:'wrap', marginBottom:28 }}>
+              {[0,1,2,3,4,5,6,7,8,9,10].map(n => (
+                <button key={n} onClick={() => setFbNps(n)}
+                  style={{ width:38, height:38, borderRadius:10, border:`1.5px solid ${fbNps === n ? tc : 'rgba(237,232,223,0.15)'}`, background: fbNps === n ? tc : 'transparent', color: fbNps === n ? '#fff' : 'rgba(237,232,223,0.5)', fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:12, cursor:'pointer', transition:'all 0.2s' }}>
+                  {n}
+                </button>
+              ))}
+            </div>
+            <div style={{ display:'flex', gap:10, justifyContent:'center' }}>
+              <button onClick={submitFeedback} disabled={fbBusy}
+                style={{ padding:'13px 32px', borderRadius:999, border:'none', background:tc, color:'#fff', fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:11, letterSpacing:'0.12em', textTransform:'uppercase', cursor: fbBusy ? 'not-allowed' : 'pointer', transition:'all 0.25s' }}>
+                {fbBusy ? 'Sending…' : 'Submit feedback'}
+              </button>
+              <button onClick={() => setFbStep(1)}
+                style={{ padding:'13px 20px', borderRadius:999, border:'1px solid rgba(237,232,223,0.12)', background:'transparent', color:'rgba(237,232,223,0.3)', fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:11, letterSpacing:'0.12em', textTransform:'uppercase', cursor:'pointer' }}>
+                ← Back
+              </button>
+            </div>
+          </>)}
+
         </motion.div>
 
       ) : (
@@ -439,18 +495,9 @@ export default function SurveyRespond() {
                     {sv.welcome_message}
                   </motion.p>
                 )}
-                {sv.require_email && (
-                  <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.38 }}
-                    style={{ maxWidth:300, margin:'28px auto 0' }}>
-                    <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Your email address"
-                      style={{ width:'100%', boxSizing:'border-box', padding:'14px 20px', background:'rgba(237,232,223,0.06)', border:'1px solid rgba(237,232,223,0.12)', borderRadius:14, fontFamily:'Fraunces,serif', fontSize:16, color:'#EDE8DF', outline:'none', textAlign:'center', transition:'border-color 0.2s' }}
-                      onFocus={e => e.target.style.borderColor = tc} onBlur={e => e.target.style.borderColor = 'rgba(237,232,223,0.12)'} />
-                  </motion.div>
-                )}
                 <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.44 }} style={{ marginTop:36 }}>
                   <motion.button whileHover={{ scale:1.02, y:-2 }} whileTap={{ scale:0.97 }}
                     onClick={() => {
-                      if (sv.require_email && !email) return toast.error('Enter your email to begin');
                       setDir(1);
                       const first = qs.findIndex(q => visibleQuestions.some(vq => vq.id === q.id));
                       const idx = first >= 0 ? first : 0;
@@ -522,6 +569,15 @@ export default function SurveyRespond() {
                           Continue
                           <Icons.Arrow style={{ color:'currentColor' }} />
                         </motion.button>
+                      ) : sv?.require_email ? (
+                        <motion.button whileHover={{ scale:1.02, y:-1 }} whileTap={{ scale:0.97 }}
+                          onClick={() => { if (q?.is_required && !ans[q.id]) return toast.error('This question is required'); setDir(1); setStep(qs.length); }}
+                          style={{ display:'flex', alignItems:'center', gap:8, padding:'14px 36px', borderRadius:999, border:'none', background:fg, color: dark ? '#100B05' : '#F7F5F0', fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:11, letterSpacing:'0.12em', textTransform:'uppercase', cursor:'pointer', transition:'background 0.25s, box-shadow 0.25s' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = tc; e.currentTarget.style.color = '#fff'; e.currentTarget.style.boxShadow = `0 8px 32px ${tc}40`; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = fg; e.currentTarget.style.color = dark ? '#100B05' : '#F7F5F0'; e.currentTarget.style.boxShadow = 'none'; }}>
+                          Almost done
+                          <Icons.Arrow style={{ color:'currentColor' }} />
+                        </motion.button>
                       ) : (
                         <motion.button whileHover={{ scale:1.02, y:-1 }} whileTap={{ scale:0.97 }} onClick={submit} disabled={busy}
                           style={{ display:'flex', alignItems:'center', gap:8, padding:'14px 36px', borderRadius:999, border:'none', background:tc, color:'#fff', fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:11, letterSpacing:'0.12em', textTransform:'uppercase', cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.65 : 1, boxShadow:`0 8px 32px ${tc}45` }}>
@@ -534,6 +590,49 @@ export default function SurveyRespond() {
                     </div>
                   </motion.div>
                 </div>
+              </div>
+            </motion.div>
+          )}
+
+          {/* EMAIL COLLECTION (if required, shown after last question) */}
+          {step === qs.length && sv?.require_email && (
+            <motion.div key="email-gate" custom={dir} variants={variants} initial="enter" animate="show" exit="exit" transition={spring}
+              style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', padding:'32px 40px' }}>
+              <div style={{ width:'100%', maxWidth:520, textAlign:'center' }}>
+                <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.05 }}
+                  style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'5px 14px', borderRadius:999, border:`1px solid ${tc}2E`, background:`${tc}0D`, marginBottom:28 }}>
+                  <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase', color:tc }}>
+                    Almost there
+                  </span>
+                </motion.div>
+                <motion.h2 initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.12, duration:0.55, ease:[0.16,1,0.3,1] }}
+                  style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:'clamp(28px,5vw,50px)', letterSpacing:'-2px', color:fg, lineHeight:1.05, marginBottom:16 }}>
+                  Where should we send your results?
+                </motion.h2>
+                <motion.p initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.22 }}
+                  style={{ fontFamily:'Fraunces,serif', fontWeight:300, fontSize:16, color:sub, lineHeight:1.65, marginBottom:36 }}>
+                  Your responses are safe. We only use your email to share follow-up insights.
+                </motion.p>
+                <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.28 }}>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter' && email) submit(); }}
+                    placeholder="you@company.com"
+                    autoFocus
+                    style={{ width:'100%', boxSizing:'border-box', padding:'18px 24px', background:'rgba(22,15,8,0.04)', border:`1.5px solid rgba(22,15,8,0.12)`, borderRadius:18, fontFamily:'Fraunces,serif', fontSize:20, fontWeight:300, color:fg, outline:'none', textAlign:'center', transition:'border-color 0.2s, box-shadow 0.2s', marginBottom:20 }}
+                    onFocus={e => { e.target.style.borderColor = tc; e.target.style.boxShadow = `0 0 0 4px ${tc}14`; }}
+                    onBlur={e => { e.target.style.borderColor = 'rgba(22,15,8,0.12)'; e.target.style.boxShadow = 'none'; }}
+                  />
+                  <div style={{ display:'flex', gap:12, justifyContent:'center', alignItems:'center' }}>
+                    <motion.button whileHover={{ scale:1.02, y:-1 }} whileTap={{ scale:0.97 }}
+                      onClick={submit} disabled={busy || !email}
+                      style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'15px 44px', borderRadius:999, border:'none', background: email ? tc : 'rgba(22,15,8,0.1)', color: email ? '#fff' : sub, fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:12, letterSpacing:'0.12em', textTransform:'uppercase', cursor: (busy || !email) ? 'not-allowed' : 'pointer', opacity: busy ? 0.65 : 1, transition:'all 0.25s', boxShadow: email ? `0 8px 32px ${tc}40` : 'none' }}>
+                      {busy ? 'Submitting…' : <><span>Submit</span><Icons.Check style={{ color:'currentColor' }} /></>}
+                    </motion.button>
+                  </div>
+                </motion.div>
               </div>
             </motion.div>
           )}

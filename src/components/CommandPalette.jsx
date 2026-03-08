@@ -126,34 +126,41 @@ export default function CommandPalette({ onClose }) {
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: -8, scale: 0.98 }}
         transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-        style={{ width: '100%', maxWidth: 580, background: 'var(--warm-white)', borderRadius: 20, boxShadow: '0 40px 100px rgba(22,15,8,0.35)', overflow: 'hidden', border: '1px solid rgba(22,15,8,0.06)' }}
+        style={{ width: '100%', maxWidth: 640, background: 'var(--warm-white)', borderRadius: 22, boxShadow: '0 48px 120px rgba(22,15,8,0.4)', overflow: 'hidden', border: '1px solid rgba(22,15,8,0.06)' }}
       >
         {/* Search input */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '16px 20px', borderBottom: '1px solid rgba(22,15,8,0.07)' }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(22,15,8,0.35)" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '20px 24px', borderBottom: '1.5px solid rgba(22,15,8,0.07)' }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(22,15,8,0.3)" strokeWidth="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
           <input
             ref={inputRef}
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="Search surveys, navigate, or take action…"
-            style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontFamily: 'Fraunces, serif', fontSize: 16, fontWeight: 300, color: 'var(--espresso)', caretColor: 'var(--coral)' }}
+            placeholder="Where to? Search surveys, pages, actions…"
+            style={{ flex: 1, background: 'none', border: 'none', outline: 'none', fontFamily: 'Fraunces, serif', fontSize: 17, fontWeight: 300, color: 'var(--espresso)', caretColor: 'var(--coral)' }}
           />
-          {loading && (
+          {loading ? (
             <div style={{ width: 14, height: 14, border: '2px solid rgba(22,15,8,0.1)', borderTopColor: 'var(--coral)', borderRadius: '50%', animation: 'nx-spin 0.6s linear infinite' }} />
+          ) : (
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+              <kbd style={{ fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', padding: '4px 8px', borderRadius: 7, background: 'var(--cream-deep)', color: 'rgba(22,15,8,0.35)', border: '1px solid rgba(22,15,8,0.1)' }}>ESC</kbd>
+            </div>
           )}
-          <kbd style={{ fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.08em', padding: '3px 7px', borderRadius: 6, background: 'var(--cream-deep)', color: 'rgba(22,15,8,0.4)', border: '1px solid rgba(22,15,8,0.08)' }}>ESC</kbd>
         </div>
 
         {/* Results */}
-        <div style={{ maxHeight: 380, overflowY: 'auto', padding: '8px 8px' }}>
+        <div style={{ maxHeight: 460, overflowY: 'auto', padding: '10px 10px' }}>
           {results.length === 0 && !loading && (
-            <div style={{ padding: '32px 20px', textAlign: 'center', fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 14, color: 'rgba(22,15,8,0.35)' }}>
-              No results for "{query}"
+            <div style={{ padding: '48px 20px', textAlign: 'center' }}>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--cream-deep)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(22,15,8,0.25)" strokeWidth="1.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              </div>
+              <div style={{ fontFamily: 'Syne, sans-serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.3)', marginBottom: 6 }}>No results</div>
+              <div style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 13, color: 'rgba(22,15,8,0.3)' }}>Try "create", "settings", or a survey name</div>
             </div>
           )}
           {Object.entries(grouped).map(([group, items]) => (
-            <div key={group}>
-              <div style={{ fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.3)', padding: '8px 12px 4px' }}>
+            <div key={group} style={{ marginBottom: 4 }}>
+              <div style={{ fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.25)', padding: '10px 14px 6px' }}>
                 {group}
               </div>
               {items.map(item => (
@@ -163,12 +170,12 @@ export default function CommandPalette({ onClose }) {
                   onMouseEnter={() => setSelected(item._idx)}
                   style={{
                     width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '10px 12px', borderRadius: 10, border: 'none',
+                    padding: '11px 14px', borderRadius: 12, border: 'none',
                     background: selected === item._idx ? 'var(--espresso)' : 'transparent',
                     cursor: 'pointer', textAlign: 'left', transition: 'background 0.12s',
                   }}
                 >
-                  <span style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: selected === item._idx ? 'rgba(253,245,232,0.7)' : 'rgba(22,15,8,0.4)' }}>
+                  <span style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderRadius: 8, background: selected === item._idx ? 'rgba(253,245,232,0.1)' : 'var(--cream-deep)', color: selected === item._idx ? 'rgba(253,245,232,0.8)' : 'rgba(22,15,8,0.45)' }}>
                     {ICON_PATHS[item.icon] || ICON_PATHS.edit}
                   </span>
                   <span style={{ fontFamily: 'Syne, sans-serif', fontSize: 12, fontWeight: 600, color: selected === item._idx ? 'var(--cream)' : 'var(--espresso)', flex: 1, letterSpacing: '0.02em' }}>
@@ -179,7 +186,7 @@ export default function CommandPalette({ onClose }) {
                       {item.meta}
                     </span>
                   )}
-                  <kbd style={{ fontFamily: 'Syne, sans-serif', fontSize: 9, padding: '2px 6px', borderRadius: 5, background: selected === item._idx ? 'rgba(253,245,232,0.12)' : 'var(--cream-deep)', color: selected === item._idx ? 'rgba(253,245,232,0.5)' : 'rgba(22,15,8,0.3)', border: `1px solid ${selected === item._idx ? 'rgba(253,245,232,0.1)' : 'rgba(22,15,8,0.08)'}`, flexShrink: 0 }}>↵</kbd>
+                  <kbd style={{ fontFamily: 'Syne, sans-serif', fontSize: 9, padding: '3px 7px', borderRadius: 6, background: selected === item._idx ? 'rgba(253,245,232,0.12)' : 'var(--cream-deep)', color: selected === item._idx ? 'rgba(253,245,232,0.5)' : 'rgba(22,15,8,0.3)', border: `1px solid ${selected === item._idx ? 'rgba(253,245,232,0.1)' : 'rgba(22,15,8,0.08)'}`, flexShrink: 0 }}>↵</kbd>
                 </button>
               ))}
             </div>
@@ -187,13 +194,14 @@ export default function CommandPalette({ onClose }) {
         </div>
 
         {/* Footer hint */}
-        <div style={{ padding: '10px 20px', borderTop: '1px solid rgba(22,15,8,0.06)', display: 'flex', gap: 16 }}>
-          {[['↑↓', 'Navigate'], ['↵', 'Open'], ['Esc', 'Close']].map(([key, label]) => (
+        <div style={{ padding: '12px 24px', borderTop: '1.5px solid rgba(22,15,8,0.06)', display: 'flex', gap: 18, alignItems: 'center' }}>
+          {[['↑↓', 'Navigate'], ['↵', 'Open'], ['Esc', 'Dismiss']].map(([key, label]) => (
             <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <kbd style={{ fontFamily: 'Syne, sans-serif', fontSize: 9, padding: '2px 7px', borderRadius: 5, background: 'var(--cream-deep)', color: 'rgba(22,15,8,0.4)', border: '1px solid rgba(22,15,8,0.08)' }}>{key}</kbd>
+              <kbd style={{ fontFamily: 'Syne, sans-serif', fontSize: 9, padding: '3px 7px', borderRadius: 5, background: 'var(--cream-deep)', color: 'rgba(22,15,8,0.4)', border: '1px solid rgba(22,15,8,0.08)' }}>{key}</kbd>
               <span style={{ fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 600, color: 'rgba(22,15,8,0.3)', letterSpacing: '0.08em' }}>{label}</span>
             </div>
           ))}
+          <div style={{ marginLeft: 'auto', fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.2)' }}>Nexora Command</div>
         </div>
       </motion.div>
     </motion.div>

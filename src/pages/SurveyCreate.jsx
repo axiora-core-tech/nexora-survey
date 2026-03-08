@@ -13,11 +13,11 @@ const newQ = () => ({ _id: Math.random().toString(36).slice(2), question_text: '
 const hasO = t => ['single_choice', 'multiple_choice', 'dropdown', 'ranking'].includes(t);
 const isMx = t => t === 'matrix';
 
-/* ── shared micro styles ── */
+/* ── Brand-consistent field styles ── */
 const label = { fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.4)', display: 'block', marginBottom: 10 };
-const inp   = { width: '100%', boxSizing: 'border-box', padding: '14px 18px', background: 'var(--cream)', border: '1px solid rgba(22,15,8,0.1)', borderRadius: 14, fontFamily: 'Fraunces, serif', fontSize: 15, color: 'var(--espresso)', outline: 'none', transition: 'border-color 0.2s', resize: 'vertical' };
-const focusIn  = e => e.target.style.borderColor = 'var(--coral)';
-const focusOut = e => e.target.style.borderColor = 'rgba(22,15,8,0.1)';
+const inp   = { width: '100%', boxSizing: 'border-box', padding: '14px 18px', background: 'var(--cream)', border: '1.5px solid rgba(22,15,8,0.1)', borderRadius: 14, fontFamily: 'Fraunces, serif', fontSize: 15, color: 'var(--espresso)', outline: 'none', transition: 'border-color 0.2s, box-shadow 0.2s', resize: 'vertical' };
+const focusIn  = e => { e.target.style.borderColor = 'var(--coral)'; e.target.style.boxShadow = '0 0 0 3px rgba(255,69,0,0.08)'; };
+const focusOut = e => { e.target.style.borderColor = 'rgba(22,15,8,0.1)'; e.target.style.boxShadow = 'none'; };
 
 export default function SurveyCreate() {
   const { profile } = useAuthStore();
@@ -224,12 +224,21 @@ export default function SurveyCreate() {
       {tab === 'questions' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {qs.map((q, i) => (
-            <div key={q._id} style={{ background: 'var(--warm-white)', borderRadius: 20, border: '1px solid rgba(22,15,8,0.08)', padding: 24 }}>
+            <div key={q._id} style={{ background: 'var(--warm-white)', borderRadius: 24, border: '1.5px solid rgba(22,15,8,0.07)', padding: '28px 28px 24px', transition: 'border-color 0.2s, box-shadow 0.2s', position: 'relative', overflow: 'hidden' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(22,15,8,0.14)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(22,15,8,0.06)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(22,15,8,0.07)'; e.currentTarget.style.boxShadow = 'none'; }}>
+              {/* Coral accent line */}
+              <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, var(--coral), transparent)`, opacity: 0.35, borderRadius: '24px 24px 0 0' }} />
               {/* Card header */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-                <span style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.3)', background: 'var(--cream-deep)', padding: '4px 10px', borderRadius: 999 }}>Q{i + 1}</span>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span style={{ fontFamily: 'Playfair Display, serif', fontWeight: 900, fontSize: 28, color: 'rgba(22,15,8,0.07)', lineHeight: 1, userSelect: 'none', letterSpacing: '-1px' }}>{String(i + 1).padStart(2, '0')}</span>
+                  <span style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.3)', background: 'var(--cream-deep)', padding: '4px 10px', borderRadius: 999 }}>
+                    {QUESTION_TYPES.find(t => t.value === q.question_type)?.label || 'Question'}
+                  </span>
+                </div>
                 <div style={{ display: 'flex', gap: 4 }}>
-                  {[[-1,'↑'],[1,'↓']].map(([d, sym]) => (
+                  {[[-1, '↑'], [1, '↓']].map(([d, sym]) => (
                     <button key={d} onClick={() => moveQ(q._id, d)} disabled={(d === -1 && i === 0) || (d === 1 && i === qs.length - 1)}
                       style={{ width: 30, height: 30, borderRadius: 8, border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'Syne, sans-serif', color: 'rgba(22,15,8,0.3)', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', opacity: ((d === -1 && i === 0) || (d === 1 && i === qs.length - 1)) ? 0.2 : 1 }}
                       onMouseEnter={e => e.currentTarget.style.background = 'var(--cream-deep)'}
@@ -245,11 +254,11 @@ export default function SurveyCreate() {
               {/* Question fields */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <input value={q.question_text} onChange={e => sQ(q._id, 'question_text', e.target.value)}
-                  placeholder="Ask your question…"
-                  style={{ ...inp, fontSize: 16, fontWeight: 400 }} onFocus={focusIn} onBlur={focusOut} />
+                  placeholder="Type your question here…"
+                  style={{ ...inp, fontSize: 17, fontWeight: 400, padding: '16px 20px', background: 'rgba(253,245,232,0.5)', border: '1.5px solid rgba(22,15,8,0.08)' }} onFocus={focusIn} onBlur={focusOut} />
                 <input value={q.description} onChange={e => sQ(q._id, 'description', e.target.value)}
-                  placeholder="Helper text (optional)"
-                  style={{ ...inp, fontSize: 13, color: 'rgba(22,15,8,0.5)' }} onFocus={focusIn} onBlur={focusOut} />
+                  placeholder="Add a description or helper text (optional)"
+                  style={{ ...inp, fontSize: 13, color: 'rgba(22,15,8,0.5)', padding: '11px 16px', background: 'transparent' }} onFocus={focusIn} onBlur={focusOut} />
 
                 {/* Type + required */}
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>

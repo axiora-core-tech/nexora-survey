@@ -56,20 +56,31 @@ function AppRoutes() {
       <GlobalSpinner />
 
       <Toaster
-        position="top-right"
+        position="bottom-right"
+        gutter={10}
         toastOptions={{
+          duration: 3500,
           style: {
             fontFamily: 'Syne, sans-serif',
-            fontSize: 13,
-            fontWeight: 600,
-            letterSpacing: '0.04em',
-            background: '#160F08',
-            color: '#FDF5E8',
-            borderRadius: 12,
-            padding: '12px 18px',
+            fontSize: 12,
+            fontWeight: 700,
+            letterSpacing: '0.06em',
+            background: 'var(--espresso)',
+            color: 'var(--cream)',
+            borderRadius: 14,
+            padding: '14px 20px',
+            boxShadow: '0 16px 48px rgba(22,15,8,0.35), 0 2px 8px rgba(22,15,8,0.2)',
+            border: '1px solid rgba(253,245,232,0.08)',
+            maxWidth: 320,
           },
-          success: { iconTheme: { primary: '#FF4500', secondary: '#FDF5E8' } },
-          error:   { iconTheme: { primary: '#D63B1F', secondary: '#FDF5E8' } },
+          success: {
+            style: { borderLeft: '3px solid #1E7A4A' },
+            iconTheme: { primary: '#1E7A4A', secondary: 'var(--cream)' },
+          },
+          error: {
+            style: { borderLeft: '3px solid var(--terracotta)' },
+            iconTheme: { primary: 'var(--terracotta)', secondary: 'var(--cream)' },
+          },
         }}
       />
 

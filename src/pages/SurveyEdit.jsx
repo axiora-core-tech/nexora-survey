@@ -13,7 +13,12 @@ import ConfirmModal from '../components/ConfirmModal';
 import HelpTip from '../components/HelpTip';
 const hasO=t=>['single_choice','multiple_choice','dropdown','ranking'].includes(t);
 const isMx=t=>t==='matrix';
-const inp="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-dark text-sm placeholder:text-gray-400 focus:outline-none focus:border-accent transition-colors";
+
+/* ── Brand-consistent field styles ── */
+const inp = { width: '100%', boxSizing: 'border-box', padding: '13px 18px', background: 'var(--cream)', border: '1.5px solid rgba(22,15,8,0.1)', borderRadius: 14, fontFamily: 'Fraunces, serif', fontSize: 15, color: 'var(--espresso)', outline: 'none', transition: 'border-color 0.2s, box-shadow 0.2s', resize: 'vertical' };
+const focusIn  = e => { e.target.style.borderColor = 'var(--coral)'; e.target.style.boxShadow = '0 0 0 3px rgba(255,69,0,0.08)'; };
+const focusOut = e => { e.target.style.borderColor = 'rgba(22,15,8,0.1)'; e.target.style.boxShadow = 'none'; };
+const fieldLabel = { fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.4)', display: 'block', marginBottom: 8 };
 
 export default function SurveyEdit(){
   const{id}=useParams();const{profile}=useAuthStore();const nav=useNavigate();
@@ -23,6 +28,7 @@ export default function SurveyEdit(){
   const [previewOpen, setPreviewOpen] = useState(false);
   const [previewStep, setPreviewStep] = useState(0);
   const [extendOpen, setExtendOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [dirty, setDirty] = useState(false);
 
   useEffect(()=>{if(profile?.id)load();else stopLoading();},[id,profile?.id]);
@@ -45,6 +51,14 @@ export default function SurveyEdit(){
     await supabase.from('surveys').update({status:'active',expires_at:x.toISOString()}).eq('id',id);
     toast.success('Reactivated');load();
   }
+  async function doDelete(){
+    try{
+      await supabase.from('survey_questions').delete().eq('survey_id',id);
+      await supabase.from('surveys').delete().eq('id',id);
+      toast.success('Survey deleted');
+      nav('/surveys');
+    }catch(e){console.error(e);toast.error('Delete failed');}
+  }
   async function share(uid){await supabase.from('survey_shares').upsert({survey_id:id,shared_with:uid,shared_by:profile.id,permission:'view_analytics'});toast.success('Shared');load();}
   function copyLink(){navigator.clipboard.writeText(`${window.location.origin}/s/${sv.slug}`);toast.success('Copied!');}
   if(!sv)return<div style={{ textAlign:'center',padding:'80px 0',fontFamily:'Fraunces,serif',color:'rgba(22,15,8,0.35)' }}>Survey not found</div>;
@@ -63,9 +77,9 @@ export default function SurveyEdit(){
   const tabs=[{id:'details',l:'Details'},{id:'questions',l:`Questions (${qs.length})`},{id:'settings',l:'Settings'}];
   const eSty = {
     lbl: { fontFamily:'Syne,sans-serif',fontSize:9,fontWeight:700,letterSpacing:'0.18em',textTransform:'uppercase',color:'rgba(22,15,8,0.4)',display:'block',marginBottom:10 },
-    inp: { width:'100%',boxSizing:'border-box',padding:'14px 18px',background:'var(--cream)',border:'1px solid rgba(22,15,8,0.1)',borderRadius:14,fontFamily:'Fraunces,serif',fontSize:15,color:'var(--espresso)',outline:'none',transition:'border-color 0.2s',resize:'vertical' },
-    fi: e => e.target.style.borderColor = 'var(--coral)',
-    fo: e => e.target.style.borderColor = 'rgba(22,15,8,0.1)',
+    inp: { width:'100%',boxSizing:'border-box',padding:'14px 18px',background:'var(--cream)',border:'1.5px solid rgba(22,15,8,0.1)',borderRadius:14,fontFamily:'Fraunces,serif',fontSize:15,color:'var(--espresso)',outline:'none',transition:'border-color 0.2s, box-shadow 0.2s',resize:'vertical' },
+    fi: e => { e.target.style.borderColor = 'var(--coral)'; e.target.style.boxShadow = '0 0 0 3px rgba(255,69,0,0.08)'; },
+    fo: e => { e.target.style.borderColor = 'rgba(22,15,8,0.1)'; e.target.style.boxShadow = 'none'; },
   };
   return(<div className="max-w-3xl mx-auto">
     {/* ── Survey Preview Modal ── */}
@@ -133,6 +147,13 @@ export default function SurveyEdit(){
       prompt={{label:'Extend by (days)',defaultValue:'7',type:'number',min:1,max:365}}
       onConfirm={doExtend}
     />
+    <ConfirmModal
+      open={deleteOpen} onClose={()=>setDeleteOpen(false)}
+      title="Delete survey?"
+      body={`"${sv.title}" and all its data will be permanently deleted. This cannot be undone.`}
+      confirmLabel="Delete permanently"
+      onConfirm={doDelete}
+    />
     <div className="np-page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 40, flexWrap: 'wrap' }}>
       <div style={{ minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
@@ -165,11 +186,16 @@ export default function SurveyEdit(){
         <Link to={`/surveys/${id}/analytics`} style={{ padding: '9px 16px', borderRadius: 999, border: '1px solid rgba(22,15,8,0.1)', background: 'transparent', color: 'rgba(22,15,8,0.5)', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', textDecoration: 'none', whiteSpace: 'nowrap', transition: 'all 0.2s' }} onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--espresso)'; e.currentTarget.style.color = 'var(--espresso)'; }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(22,15,8,0.1)'; e.currentTarget.style.color = 'rgba(22,15,8,0.5)'; }}>Analytics</Link>
         <button onClick={() => setPubShareOpen(true)} style={{ display:'flex', alignItems:'center', gap:5, padding: '9px 16px', borderRadius: 999, border: '1px solid rgba(22,15,8,0.1)', background: 'transparent', color: 'rgba(22,15,8,0.5)', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }} onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--espresso)'; e.currentTarget.style.color = 'var(--espresso)'; }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(22,15,8,0.1)'; e.currentTarget.style.color = 'rgba(22,15,8,0.5)'; }}><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Share</button>
         <ShareModal survey={sv} isOpen={pubShareOpen} onClose={() => setPubShareOpen(false)} />
-        <button onClick={() => { setPreviewStep(0); setPreviewOpen(true); }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, border: '1px solid rgba(22,15,8,0.12)', background: 'transparent', color: 'rgba(22,15,8,0.5)', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }} onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--espresso)'; e.currentTarget.style.color = 'var(--espresso)'; }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(22,15,8,0.12)'; e.currentTarget.style.color = 'rgba(22,15,8,0.5)'; }}>
+        <button onClick={() => { setPreviewStep(tab === 'questions' ? 0 : (sv.welcome_message ? -1 : 0)); setPreviewOpen(true); }} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 16px', borderRadius: 999, border: '1px solid rgba(22,15,8,0.12)', background: 'transparent', color: 'rgba(22,15,8,0.5)', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }} onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--espresso)'; e.currentTarget.style.color = 'var(--espresso)'; }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(22,15,8,0.12)'; e.currentTarget.style.color = 'rgba(22,15,8,0.5)'; }}>
           <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M5 3l14 9-14 9V3z"/></svg>
           Preview
         </button>
         <button onClick={save} disabled={busy} style={{ padding: '9px 20px', borderRadius: 999, border: 'none', background: 'var(--espresso)', color: 'var(--cream)', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'background 0.25s', opacity: busy ? 0.45 : 1 }} onMouseEnter={e => { if (!busy) e.currentTarget.style.background = 'var(--coral)'; }} onMouseLeave={e => { if (!busy) e.currentTarget.style.background = 'var(--espresso)'; }}>{busy ? 'Saving…' : 'Save'}</button>
+        {sv.status === 'draft' && hasPermission(profile?.role, 'delete_survey') && (
+          <button onClick={() => setDeleteOpen(true)} title="Delete survey" style={{ width: 34, height: 34, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, border: '1px solid rgba(214,59,31,0.2)', background: 'transparent', color: 'rgba(214,59,31,0.45)', cursor: 'pointer', flexShrink: 0, transition: 'all 0.2s' }} onMouseEnter={e => { e.currentTarget.style.background = 'rgba(214,59,31,0.08)'; e.currentTarget.style.color = 'var(--terracotta)'; e.currentTarget.style.borderColor = 'var(--terracotta)'; }} onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(214,59,31,0.45)'; e.currentTarget.style.borderColor = 'rgba(214,59,31,0.2)'; }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+          </button>
+        )}
       </div>
     </div>
     {/* Tabs */}
@@ -239,8 +265,8 @@ export default function SurveyEdit(){
               </div>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <input value={q.question_text} onChange={e => sQ(q._id, 'question_text', e.target.value)} placeholder="Ask your question…" style={{ ...eSty.inp, fontSize: 16 }} onFocus={eSty.fi} onBlur={eSty.fo} />
-              <input value={q.description || ''} onChange={e => sQ(q._id, 'description', e.target.value)} placeholder="Helper text (optional)" style={{ ...eSty.inp, fontSize: 13, color: 'rgba(22,15,8,0.5)' }} onFocus={eSty.fi} onBlur={eSty.fo} />
+              <input value={q.question_text} onChange={e => sQ(q._id, 'question_text', e.target.value)} placeholder="Type your question here…" style={{ ...eSty.inp, fontSize: 17, fontWeight: 400, padding: '16px 20px', background: 'rgba(253,245,232,0.5)', border: '1.5px solid rgba(22,15,8,0.08)' }} onFocus={eSty.fi} onBlur={eSty.fo} />
+              <input value={q.description || ''} onChange={e => sQ(q._id, 'description', e.target.value)} placeholder="Add a description or helper text (optional)" style={{ ...eSty.inp, fontSize: 13, color: 'rgba(22,15,8,0.5)', padding: '11px 16px', background: 'transparent' }} onFocus={eSty.fi} onBlur={eSty.fo} />
               <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
                 <select value={q.question_type} onChange={e => sQ(q._id, 'question_type', e.target.value)} style={{ ...eSty.inp, flex: 1 }} onFocus={eSty.fi} onBlur={eSty.fo}>
                   {QUESTION_TYPES.map(t => <option key={t.value} value={t.value}>{t.icon} {t.label}</option>)}
