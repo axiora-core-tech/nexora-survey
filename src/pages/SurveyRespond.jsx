@@ -432,9 +432,9 @@ export default function SurveyRespond() {
 
       {/* ── Progress line ── */}
       {step >= 0 && sv?.show_progress_bar !== false && (
-        <div style={{ position:'absolute', top:0, left:0, right:0, height:1.5, zIndex:100, background:line }}>
+        <div style={{ position:'absolute', top:0, left:0, right:0, height:2, zIndex:100, background:'rgba(22,15,8,0.06)' }}>
           <motion.div animate={{ width:`${pct}%` }} transition={{ duration:0.7, ease:[0.16,1,0.3,1] }}
-            style={{ height:'100%', background:tc }} />
+            style={{ height:'100%', background:`linear-gradient(90deg,${tc},${tc}cc)`, boxShadow:`0 0 8px ${tc}60` }} />
         </div>
       )}
 
@@ -502,10 +502,17 @@ export default function SurveyRespond() {
             <motion.div key="welcome" custom={dir} variants={variants} initial="enter" animate="show" exit="exit" transition={spring}
               style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', padding:'32px 40px' }}>
               <div aria-hidden style={{ position:'absolute', inset:0, overflow:'hidden', pointerEvents:'none' }}>
+                {/* Grain texture */}
+                <div style={{ position:'absolute',inset:0,backgroundImage:`url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E")`,backgroundSize:'250px',opacity:0.04 }}/>
+                {/* Gradient blobs */}
                 <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ duration:1.5 }}
-                  style={{ position:'absolute', top:'-20%', right:'-10%', width:600, height:600, borderRadius:'50%', background:`radial-gradient(circle,${tc}1A,transparent 70%)`, filter:'blur(70px)' }} />
+                  style={{ position:'absolute', top:'-20%', right:'-10%', width:700, height:700, borderRadius:'50%', background:`radial-gradient(circle,${tc}22,transparent 65%)`, filter:'blur(80px)' }} />
                 <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.3, duration:1.2 }}
-                  style={{ position:'absolute', bottom:'-15%', left:'-8%', width:400, height:400, borderRadius:'50%', background:'radial-gradient(circle,rgba(188,150,80,0.1),transparent 70%)', filter:'blur(60px)' }} />
+                  style={{ position:'absolute', bottom:'-15%', left:'-8%', width:500, height:500, borderRadius:'50%', background:'radial-gradient(circle,rgba(188,150,80,0.14),transparent 70%)', filter:'blur(70px)' }} />
+                <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.5, duration:2 }}
+                  style={{ position:'absolute', top:'30%', left:'25%', width:350, height:350, borderRadius:'50%', background:`radial-gradient(circle,${tc}10,transparent 70%)`, filter:'blur(60px)' }} />
+                {/* Ghost watermark */}
+                <div style={{ position:'absolute', bottom:'-20px', left:'-10px', fontFamily:"'Playfair Display',serif", fontWeight:900, fontSize:'clamp(120px,22vw,280px)', color:'transparent', WebkitTextStroke:'1px rgba(255,69,0,0.04)', letterSpacing:'-8px', lineHeight:1, userSelect:'none', pointerEvents:'none' }}>Pulse</div>
               </div>
               <div style={{ textAlign:'center', maxWidth:560, position:'relative', zIndex:1 }}>
                 <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.1 }}
@@ -552,7 +559,11 @@ export default function SurveyRespond() {
             <motion.div key={q.id} custom={dir} variants={variants} initial="enter" animate="show" exit="exit" transition={spring}
               style={{ position:'absolute', inset:0, overflowY:'auto', overflowX:'hidden' }}>
               <div style={{ minHeight:'100%', display:'flex', alignItems:'center', justifyContent:'center', padding:'32px 40px' }}>
-                <div style={{ width:'100%', maxWidth:680 }}>
+                <div style={{ width:'100%', maxWidth:680, position:'relative' }}>
+                  {/* Ghost question number */}
+                  <div aria-hidden style={{ position:'absolute', right:-8, top:-16, fontFamily:"'Playfair Display',serif", fontWeight:900, fontSize:'clamp(80px,13vw,130px)', color:'rgba(22,15,8,0.032)', lineHeight:1, letterSpacing:'-5px', userSelect:'none', pointerEvents:'none', zIndex:0 }}>
+                    {String(visPos).padStart(2,'0')}
+                  </div>
 
                   {/* Meta row */}
                   <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.05 }}
@@ -679,18 +690,20 @@ export default function SurveyRespond() {
       <style>{`
         .qt { width:100%; box-sizing:border-box; background:transparent; border:none; border-bottom:2px solid rgba(22,15,8,0.09); font-family:'Fraunces',serif; font-size:clamp(20px,3vw,30px); font-weight:300; color:#160F08; outline:none; padding:6px 0 16px; transition:border-color 0.25s; resize:none; }
         .qt:focus { border-bottom-color:var(--qt-tc); }
-        .qt::placeholder { color:rgba(22,15,8,0.13); }
-        .qc { width:100%; display:flex; align-items:center; gap:16px; padding:17px 22px; border-radius:16px; border:1.5px solid rgba(22,15,8,0.08); background:rgba(255,255,255,0.6); cursor:pointer; text-align:left; transition:border-color 0.2s, background 0.2s, transform 0.2s; backdrop-filter:blur(6px); }
-        .qc:hover { border-color:rgba(22,15,8,0.16); background:rgba(255,255,255,0.9); transform:translateX(4px); }
-        .qc.on { border-color:var(--qt-tc); background:rgba(255,255,255,0.9); }
-        .qdot { width:22px; height:22px; flex-shrink:0; border:2px solid rgba(22,15,8,0.14); display:flex; align-items:center; justify-content:center; transition:all 0.2s; }
+        .qt::placeholder { color:rgba(22,15,8,0.12); }
+        .qc { width:100%; display:flex; align-items:center; gap:16px; padding:17px 22px; border-radius:18px; border:1.5px solid rgba(22,15,8,0.07); background:rgba(253,245,232,0.5); cursor:pointer; text-align:left; transition:border-color 0.25s, background 0.25s, transform 0.25s, box-shadow 0.25s; backdrop-filter:blur(6px); }
+        .qc:hover { border-color:rgba(22,15,8,0.18); background:rgba(255,255,255,0.95); transform:translateX(6px); box-shadow:0 4px 20px rgba(22,15,8,0.06); }
+        .qc.on { border-color:var(--qt-tc); background:rgba(255,255,255,0.95); box-shadow:0 4px 20px rgba(22,15,8,0.08); }
+        .qdot { width:22px; height:22px; flex-shrink:0; border:2px solid rgba(22,15,8,0.14); display:flex; align-items:center; justify-content:center; transition:all 0.25s; }
         .qdot.r { border-radius:50%; } .qdot.s { border-radius:7px; }
         .qdot.on { border-color:var(--qt-tc); background:var(--qt-tc); }
         .qlbl { font-family:'Fraunces',serif; font-weight:300; font-size:16px; color:#160F08; flex:1; line-height:1.4; }
-        .qkey { font-family:'Syne',sans-serif; font-size:9px; font-weight:700; letter-spacing:0.1em; color:rgba(22,15,8,0.18); padding:3px 7px; border:1px solid rgba(22,15,8,0.09); border-radius:5px; }
-        .qsc { flex:1; height:52px; border-radius:13px; border:1.5px solid rgba(22,15,8,0.08); background:rgba(255,255,255,0.55); font-family:'Syne',sans-serif; font-weight:700; font-size:14px; color:rgba(22,15,8,0.4); cursor:pointer; transition:all 0.2s; }
-        .qsc:hover { border-color:rgba(22,15,8,0.18); transform:translateY(-3px); color:#160F08; background:white; }
-        .qsc.on { color:white; transform:translateY(-3px); }
+        .qkey { font-family:'Syne',sans-serif; font-size:9px; font-weight:700; letter-spacing:0.12em; color:rgba(22,15,8,0.2); padding:3px 8px; border:1px solid rgba(22,15,8,0.09); border-radius:6px; transition:all 0.2s; }
+        .qc:hover .qkey { border-color:rgba(22,15,8,0.2); color:rgba(22,15,8,0.35); }
+        .qc.on .qkey { border-color:var(--qt-tc); color:var(--qt-tc); }
+        .qsc { flex:1; height:54px; border-radius:14px; border:1.5px solid rgba(22,15,8,0.08); background:rgba(253,245,232,0.5); font-family:'Syne',sans-serif; font-weight:700; font-size:14px; color:rgba(22,15,8,0.38); cursor:pointer; transition:all 0.25s; }
+        .qsc:hover { border-color:rgba(22,15,8,0.2); transform:translateY(-4px); color:#160F08; background:white; box-shadow:0 6px 20px rgba(22,15,8,0.08); }
+        .qsc.on { color:white; transform:translateY(-4px); box-shadow:0 8px 28px rgba(22,15,8,0.15); }
       `}</style>
 
       {/* ── Footer ── */}
