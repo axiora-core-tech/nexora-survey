@@ -1,13 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import AISurveySuggestions from '../components/AISurveySuggestions';
 import useAuthStore from '../hooks/useAuth';
 import { QUESTION_TYPES, generateUniqueSlug } from '../lib/constants';
 import toast from 'react-hot-toast';
+import { useLoading } from '../context/LoadingContext';
 
 const newQ = () => ({ _id: Math.random().toString(36).slice(2), question_text: '', question_type: 'short_text', options: [], is_required: false, description: '' });
-const hasO = t => ['single_choice', 'multiple_choice', 'dropdown'].includes(t);
+const hasO = t => ['single_choice', 'multiple_choice', 'dropdown', 'ranking'].includes(t);
+const isMx = t => t === 'matrix';
 
 /* ── shared micro styles ── */
 const label = { fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.4)', display: 'block', marginBottom: 10 };
@@ -17,7 +19,10 @@ const focusOut = e => e.target.style.borderColor = 'rgba(22,15,8,0.1)';
 
 export default function SurveyCreate() {
   const { profile } = useAuthStore();
+  const { stopLoading } = useLoading();
   const nav = useNavigate();
+  // No async data fetch on mount — dismiss the navigation spinner immediately
+  useEffect(() => { stopLoading(); }, [stopLoading]);
   const [busy, setBusy]   = useState(false);
   const [tab, setTab]     = useState('details');
   const [f, sf]           = useState({ title: '', description: '', welcome_message: '', thank_you_message: 'Thank you for completing this survey!', expires_at: '', theme_color: '#FF4500', allow_anonymous: true, require_email: false, show_progress_bar: true });
@@ -43,7 +48,7 @@ export default function SurveyCreate() {
       const { data: sv, error: e1 } = await supabase.from('surveys').insert({ title: f.title, description: f.description || null, welcome_message: f.welcome_message || null, thank_you_message: f.thank_you_message || null, expires_at: f.expires_at || null, allow_anonymous: f.allow_anonymous, require_email: f.require_email, show_progress_bar: f.show_progress_bar, theme_color: f.theme_color, slug, status, tenant_id: profile.tenant_id, created_by: profile.id }).select().single();
       if (e1) throw e1;
       if (!sv) throw new Error('Survey not created');
-      const { error: e2 } = await supabase.from('survey_questions').insert(qs.map((q, i) => ({ survey_id: sv.id, question_text: q.question_text, question_type: q.question_type, options: hasO(q.question_type) ? q.options : null, is_required: q.is_required, description: q.description || null, sort_order: i })));
+      const { error: e2 } = await supabase.from('survey_questions').insert(qs.map((q, i) => ({ survey_id: sv.id, question_text: q.question_text, question_type: q.question_type, options: hasO(q.question_type) ? q.options : isMx(q.question_type) ? (q.options || { rows: [], columns: [] }) : null, is_required: q.is_required, description: q.description || null, sort_order: i })));
       if (e2) throw e2;
       toast.success(status === 'active' ? 'Published!' : 'Draft saved');
       nav(`/surveys/${sv.id}/edit`);
@@ -196,6 +201,42 @@ export default function SurveyCreate() {
                     </button>
                   </div>
                 )}
+
+                {/* Matrix rows/columns editor */}
+                {isMx(q.question_type) && (() => {
+                  const mx = q.options && !Array.isArray(q.options) ? q.options : { rows: [], columns: [] };
+                  const setMx = (next) => sQ(q._id, 'options', next);
+                  const addRow = () => { const r = { label: `Row ${(mx.rows||[]).length+1}`, value: `row_${(mx.rows||[]).length+1}` }; setMx({...mx, rows:[...(mx.rows||[]),r]}); };
+                  const addCol = () => { const c2 = { label: `Col ${(mx.columns||[]).length+1}`, value: `col_${(mx.columns||[]).length+1}` }; setMx({...mx, columns:[...(mx.columns||[]),c2]}); };
+                  const updRow = (i, v) => { const r=[...(mx.rows||[])]; r[i]={label:v,value:v.toLowerCase().replace(/\s+/g,'_')}; setMx({...mx,rows:r}); };
+                  const updCol = (i, v) => { const cs=[...(mx.columns||[])]; cs[i]={label:v,value:v.toLowerCase().replace(/\s+/g,'_')}; setMx({...mx,columns:cs}); };
+                  const delRow = (i) => setMx({...mx, rows:(mx.rows||[]).filter((_,j)=>j!==i)});
+                  const delCol = (i) => setMx({...mx, columns:(mx.columns||[]).filter((_,j)=>j!==i)});
+                  return (
+                    <div style={{ marginTop:8, display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                      <div>
+                        <div style={{fontFamily:'Syne,sans-serif',fontSize:9,fontWeight:700,letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(22,15,8,0.4)',marginBottom:8}}>Rows</div>
+                        {(mx.rows||[]).map((r,i)=>(
+                          <div key={i} style={{display:'flex',gap:8,marginBottom:6}}>
+                            <input value={r.label} onChange={e=>updRow(i,e.target.value)} placeholder={`Row ${i+1}`} style={{...inp,flex:1,padding:'8px 12px',fontSize:13}} onFocus={focusIn} onBlur={focusOut}/>
+                            <button onClick={()=>delRow(i)} style={{background:'none',border:'none',cursor:'pointer',color:'rgba(22,15,8,0.2)',fontSize:12,padding:'0 4px'}}>✕</button>
+                          </div>
+                        ))}
+                        <button onClick={addRow} style={{fontFamily:'Syne,sans-serif',fontSize:9,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--coral)',background:'none',border:'none',cursor:'pointer',padding:'4px 0'}}>+ Add row</button>
+                      </div>
+                      <div>
+                        <div style={{fontFamily:'Syne,sans-serif',fontSize:9,fontWeight:700,letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(22,15,8,0.4)',marginBottom:8}}>Columns</div>
+                        {(mx.columns||[]).map((c2,i)=>(
+                          <div key={i} style={{display:'flex',gap:8,marginBottom:6}}>
+                            <input value={c2.label} onChange={e=>updCol(i,e.target.value)} placeholder={`Col ${i+1}`} style={{...inp,flex:1,padding:'8px 12px',fontSize:13}} onFocus={focusIn} onBlur={focusOut}/>
+                            <button onClick={()=>delCol(i)} style={{background:'none',border:'none',cursor:'pointer',color:'rgba(22,15,8,0.2)',fontSize:12,padding:'0 4px'}}>✕</button>
+                          </div>
+                        ))}
+                        <button onClick={addCol} style={{fontFamily:'Syne,sans-serif',fontSize:9,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--coral)',background:'none',border:'none',cursor:'pointer',padding:'4px 0'}}>+ Add column</button>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           ))}

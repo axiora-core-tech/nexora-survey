@@ -1,114 +1,88 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { motion, AnimatePresence } from 'framer-motion';
-import { supabase } from '../lib/supabase';
-
-// ── Question type components ─────────────────────────────────────────────────
-import RankingInput from '../components/questions/RankingInput';
-import SliderInput  from '../components/questions/SliderInput';
-import MatrixInput  from '../components/questions/MatrixInput';
-
-// ── Phase 2: behavioural tracking ────────────────────────────────────────────
+import { motion, AnimatePresence, Reorder } from 'framer-motion';
+import { supabase, callFunction } from '../lib/supabase';
+import { useLoading } from '../context/LoadingContext';
 import { useConditionalLogic } from '../hooks/useConditionalLogic';
 import { useResponseTracking } from '../hooks/useResponseTracking';
 import { useExitDetection }    from '../hooks/useExitDetection';
 
-// ── Phase 3: completion UX boosters ──────────────────────────────────────────
-import SmartNudge    from '../components/SmartNudge';
-import EstimatedTime from '../components/EstimatedTime';
-import FatigueShorter from '../components/FatigueShorter';
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Session token — persists across page reloads for resume
-// ─────────────────────────────────────────────────────────────────────────────
+// ─── Session token ───────────────────────────────────────────────────────────
 function getToken(slug) {
   const k = `nx_${slug}`;
   let t = localStorage.getItem(k);
-  if (!t) {
-    t = 's_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
-    localStorage.setItem(k, t);
-  }
+  if (!t) { t = 's_' + Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem(k, t); }
   return t;
 }
 
-const slide = {
-  enter:  dir => ({ y: dir > 0 ? 60  : -60,  opacity: 0 }),
-  center: { y: 0, opacity: 1 },
-  exit:   dir => ({ y: dir > 0 ? -60 :  60,  opacity: 0 }),
+// ─── Safe JSON parse for question options ────────────────────────────────────
+function parseOpts(raw) {
+  if (!raw) return null;
+  if (typeof raw === 'string') { try { return JSON.parse(raw); } catch { return null; } }
+  return raw;
+}
+
+// ─── Inline SVG icons — no emojis, no icon libraries ─────────────────────────
+const Icons = {
+  Arrow:    ({ d='M5 12h14M12 5l7 7-7 7', ...p }) => <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" {...p}><path d={d}/></svg>,
+  Check:    (p) => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" {...p}><path d="M5 13l4 4L19 7"/></svg>,
+  Grip:     (p) => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" {...p}><circle cx="9" cy="7" r="1" fill="currentColor"/><circle cx="15" cy="7" r="1" fill="currentColor"/><circle cx="9" cy="12" r="1" fill="currentColor"/><circle cx="15" cy="12" r="1" fill="currentColor"/><circle cx="9" cy="17" r="1" fill="currentColor"/><circle cx="15" cy="17" r="1" fill="currentColor"/></svg>,
+  Clock:    (p) => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" {...p}><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+  Star:     ({ filled, ...p }) => <svg width="36" height="36" viewBox="0 0 24 24" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...p}><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>,
+  Chevron:  (p) => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" {...p}><path d="M6 9l6 6 6-6"/></svg>,
+  X:        (p) => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" {...p}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>,
 };
+
+// ─── Slide variants ───────────────────────────────────────────────────────────
+const variants = {
+  enter: d => ({ y: d > 0 ? 80 : -80, opacity: 0, filter: 'blur(8px)', scale: 0.96 }),
+  show:  ()  => ({ y: 0,             opacity: 1, filter: 'blur(0px)', scale: 1    }),
+  exit:  d => ({ y: d > 0 ? -80 : 80, opacity: 0, filter: 'blur(8px)', scale: 0.96 }),
+};
+const spring = { duration: 0.55, ease: [0.16, 1, 0.3, 1] };
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function SurveyRespond() {
   const { slug } = useParams();
+  const [sv,    setSv]    = useState(null);
+  const [qs,    setQs]    = useState([]);
+  const [ans,   setAns]   = useState({});
+  const [step,  setStep]  = useState(-1);
+  const [dir,   setDir]   = useState(1);
+  const [busy,  setBusy]  = useState(false);
+  const [done,  setDone]  = useState(false);
+  const [err,   setErr]   = useState(null);
+  const [email, setEmail] = useState('');
+  const [saved, setSaved] = useState(null);
 
-  // ── Core state ─────────────────────────────────────────────────────────────
-  const [sv,         setSv]    = useState(null);
-  const [qs,         setQs]    = useState([]);
-  const [ans,        setAns]   = useState({});
-  const [step,       setStep]  = useState(-1);
-  const [dir,        setDir]   = useState(1);
-  const [loading,    setL]     = useState(true);
-  const [submitting, sSub]     = useState(false);
-  const [done,       setDone]  = useState(false);
-  const [err,        setErr]   = useState(null);
-  const [email,      setEmail] = useState('');
-  const [saved,      setSaved] = useState(null);
+  const { stopLoading } = useLoading();
+  const token  = useRef(null);
+  const timer  = useRef(null);
+  const rId    = useRef(null);
 
-  // ── Phase 3: streamline mode — skip optional questions automatically ────────
-  const [streamlineMode, setStreamlineMode] = useState(false);
-
-  const token = useRef(null);
-  const timer = useRef(null);
-  const cnt   = useRef(0);
-  const rId   = useRef(null);
-
-  // ── Phase 2: tracking & exit detection ────────────────────────────────────
   const tracker = useResponseTracking(rId);
   useExitDetection(rId, tracker.onAbandon, done);
+  const { visibleQuestions, nextVisible, prevVisible, progressAt } = useConditionalLogic(qs, ans);
 
-  // ── Conditional logic ──────────────────────────────────────────────────────
-  const { visibleQuestions, nextVisible, prevVisible, progressAt } =
-    useConditionalLogic(qs, ans);
+  // ── Load ──────────────────────────────────────────────────────────────────
+  useEffect(() => { load(); return () => clearTimeout(timer.current); }, [slug]);
 
-  // ── Init ───────────────────────────────────────────────────────────────────
-  useEffect(() => {
-    init();
-    return () => clearTimeout(timer.current);
-  }, [slug]);
-
-  async function init() {
+  async function load() {
     try {
-      const { data: s } = await supabase
-        .from('surveys').select('*').eq('slug', slug).single();
-
+      const { data: s } = await supabase.from('surveys').select('*').eq('slug', slug).single();
       if (!s)                    { setErr('Survey not found'); return; }
-      if (s.status !== 'active') { setErr('Not accepting responses right now.'); setSv(s); return; }
-      if (s.expires_at && new Date(s.expires_at) < new Date()) {
-        setErr('This survey has expired.'); setSv(s); return;
-      }
-
+      if (s.status !== 'active') { setErr('This survey is not currently accepting responses.'); setSv(s); return; }
+      if (s.expires_at && new Date(s.expires_at) < new Date()) { setErr('This survey has expired.'); setSv(s); return; }
       setSv(s);
       token.current = getToken(slug);
-
-      const { data: q } = await supabase
-        .from('survey_questions').select('*')
-        .eq('survey_id', s.id).order('sort_order');
+      const { data: q } = await supabase.from('survey_questions').select('*').eq('survey_id', s.id).order('sort_order');
       setQs(q || []);
-
-      const { data: ex } = await supabase
-        .from('survey_responses')
-        .select('*, survey_answers(*)')
-        .eq('session_token', token.current)
-        .eq('status', 'in_progress')
-        .single();
-
+      const { data: ex } = await supabase.from('survey_responses').select('*, survey_answers(*)').eq('session_token', token.current).eq('status', 'in_progress').single();
       if (ex) {
         rId.current = ex.id;
         const r = {};
-        (ex.survey_answers || []).forEach(a => {
-          r[a.question_id] = a.answer_json ?? a.answer_value ?? '';
-        });
+        (ex.survey_answers || []).forEach(a => { r[a.question_id] = a.answer_json ?? a.answer_value ?? ''; });
         setAns(r);
         const first = (q || []).findIndex(x => !r[x.id]);
         setStep(first >= 0 ? first : 0);
@@ -116,30 +90,23 @@ export default function SurveyRespond() {
       } else {
         setStep(s.welcome_message ? -1 : 0);
       }
-    } catch (e) {
-      console.error(e); setErr('Failed to load survey');
-    } finally {
-      setL(false);
-    }
+    } catch (e) { console.error(e); setErr('Failed to load survey'); }
+    finally { stopLoading(); }
   }
 
-  // ── Create response row on first answer ───────────────────────────────────
+  // ── Ensure response row exists (via Netlify function) ─────────────────────
   async function ensureR() {
     if (rId.current) return rId.current;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('survey_responses')
-      .insert({
-        survey_id:        sv.id,
-        session_token:    token.current,
-        respondent_email: email || null,
-        status:           'in_progress',
-      })
-      .select().single();
-    if (data) rId.current = data.id;
+      .insert({ survey_id: sv.id, session_token: token.current, respondent_email: email || null, status: 'in_progress' })
+      .select('id').single();
+    if (error) throw error;
+    rId.current = data.id;
     return rId.current;
   }
 
-  // ── Auto-save ──────────────────────────────────────────────────────────────
+  // ── Auto-save (via Netlify function) ─────────────────────────────────────
   const autoSave = useCallback(async (a, id) => {
     if (!id) return;
     try {
@@ -148,500 +115,456 @@ export default function SurveyRespond() {
         await supabase.from('survey_answers').upsert(
           { response_id: id, question_id: qId,
             answer_value: isObj ? null : String(v),
-            answer_json:  isObj ? v    : null },
+            answer_json:  isObj ? v : null },
           { onConflict: 'response_id,question_id' }
         );
       }
       await supabase.from('survey_responses')
-        .update({ last_saved_at: new Date().toISOString() }).eq('id', id);
+        .update({ last_saved_at: new Date().toISOString() })
+        .eq('id', id);
       setSaved(new Date().toISOString());
-    } catch (e) { console.error('Auto-save:', e); }
+    } catch (e) { console.warn('Auto-save silently failed:', e.message); }
   }, []);
 
-  // ── Answer setter ──────────────────────────────────────────────────────────
+  // ── Answer setter ─────────────────────────────────────────────────────────
   const setAn = async (qId, val) => {
     const next = { ...ans, [qId]: val };
     setAns(next);
     tracker.onEdit(qId);
     const id = await ensureR();
-    cnt.current++;
-    if (cnt.current >= (sv?.auto_save_interval || 2)) {
-      cnt.current = 0;
-      autoSave(next, id);
-      tracker.flush();
-    } else {
-      clearTimeout(timer.current);
-      timer.current = setTimeout(() => {
-        autoSave(next, id); tracker.flush(); cnt.current = 0;
-      }, 5000);
-    }
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => { autoSave(next, id); tracker.flush(); }, 3000);
   };
 
-  // ── Submit ─────────────────────────────────────────────────────────────────
+  // ── Submit ────────────────────────────────────────────────────────────────
   async function submit() {
     for (const q of visibleQuestions) {
-      if (q.is_required && !ans[q.id]) {
-        goTo(qs.indexOf(q));
-        return toast.error(`Please answer: "${q.question_text}"`);
-      }
+      if (q.is_required && !ans[q.id]) { goTo(qs.indexOf(q)); return toast.error(`Please answer: "${q.question_text}"`); }
     }
-    sSub(true);
+    setBusy(true);
     try {
       const id = await ensureR();
-      await tracker.onSubmit(ans, qs);
+      const quality = await tracker.onSubmit(ans, qs);
       await autoSave(ans, id);
-      await supabase.from('survey_responses')
-        .update({ status: 'completed', completed_at: new Date().toISOString() })
-        .eq('id', id);
+      // Uses Netlify function (service role key) to bypass RLS which blocks setting status='completed'
+      await callFunction('respond', { action: 'submit', responseId: id, metadata: { quality_score: quality } });
       setDone(true);
       localStorage.removeItem(`nx_${slug}`);
-    } catch (e) {
-      toast.error('Submission failed — your answers are saved. Please try again.');
-    } finally { sSub(false); }
+    } catch (e) { toast.error('Submission failed — your answers are saved. Try again.'); }
+    finally { setBusy(false); }
   }
 
-  // ── Navigation ─────────────────────────────────────────────────────────────
+  // ── Navigation ────────────────────────────────────────────────────────────
   function goTo(n) { setDir(n > step ? 1 : -1); setStep(n); }
-
   function goNext() {
     const q = qs[step];
     if (q?.is_required && !ans[q.id]) return toast.error('This question is required');
     if (q) tracker.onLeave(q.id);
     const next = nextVisible(step);
-    if (next !== null) {
-      setDir(1); setStep(next);
-      tracker.onEnter(qs[next]?.id);
-    } else {
-      setDir(1); setStep(qs.length);
-    }
+    if (next !== null) { setDir(1); setStep(next); tracker.onEnter(qs[next]?.id); }
+    else { setDir(1); setStep(qs.length); }
   }
-
   function goBack() {
     if (step >= 0 && qs[step]) tracker.onLeave(qs[step].id);
     tracker.onBack();
-    const prev = prevVisible(step);
     setDir(-1);
-    if (prev !== null) {
-      setStep(prev);
-      tracker.onEnter(qs[prev]?.id);
-    } else if (sv?.welcome_message) {
-      setStep(-1);
-    } else {
-      setStep(0);
-    }
+    const prev = prevVisible(step);
+    if (prev !== null) { setStep(prev); tracker.onEnter(qs[prev]?.id); }
+    else if (sv?.welcome_message) setStep(-1);
+    else setStep(0);
   }
 
-  // Fire onEnter for the very first question once data is loaded
+  // Enter key shortcut
   useEffect(() => {
-    if (step >= 0 && qs[step]) tracker.onEnter(qs[step].id);
-  }, []); // eslint-disable-line
+    const onKey = e => {
+      if (e.key !== 'Enter' || e.target.tagName === 'TEXTAREA') return;
+      if (step >= 0 && step < qs.length) { nextVisible(step) === null ? submit() : goNext(); }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [step, qs, ans]);
 
-  // ── Phase 3: streamline — auto-advance optional unanswered questions ────────
-  // When activated, whenever the step lands on an optional question with no answer,
-  // wait 600ms then skip forward automatically.
-  const streamlineTimer = useRef(null);
-  useEffect(() => {
-    clearTimeout(streamlineTimer.current);
-    if (!streamlineMode || step < 0 || done) return;
-    const q = qs[step];
-    if (q && !q.is_required && !ans[q.id]) {
-      streamlineTimer.current = setTimeout(() => {
-        goNext();
-      }, 600);
-    }
-    return () => clearTimeout(streamlineTimer.current);
-  }, [streamlineMode, step]); // eslint-disable-line
+  useEffect(() => { if (step >= 0 && qs[step]) tracker.onEnter(qs[step].id); }, []);
 
-  // ── Phase 3: live avg secs per question from tracker (via metadata flush) ──
-  // We read the timing data that useResponseTracking accumulates in its refs.
-  // Since that hook doesn't expose internal state directly, we derive a rough
-  // avg from how long the current session has been running vs questions answered.
-  const [sessionStartMs] = useState(() => Date.now());
-  const avgSecsPerQ = useMemo(() => {
-    const answered = Object.keys(ans).length;
-    if (answered < 2) return 0;
-    const elapsedSecs = (Date.now() - sessionStartMs) / 1000;
-    return elapsedSecs / answered;
-  }, [ans, sessionStartMs]);
+  // ── Derived ───────────────────────────────────────────────────────────────
+  const tc         = sv?.theme_color || '#FF4500';
+  const q          = qs[step];
+  const onWelcome  = step === -1;
+  const pct        = step >= 0 ? progressAt(step) : 0;
+  const visPos     = step >= 0 ? visibleQuestions.findIndex(vq => vq.id === q?.id) + 1 : 0;
+  const visTotal   = visibleQuestions.length;
+  const isLast     = step >= 0 && nextVisible(step) === null;
+  const canBack    = step > 0 || (step === 0 && sv?.welcome_message);
+  const remaining  = useMemo(() => visibleQuestions.filter(vq => !ans[vq.id]), [visibleQuestions, ans]);
 
-  // ── Derived values ─────────────────────────────────────────────────────────
-  const tc           = sv?.theme_color || '#FF4500';
-  const q            = qs[step];
-  const onWelcome    = step === -1;
-  const total        = qs.length;
-  const pct          = step >= 0 ? progressAt(step) : 0;
-  const visiblePos   = step >= 0
-    ? visibleQuestions.findIndex(vq => vq.id === q?.id) + 1
-    : 0;
-  const visibleTotal = visibleQuestions.length;
-  const isLastQ      = step >= 0 && nextVisible(step) === null;
-
-  // Questions the respondent still needs to complete (unanswered visible ones)
-  const remainingQuestions = useMemo(() =>
-    visibleQuestions.filter(vq => !ans[vq.id]),
-    [visibleQuestions, ans]
-  );
-
-  // ─────────────────────────────────────────────────────────────────────────
-  // LOADING
-  // ─────────────────────────────────────────────────────────────────────────
-  if (loading) return (
-    <div style={{ height:'100vh', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', background:'var(--espresso)', gap:24 }}>
-      <div style={{ display:'flex', alignItems:'flex-start', lineHeight:1 }}>
-        <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:'rgba(253,245,232,0.35)', marginRight:8, position:'relative', top:-2 }}>Nexora</span>
-        <span style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:22, letterSpacing:'-1px', color:'var(--cream)', lineHeight:1 }}>Pulse</span>
-        <div style={{ width:9, height:9, background:'#FF4500', borderRadius:'50%', alignSelf:'flex-start', marginTop:5, marginLeft:8 }} />
-      </div>
-      <motion.div animate={{ scaleX:[0.3,1,0.3] }} transition={{ repeat:Infinity, duration:1.6, ease:'easeInOut' }}
-        style={{ width:40, height:2, borderRadius:2, background:'#FF4500', transformOrigin:'center' }} />
-    </div>
-  );
-
-  // ERROR
+  // ── Error state ───────────────────────────────────────────────────────────
   if (err) return (
-    <div style={{ height:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--espresso)', padding:32 }}>
-      <motion.div initial={{ opacity:0, y:24 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.5 }}
-        style={{ textAlign:'center', maxWidth:400 }}>
-        <div style={{ width:72, height:72, borderRadius:'50%', background:'rgba(255,69,0,0.12)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 28px', fontSize:30 }}>✕</div>
-        <h1 style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:32, letterSpacing:'-1px', color:'var(--cream)', marginBottom:12 }}>Unavailable</h1>
-        <p style={{ fontFamily:'Fraunces,serif', fontWeight:300, fontSize:17, color:'rgba(253,245,232,0.45)', lineHeight:1.7 }}>{err}</p>
+    <div style={{ height:'100vh', background:'#100B05', display:'flex', alignItems:'center', justifyContent:'center', padding:32 }}>
+      <motion.div initial={{ opacity:0, y:30 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.6, ease:[0.16,1,0.3,1] }}
+        style={{ textAlign:'center', maxWidth:380 }}>
+        <div style={{ width:56, height:56, borderRadius:'50%', border:'1.5px solid rgba(255,69,0,0.25)', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 32px' }}>
+          <Icons.X style={{ color:'#FF4500', width:20, height:20 }} />
+        </div>
+        <h1 style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:30, letterSpacing:'-1px', color:'#EDE8DF', marginBottom:12, lineHeight:1 }}>Unavailable</h1>
+        <p style={{ fontFamily:'Fraunces,serif', fontWeight:300, fontSize:16, color:'rgba(237,232,223,0.4)', lineHeight:1.75 }}>{err}</p>
       </motion.div>
     </div>
   );
 
-  // THANK YOU
+  if (!sv) return null;
+
+  // ── Thank you ─────────────────────────────────────────────────────────────
   if (done) return (
-    <div style={{ height:'100vh', display:'flex', alignItems:'center', justifyContent:'center', background:'var(--espresso)', padding:32, position:'relative', overflow:'hidden' }}>
-      <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', width:500, height:500, borderRadius:'50%', background:`radial-gradient(circle,${tc}22,transparent 70%)`, filter:'blur(30px)', pointerEvents:'none' }} />
-      <motion.div initial={{ opacity:0, scale:0.85 }} animate={{ opacity:1, scale:1 }}
-        transition={{ duration:0.6, ease:[0.16,1,0.3,1] }}
-        style={{ textAlign:'center', maxWidth:480, position:'relative', zIndex:1 }}>
-        <motion.div initial={{ scale:0 }} animate={{ scale:1 }} transition={{ delay:0.2, type:'spring', stiffness:200 }}
-          style={{ width:88, height:88, borderRadius:'50%', background:`${tc}20`, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 32px' }}>
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={tc} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <motion.path d="M5 13l4 4L19 7" initial={{ pathLength:0 }} animate={{ pathLength:1 }} transition={{ delay:0.5, duration:0.6 }} />
+    <div style={{ height:'100vh', background:'#100B05', display:'flex', alignItems:'center', justifyContent:'center', padding:32, position:'relative', overflow:'hidden' }}>
+      <div aria-hidden style={{ position:'absolute', inset:0, pointerEvents:'none' }}>
+        <div style={{ position:'absolute', top:'40%', left:'50%', transform:'translate(-50%,-50%)', width:700, height:700, borderRadius:'50%', background:`radial-gradient(circle, ${tc}18, transparent 65%)`, filter:'blur(80px)' }} />
+      </div>
+      <motion.div initial={{ opacity:0, scale:0.92, y:20 }} animate={{ opacity:1, scale:1, y:0 }} transition={{ duration:0.7, ease:[0.16,1,0.3,1] }}
+        style={{ textAlign:'center', maxWidth:460, position:'relative', zIndex:1 }}>
+        <motion.div initial={{ scale:0, rotate:-20 }} animate={{ scale:1, rotate:0 }} transition={{ delay:0.2, type:'spring', stiffness:180, damping:16 }}
+          style={{ width:88, height:88, borderRadius:'50%', border:`1.5px solid ${tc}50`, background:`${tc}0D`, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 44px' }}>
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke={tc} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <motion.path d="M5 13l4 4L19 7" initial={{ pathLength:0 }} animate={{ pathLength:1 }} transition={{ delay:0.55, duration:0.5 }} />
           </svg>
         </motion.div>
-        <h1 style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:'clamp(28px,5vw,48px)', letterSpacing:'-2px', color:'var(--cream)', marginBottom:16, lineHeight:1.05 }}>Thank you.</h1>
-        <p style={{ fontFamily:'Fraunces,serif', fontWeight:300, fontSize:18, color:'rgba(253,245,232,0.5)', lineHeight:1.7, maxWidth:360, margin:'0 auto' }}>
-          {sv?.thank_you_message || 'Your insights help build better products and experiences.'}
-        </p>
-        <div style={{ marginTop:48, display:'flex', alignItems:'flex-start', lineHeight:1, justifyContent:'center' }}>
-          <span style={{ fontFamily:'Syne,sans-serif', fontSize:8, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:'rgba(253,245,232,0.2)', marginRight:6, position:'relative', top:-1 }}>Nexora</span>
-          <span style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:18, letterSpacing:'-0.5px', color:'rgba(253,245,232,0.2)', lineHeight:1 }}>Pulse</span>
-        </div>
+        <motion.h1 initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.3 }}
+          style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:'clamp(40px,6vw,64px)', letterSpacing:'-3px', color:'#EDE8DF', marginBottom:20, lineHeight:0.95 }}>
+          Thank you.
+        </motion.h1>
+        <motion.p initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.45 }}
+          style={{ fontFamily:'Fraunces,serif', fontWeight:300, fontSize:17, color:'rgba(237,232,223,0.38)', lineHeight:1.8, maxWidth:320, margin:'0 auto' }}>
+          {sv.thank_you_message || 'Your response has been recorded. We appreciate you taking the time.'}
+        </motion.p>
+        <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.65 }}
+          style={{ marginTop:56, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
+          <span style={{ fontFamily:'Syne,sans-serif', fontSize:8, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:'rgba(237,232,223,0.12)' }}>Nexora Pulse</span>
+        </motion.div>
       </motion.div>
     </div>
   );
 
-  // ─────────────────────────────────────────────────────────────────────────
-  // MAIN LAYOUT
-  // ─────────────────────────────────────────────────────────────────────────
+  // ─── Main layout ───────────────────────────────────────────────────────────
+  const dark = onWelcome;
+  const bg   = dark ? '#100B05' : '#F7F5F0';
+  const fg   = dark ? '#EDE8DF' : '#160F08';
+  const sub  = dark ? 'rgba(237,232,223,0.35)' : 'rgba(22,15,8,0.38)';
+  const line = dark ? 'rgba(237,232,223,0.07)' : 'rgba(22,15,8,0.07)';
+
   return (
-    <div style={{ height:'100vh', display:'flex', flexDirection:'column', overflow:'hidden', background: onWelcome ? 'var(--espresso)' : 'var(--warm-white)' }}>
+    <div style={{ height:'100vh', display:'flex', flexDirection:'column', overflow:'hidden', background:bg, transition:'background 0.5s' }}>
 
-      {/* ── Top bar ── */}
-      <div style={{ flexShrink:0, position:'relative', zIndex:20 }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 32px', height:60 }}>
-
-          {/* Wordmark */}
-          <div style={{ display:'flex', alignItems:'flex-start', lineHeight:1 }}>
-            <span style={{ fontFamily:'Syne,sans-serif', fontSize:8, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color: onWelcome ? 'rgba(253,245,232,0.3)' : 'rgba(22,15,8,0.25)', marginRight:6, position:'relative', top:-1 }}>Nexora</span>
-            <span style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:18, letterSpacing:'-0.5px', color: onWelcome ? 'rgba(253,245,232,0.5)' : 'rgba(22,15,8,0.4)', lineHeight:1 }}>Pulse</span>
-          </div>
-
-          {/* Right side */}
-          <div style={{ display:'flex', alignItems:'center', gap:16 }}>
-            {/* Phase 3: EstimatedTime — appears in top bar */}
-            {!onWelcome && step >= 0 && (
-              <EstimatedTime
-                remainingQuestions={remainingQuestions}
-                avgSecsPerQ={avgSecsPerQ}
-                onWelcome={onWelcome}
-                tc={tc}
-              />
-            )}
-            {saved && (
-              <span style={{ display:'flex', alignItems:'center', gap:6, fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color: onWelcome ? 'rgba(253,245,232,0.3)' : 'rgba(22,15,8,0.3)' }}>
-                <span style={{ width:6, height:6, borderRadius:'50%', background:tc }} />Saved
-              </span>
-            )}
-            {step >= 0 && (
-              <span style={{ fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:12, color:tc }}>
-                {visiblePos}<span style={{ color: onWelcome ? 'rgba(253,245,232,0.25)' : 'rgba(22,15,8,0.25)' }}>/{visibleTotal}</span>
-              </span>
-            )}
-          </div>
+      {/* ── Progress line ── */}
+      {step >= 0 && sv?.show_progress_bar !== false && (
+        <div style={{ position:'absolute', top:0, left:0, right:0, height:1.5, zIndex:100, background:line }}>
+          <motion.div animate={{ width:`${pct}%` }} transition={{ duration:0.7, ease:[0.16,1,0.3,1] }}
+            style={{ height:'100%', background:tc }} />
         </div>
+      )}
 
-        {/* Progress bar */}
-        {step >= 0 && sv?.show_progress_bar !== false && (
-          <div style={{ height:2, background: onWelcome ? 'rgba(253,245,232,0.08)' : 'rgba(22,15,8,0.06)' }}>
-            <motion.div animate={{ width:`${pct}%` }} transition={{ duration:0.5, ease:[0.16,1,0.3,1] }}
-              style={{ height:'100%', background:tc, borderRadius:2 }} />
-          </div>
-        )}
-      </div>
+      {/* ── Header ── */}
+      <header style={{ flexShrink:0, height:58, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 32px', position:'relative', zIndex:20 }}>
+        <span style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:16, letterSpacing:'-0.5px', color: dark ? 'rgba(237,232,223,0.3)' : 'rgba(22,15,8,0.25)', lineHeight:1 }}>
+          Pulse
+        </span>
+        <div style={{ display:'flex', alignItems:'center', gap:24 }}>
+          {/* Estimated time */}
+          {!onWelcome && remaining.length > 1 && (
+            <div style={{ display:'flex', alignItems:'center', gap:5, color:sub }}>
+              <Icons.Clock style={{ color:'currentColor' }} />
+              <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase' }}>
+                ~{Math.max(1, Math.ceil(remaining.length * 0.4))} min
+              </span>
+            </div>
+          )}
+          {saved && (
+            <div style={{ display:'flex', alignItems:'center', gap:5 }}>
+              <div style={{ width:5, height:5, borderRadius:'50%', background:tc }} />
+              <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:sub }}>Saved</span>
+            </div>
+          )}
+          {step >= 0 && (
+            <span style={{ fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:12, letterSpacing:'0.04em', color:tc, fontVariantNumeric:'tabular-nums' }}>
+              {String(visPos).padStart(2,'0')}
+              <span style={{ color:sub, fontWeight:400 }}> / {String(visTotal).padStart(2,'0')}</span>
+            </span>
+          )}
+        </div>
+      </header>
 
-      {/* ── Question area ── */}
+      {/* ── Content ── */}
       <div style={{ flex:1, position:'relative', overflow:'hidden' }}>
-
-        {/* Phase 3: FatigueShorter — overlays inside question area */}
-        {step >= 0 && q && (
-          <FatigueShorter
-            question={q}
-            visiblePos={visiblePos}
-            visibleTotal={visibleTotal}
-            hasAnswer={!!ans[q.id]}
-            avgSecsPerQ={avgSecsPerQ}
-            onSkip={goNext}
-            onStreamline={() => setStreamlineMode(true)}
-            tc={tc}
-          />
-        )}
-
         <AnimatePresence mode="wait" custom={dir}>
 
-          {/* ── Welcome screen ── */}
+          {/* WELCOME */}
           {step === -1 && (
-            <motion.div key="welcome" custom={dir} variants={slide} initial="enter" animate="center" exit="exit"
-              transition={{ duration:0.45, ease:[0.16,1,0.3,1] }}
-              style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', padding:32 }}>
-              <div style={{ position:'absolute', inset:0, pointerEvents:'none', overflow:'hidden' }}>
-                <div style={{ position:'absolute', width:600, height:600, borderRadius:'50%', filter:'blur(80px)', background:`radial-gradient(circle,${tc}30,transparent 70%)`, top:-200, right:-200 }} />
-                <div style={{ position:'absolute', width:400, height:400, borderRadius:'50%', filter:'blur(80px)', background:'radial-gradient(circle,rgba(255,184,0,0.15),transparent 70%)', bottom:-100, left:-100 }} />
+            <motion.div key="welcome" custom={dir} variants={variants} initial="enter" animate="show" exit="exit" transition={spring}
+              style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', padding:'32px 40px' }}>
+              <div aria-hidden style={{ position:'absolute', inset:0, overflow:'hidden', pointerEvents:'none' }}>
+                <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ duration:1.5 }}
+                  style={{ position:'absolute', top:'-20%', right:'-10%', width:600, height:600, borderRadius:'50%', background:`radial-gradient(circle,${tc}1A,transparent 70%)`, filter:'blur(70px)' }} />
+                <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.3, duration:1.2 }}
+                  style={{ position:'absolute', bottom:'-15%', left:'-8%', width:400, height:400, borderRadius:'50%', background:'radial-gradient(circle,rgba(188,150,80,0.1),transparent 70%)', filter:'blur(60px)' }} />
               </div>
-              <div style={{ textAlign:'center', maxWidth:540, position:'relative', zIndex:1 }}>
-                <motion.h1 initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.15, duration:0.5 }}
-                  style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:'clamp(28px,5vw,54px)', letterSpacing:'-2px', color:'var(--cream)', lineHeight:1.05, marginBottom:20 }}>
+              <div style={{ textAlign:'center', maxWidth:560, position:'relative', zIndex:1 }}>
+                <motion.div initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.1 }}
+                  style={{ display:'inline-flex', alignItems:'center', gap:8, padding:'5px 14px', borderRadius:999, border:`1px solid ${tc}2E`, background:`${tc}0D`, marginBottom:32 }}>
+                  <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase', color:tc }}>
+                    {visTotal} question{visTotal !== 1 ? 's' : ''}
+                  </span>
+                </motion.div>
+                <motion.h1 initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.18, duration:0.6, ease:[0.16,1,0.3,1] }}
+                  style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:'clamp(32px,5.5vw,62px)', letterSpacing:'-2.5px', color:'#EDE8DF', lineHeight:1.02, marginBottom:20 }}>
                   {sv.title}
                 </motion.h1>
-                {sv.description && <motion.p initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.25 }} style={{ fontFamily:'Fraunces,serif', fontWeight:300, fontSize:18, color:'rgba(253,245,232,0.5)', lineHeight:1.7, marginBottom:12 }}>{sv.description}</motion.p>}
-                {sv.welcome_message && <motion.p initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.3 }} style={{ fontFamily:'Fraunces,serif', fontWeight:300, fontSize:16, color:'rgba(253,245,232,0.35)', lineHeight:1.7, marginBottom:32 }}>{sv.welcome_message}</motion.p>}
+                {sv.description && (
+                  <motion.p initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.28 }}
+                    style={{ fontFamily:'Fraunces,serif', fontWeight:300, fontSize:18, color:'rgba(237,232,223,0.42)', lineHeight:1.75, marginBottom:8 }}>
+                    {sv.description}
+                  </motion.p>
+                )}
+                {sv.welcome_message && (
+                  <motion.p initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.35 }}
+                    style={{ fontFamily:'Fraunces,serif', fontWeight:300, fontSize:15, color:'rgba(237,232,223,0.28)', lineHeight:1.7, marginBottom:0 }}>
+                    {sv.welcome_message}
+                  </motion.p>
+                )}
                 {sv.require_email && (
-                  <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.35 }} style={{ maxWidth:320, margin:'0 auto 28px' }}>
+                  <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.38 }}
+                    style={{ maxWidth:300, margin:'28px auto 0' }}>
                     <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Your email address"
-                      style={{ width:'100%', boxSizing:'border-box', padding:'14px 20px', background:'rgba(253,245,232,0.08)', border:'1px solid rgba(253,245,232,0.15)', borderRadius:14, fontFamily:'Fraunces,serif', fontSize:16, color:'var(--cream)', outline:'none', textAlign:'center', transition:'border-color 0.2s' }}
-                      onFocus={e => e.target.style.borderColor = tc} onBlur={e => e.target.style.borderColor = 'rgba(253,245,232,0.15)'} />
+                      style={{ width:'100%', boxSizing:'border-box', padding:'14px 20px', background:'rgba(237,232,223,0.06)', border:'1px solid rgba(237,232,223,0.12)', borderRadius:14, fontFamily:'Fraunces,serif', fontSize:16, color:'#EDE8DF', outline:'none', textAlign:'center', transition:'border-color 0.2s' }}
+                      onFocus={e => e.target.style.borderColor = tc} onBlur={e => e.target.style.borderColor = 'rgba(237,232,223,0.12)'} />
                   </motion.div>
                 )}
-                <motion.button initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.4 }}
-                  whileHover={{ scale:1.03, y:-2 }} whileTap={{ scale:0.97 }}
-                  onClick={() => {
-                    if (sv.require_email && !email) return toast.error('Please enter your email to begin');
-                    if (sv.require_email && email && !/^[^@]+@[^@]+.[^@]+$/.test(email)) return toast.error('Please enter a valid email address');
-                    setDir(1);
-                    const firstVisible = qs.findIndex(q => visibleQuestions.some(vq => vq.id === q.id));
-                    const idx = firstVisible >= 0 ? firstVisible : 0;
-                    setStep(idx);
-                    tracker.onEnter(qs[idx]?.id);
-                  }}
-                  style={{ padding:'16px 40px', borderRadius:999, border:'none', background:tc, color:'#fff', fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:13, letterSpacing:'0.1em', textTransform:'uppercase', cursor:'pointer', boxShadow:`0 8px 32px ${tc}50` }}>
-                  Begin →
-                </motion.button>
-                <motion.p initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.55 }}
-                  style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:600, letterSpacing:'0.14em', textTransform:'uppercase', color:'rgba(253,245,232,0.2)', marginTop:24 }}>
-                  {visibleTotal} question{visibleTotal !== 1 ? 's' : ''} · ~{Math.max(1, Math.ceil(visibleTotal * 0.5))} min
-                </motion.p>
+                <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.44 }} style={{ marginTop:36 }}>
+                  <motion.button whileHover={{ scale:1.02, y:-2 }} whileTap={{ scale:0.97 }}
+                    onClick={() => {
+                      if (sv.require_email && !email) return toast.error('Enter your email to begin');
+                      setDir(1);
+                      const first = qs.findIndex(q => visibleQuestions.some(vq => vq.id === q.id));
+                      const idx = first >= 0 ? first : 0;
+                      setStep(idx); tracker.onEnter(qs[idx]?.id);
+                    }}
+                    style={{ display:'inline-flex', alignItems:'center', gap:10, padding:'15px 44px', borderRadius:999, border:'none', background:tc, color:'#fff', fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:12, letterSpacing:'0.12em', textTransform:'uppercase', cursor:'pointer', boxShadow:`0 8px 40px ${tc}40` }}>
+                    Begin
+                    <Icons.Arrow style={{ color:'currentColor' }} />
+                  </motion.button>
+                </motion.div>
               </div>
             </motion.div>
           )}
 
-          {/* ── Question screen ── */}
-          {step >= 0 && step < total && q && (
-            <motion.div key={q.id} custom={dir} variants={slide} initial="enter" animate="center" exit="exit"
-              transition={{ duration:0.45, ease:[0.16,1,0.3,1] }}
-              style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', padding:'20px 32px', overflowY:'auto' }}>
-              <div style={{ width:'100%', maxWidth:660 }}>
+          {/* QUESTION */}
+          {step >= 0 && step < qs.length && q && (
+            <motion.div key={q.id} custom={dir} variants={variants} initial="enter" animate="show" exit="exit" transition={spring}
+              style={{ position:'absolute', inset:0, overflowY:'auto', overflowX:'hidden' }}>
+              <div style={{ minHeight:'100%', display:'flex', alignItems:'center', justifyContent:'center', padding:'32px 40px' }}>
+                <div style={{ width:'100%', maxWidth:680 }}>
 
-                {/* Counter row */}
-                <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.1 }}
-                  style={{ display:'flex', alignItems:'center', gap:8, marginBottom:20 }}>
-                  <span style={{ fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:10, letterSpacing:'0.16em', textTransform:'uppercase', color:tc }}>{visiblePos} / {visibleTotal}</span>
-                  {q.is_required && <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.12em', color:'rgba(214,59,31,0.7)' }}>Required</span>}
-                  {!q.is_required && <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.12em', color:'rgba(22,15,8,0.25)' }}>Optional</span>}
-                </motion.div>
+                  {/* Meta row */}
+                  <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.05 }}
+                    style={{ display:'flex', alignItems:'center', gap:10, marginBottom:28 }}>
+                    <div style={{ width:32, height:1.5, background:`linear-gradient(90deg,${tc},${tc}00)`, borderRadius:1 }} />
+                    <span style={{ fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:8, letterSpacing:'0.22em', textTransform:'uppercase', color:sub }}>
+                      {String(visPos).padStart(2,'0')} of {String(visTotal).padStart(2,'0')}
+                    </span>
+                    {q.is_required
+                      ? <span style={{ fontFamily:'Syne,sans-serif', fontSize:8, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:tc, background:`${tc}10`, padding:'3px 8px', borderRadius:4 }}>Required</span>
+                      : <span style={{ fontFamily:'Syne,sans-serif', fontSize:8, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:'rgba(22,15,8,0.2)', background:'rgba(22,15,8,0.05)', padding:'3px 8px', borderRadius:4 }}>Optional</span>
+                    }
+                  </motion.div>
 
-                {/* Question */}
-                <motion.h2 initial={{ opacity:0, y:14 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.15, duration:0.4 }}
-                  style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:'clamp(22px,3.5vw,38px)', letterSpacing:'-1px', color:'var(--espresso)', lineHeight:1.15, marginBottom: q.description ? 12 : 0 }}>
-                  {q.question_text}
-                </motion.h2>
-                {q.description && (
-                  <motion.p initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.25 }}
-                    style={{ fontFamily:'Fraunces,serif', fontWeight:300, fontSize:16, color:'rgba(22,15,8,0.45)', marginBottom:0, lineHeight:1.6 }}>
-                    {q.description}
-                  </motion.p>
-                )}
-
-                {/* Input */}
-                <motion.div initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.28, duration:0.4 }}
-                  style={{ marginTop:32 }}>
-                  <QInput q={q} val={ans[q.id] ?? ''} set={v => setAn(q.id, v)} tc={tc} />
-                </motion.div>
-
-                {/* Navigation */}
-                <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.45 }}
-                  style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginTop:40 }}>
-                  <button onClick={goBack}
-                    disabled={step <= 0 && !sv?.welcome_message}
-                    style={{ fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:10, letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(22,15,8,0.35)', background:'none', border:'none', cursor:'pointer', opacity:(step <= 0 && !sv?.welcome_message) ? 0.2 : 1, transition:'color 0.2s, opacity 0.2s', padding:0 }}
-                    onMouseEnter={e => e.currentTarget.style.color = 'var(--espresso)'}
-                    onMouseLeave={e => e.currentTarget.style.color = 'rgba(22,15,8,0.35)'}>
-                    ← Back
-                  </button>
-                  {!isLastQ ? (
-                    <motion.button whileHover={{ scale:1.02, y:-1 }} whileTap={{ scale:0.97 }} onClick={goNext}
-                      style={{ padding:'13px 32px', borderRadius:999, border:'none', background:'var(--espresso)', color:'var(--cream)', fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:11, letterSpacing:'0.1em', textTransform:'uppercase', cursor:'pointer', transition:'background 0.25s' }}
-                      onMouseEnter={e => e.currentTarget.style.background = tc}
-                      onMouseLeave={e => e.currentTarget.style.background = 'var(--espresso)'}>
-                      Continue →
-                    </motion.button>
-                  ) : (
-                    <motion.button whileHover={{ scale:1.02, y:-1 }} whileTap={{ scale:0.97 }} onClick={submit} disabled={submitting}
-                      style={{ padding:'13px 32px', borderRadius:999, border:'none', background:tc, color:'#fff', fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:11, letterSpacing:'0.1em', textTransform:'uppercase', cursor:'pointer', opacity: submitting ? 0.6 : 1, boxShadow:`0 6px 24px ${tc}40` }}>
-                      {submitting ? 'Submitting…' : 'Submit ✓'}
-                    </motion.button>
+                  {/* Question text */}
+                  <motion.h2 initial={{ opacity:0, y:16 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.1, duration:0.5, ease:[0.16,1,0.3,1] }}
+                    style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:'clamp(26px,4vw,46px)', letterSpacing:'-1.5px', color:fg, lineHeight:1.1, marginBottom: q.description ? 14 : 0 }}>
+                    {q.question_text}
+                  </motion.h2>
+                  {q.description && (
+                    <motion.p initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.2 }}
+                      style={{ fontFamily:'Fraunces,serif', fontWeight:300, fontSize:16, color:sub, lineHeight:1.65, marginTop:0 }}>
+                      {q.description}
+                    </motion.p>
                   )}
-                </motion.div>
+
+                  {/* Input */}
+                  <motion.div initial={{ opacity:0, y:18 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.22, duration:0.5, ease:[0.16,1,0.3,1] }}
+                    style={{ marginTop:36 }}>
+                    <QInput q={q} val={ans[q.id] ?? ''} set={v => setAn(q.id, v)} tc={tc} fg={fg} sub={sub} />
+                  </motion.div>
+
+                  {/* Nav */}
+                  <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.38 }}
+                    style={{ marginTop:52, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                    <button onClick={goBack} disabled={!canBack}
+                      style={{ display:'flex', alignItems:'center', gap:7, fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:10, letterSpacing:'0.12em', textTransform:'uppercase', color:sub, background:'none', border:'none', cursor: canBack ? 'pointer' : 'default', opacity: canBack ? 1 : 0, padding:'8px 0', transition:'color 0.2s' }}
+                      onMouseEnter={e => { if(canBack) e.currentTarget.style.color = fg; }}
+                      onMouseLeave={e => e.currentTarget.style.color = sub}>
+                      <Icons.Arrow d="M19 12H5M12 19l-7-7 7-7" style={{ color:'currentColor' }} />
+                      Back
+                    </button>
+                    <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:7 }}>
+                      {!isLast ? (
+                        <motion.button whileHover={{ scale:1.02, y:-1 }} whileTap={{ scale:0.97 }} onClick={goNext}
+                          style={{ display:'flex', alignItems:'center', gap:8, padding:'14px 36px', borderRadius:999, border:'none', background:fg, color: dark ? '#100B05' : '#F7F5F0', fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:11, letterSpacing:'0.12em', textTransform:'uppercase', cursor:'pointer', transition:'background 0.25s, box-shadow 0.25s' }}
+                          onMouseEnter={e => { e.currentTarget.style.background = tc; e.currentTarget.style.color = '#fff'; e.currentTarget.style.boxShadow = `0 8px 32px ${tc}40`; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = fg; e.currentTarget.style.color = dark ? '#100B05' : '#F7F5F0'; e.currentTarget.style.boxShadow = 'none'; }}>
+                          Continue
+                          <Icons.Arrow style={{ color:'currentColor' }} />
+                        </motion.button>
+                      ) : (
+                        <motion.button whileHover={{ scale:1.02, y:-1 }} whileTap={{ scale:0.97 }} onClick={submit} disabled={busy}
+                          style={{ display:'flex', alignItems:'center', gap:8, padding:'14px 36px', borderRadius:999, border:'none', background:tc, color:'#fff', fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:11, letterSpacing:'0.12em', textTransform:'uppercase', cursor: busy ? 'not-allowed' : 'pointer', opacity: busy ? 0.65 : 1, boxShadow:`0 8px 32px ${tc}45` }}>
+                          {busy ? 'Submitting…' : <><span>Submit</span><Icons.Check style={{ color:'currentColor' }} /></>}
+                        </motion.button>
+                      )}
+                      <span style={{ fontFamily:'Syne,sans-serif', fontSize:8, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:'rgba(22,15,8,0.16)' }}>
+                        or press Enter ↵
+                      </span>
+                    </div>
+                  </motion.div>
+                </div>
               </div>
             </motion.div>
           )}
 
         </AnimatePresence>
+      </div>
 
-        {/* Phase 3: SmartNudge — floats above nav, inside question area */}
-        {step >= 0 && !onWelcome && (
-          <SmartNudge
-            visiblePos={visiblePos}
-            visibleTotal={visibleTotal}
-            tc={tc}
-          />
-        )}
-
-      </div>{/* end question area */}
-
-      {/* ── Scoped CSS ── */}
+      {/* Global scoped CSS */}
       <style>{`
-        .q-text-input { width:100%; box-sizing:border-box; background:transparent; border:none; border-bottom:2px solid rgba(22,15,8,0.12); font-family:'Fraunces',serif; font-size:clamp(18px,2.5vw,26px); font-weight:300; color:var(--espresso); outline:none; padding:8px 0 14px; transition:border-color 0.2s; }
-        .q-text-input:focus { border-bottom-color:var(--focus-color,#FF4500); }
-        .q-text-input::placeholder { color:rgba(22,15,8,0.18); }
-        .q-textarea { min-height:120px; resize:none; line-height:1.6; }
-        .q-choice { width:100%; display:flex; align-items:center; gap:16px; padding:16px 20px; border-radius:16px; border:1.5px solid rgba(22,15,8,0.1); background:var(--warm-white); cursor:pointer; text-align:left; transition:all 0.2s; }
-        .q-choice:hover { border-color:rgba(22,15,8,0.2); background:var(--cream); transform:translateX(4px); }
-        .q-choice.active { border-color:var(--act-color,#FF4500); background:var(--act-bg,rgba(255,69,0,0.06)); }
-        .q-radio,.q-checkbox { width:22px; height:22px; flex-shrink:0; border:2px solid rgba(22,15,8,0.18); display:flex; align-items:center; justify-content:center; transition:all 0.2s; }
-        .q-radio { border-radius:50%; } .q-checkbox { border-radius:6px; }
-        .q-radio.active,.q-checkbox.active { border-color:var(--act-color,#FF4500); background:var(--act-color,#FF4500); }
-        .q-label { font-family:'Fraunces',serif; font-weight:300; font-size:17px; color:var(--espresso); flex:1; line-height:1.4; }
-        .q-key   { font-family:'Syne',sans-serif; font-size:10px; font-weight:700; letter-spacing:0.1em; color:rgba(22,15,8,0.25); flex-shrink:0; }
-        .scale-btn { flex:1; height:52px; border-radius:12px; border:1.5px solid rgba(22,15,8,0.1); background:var(--warm-white); font-family:'Syne',sans-serif; font-weight:700; font-size:14px; color:rgba(22,15,8,0.5); cursor:pointer; transition:all 0.2s; }
-        .scale-btn:hover  { border-color:rgba(22,15,8,0.25); transform:translateY(-3px); color:var(--espresso); }
-        .scale-btn.active { border-color:var(--act-color,#FF4500); background:var(--act-color,#FF4500); color:white; transform:translateY(-3px); }
-        .star-btn { background:none; border:none; cursor:pointer; font-size:44px; padding:4px; transition:all 0.2s; filter:grayscale(1); opacity:0.2; line-height:1; }
-        .star-btn.lit  { filter:none; opacity:1; }
-        .star-btn:hover { transform:scale(1.15) translateY(-4px); filter:none; opacity:1; }
-        .yn-btn { flex:1; padding:28px 0; border-radius:20px; border:2px solid rgba(22,15,8,0.1); background:var(--warm-white); cursor:pointer; transition:all 0.25s; text-align:center; font-family:'Playfair Display',serif; font-weight:700; font-size:18px; color:var(--espresso); }
-        .yn-btn:hover  { border-color:rgba(22,15,8,0.2); transform:translateY(-4px); box-shadow:0 12px 40px rgba(22,15,8,0.08); }
-        .yn-btn.active { border-color:transparent; color:white; }
-        .yn-emoji { font-size:36px; display:block; margin-bottom:10px; }
+        .qt { width:100%; box-sizing:border-box; background:transparent; border:none; border-bottom:2px solid rgba(22,15,8,0.09); font-family:'Fraunces',serif; font-size:clamp(20px,3vw,30px); font-weight:300; color:#160F08; outline:none; padding:6px 0 16px; transition:border-color 0.25s; resize:none; }
+        .qt:focus { border-bottom-color:var(--qt-tc); }
+        .qt::placeholder { color:rgba(22,15,8,0.13); }
+        .qc { width:100%; display:flex; align-items:center; gap:16px; padding:17px 22px; border-radius:16px; border:1.5px solid rgba(22,15,8,0.08); background:rgba(255,255,255,0.6); cursor:pointer; text-align:left; transition:border-color 0.2s, background 0.2s, transform 0.2s; backdrop-filter:blur(6px); }
+        .qc:hover { border-color:rgba(22,15,8,0.16); background:rgba(255,255,255,0.9); transform:translateX(4px); }
+        .qc.on { border-color:var(--qt-tc); background:rgba(255,255,255,0.9); }
+        .qdot { width:22px; height:22px; flex-shrink:0; border:2px solid rgba(22,15,8,0.14); display:flex; align-items:center; justify-content:center; transition:all 0.2s; }
+        .qdot.r { border-radius:50%; } .qdot.s { border-radius:7px; }
+        .qdot.on { border-color:var(--qt-tc); background:var(--qt-tc); }
+        .qlbl { font-family:'Fraunces',serif; font-weight:300; font-size:16px; color:#160F08; flex:1; line-height:1.4; }
+        .qkey { font-family:'Syne',sans-serif; font-size:9px; font-weight:700; letter-spacing:0.1em; color:rgba(22,15,8,0.18); padding:3px 7px; border:1px solid rgba(22,15,8,0.09); border-radius:5px; }
+        .qsc { flex:1; height:52px; border-radius:13px; border:1.5px solid rgba(22,15,8,0.08); background:rgba(255,255,255,0.55); font-family:'Syne',sans-serif; font-weight:700; font-size:14px; color:rgba(22,15,8,0.4); cursor:pointer; transition:all 0.2s; }
+        .qsc:hover { border-color:rgba(22,15,8,0.18); transform:translateY(-3px); color:#160F08; background:white; }
+        .qsc.on { color:white; transform:translateY(-3px); }
       `}</style>
     </div>
   );
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// QInput — question type renderer (unchanged from Phase 2)
-// ─────────────────────────────────────────────────────────────────────────────
-function QInput({ q, val, set, tc }) {
-  const cssVars = { '--focus-color':tc, '--act-color':tc, '--act-bg': tc+'10' };
+// ─── QInput ───────────────────────────────────────────────────────────────────
+function QInput({ q, val, set, tc, fg, sub }) {
+  const css = { '--qt-tc': tc };
+
   switch (q.question_type) {
-    case 'short_text':  return <input type="text" value={val} onChange={e => set(e.target.value)} className="q-text-input" placeholder="Type your answer…" autoFocus style={cssVars} />;
-    case 'long_text':   return <textarea value={val} onChange={e => set(e.target.value)} className="q-text-input q-textarea" placeholder="Type your answer…" autoFocus style={cssVars} />;
-    case 'email':       return <input type="email" value={val} onChange={e => set(e.target.value)} className="q-text-input" placeholder="name@company.com" autoFocus style={cssVars} />;
-    case 'number':      return <div style={{ display:'flex', alignItems:'baseline', gap:12 }}><input type="number" value={val} onChange={e => set(e.target.value)} className="q-text-input" placeholder="0" autoFocus style={{ ...cssVars, width:160, fontSize:52, fontWeight:400, textAlign:'center', letterSpacing:'-2px' }} /></div>;
-    case 'date':        return <input type="date" value={val} onChange={e => set(e.target.value)} className="q-text-input" style={{ ...cssVars, fontSize:24 }} />;
-    case 'yes_no':      return (
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, maxWidth:480 }}>
-        {[{l:'Yes',e:'👍',v:'yes'},{l:'No',e:'👎',v:'no'}].map(o => (
-          <motion.button key={o.v} whileHover={{ y:-4 }} whileTap={{ scale:0.97 }}
-            onClick={() => set(o.v)} className={`yn-btn${val===o.v?' active':''}`}
-            style={val===o.v?{backgroundColor:tc,borderColor:tc}:{}}>
-            <span className="yn-emoji">{o.e}</span>{o.l}
-          </motion.button>
-        ))}
-      </div>
-    );
-    case 'single_choice': return (
-      <div style={{ display:'flex', flexDirection:'column', gap:10, maxWidth:560 }}>
-        {(q.options||[]).map((o,i) => {
-          const active = val===o.value;
-          return (
-            <motion.button key={i} whileTap={{ scale:0.99 }} onClick={() => set(o.value)}
-              className={`q-choice${active?' active':''}`}
-              style={active?{'--act-color':tc,'--act-bg':tc+'10',borderColor:tc,background:tc+'08'}:{}}>
-              <div className={`q-radio${active?' active':''}`} style={active?{'--act-color':tc}:{}}>
-                {active && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7"/></svg>}
-              </div>
-              <span className="q-label">{o.label}</span>
-              <span className="q-key">{String.fromCharCode(65+i)}</span>
+
+    case 'short_text':
+      return <input type="text" value={val} onChange={e => set(e.target.value)} className="qt" placeholder="Your answer…" autoFocus style={css} />;
+
+    case 'long_text':
+      return <textarea value={val} onChange={e => set(e.target.value)} className="qt" placeholder="Your answer…" autoFocus rows={4} style={{ ...css, lineHeight:1.65 }} />;
+
+    case 'email':
+      return <input type="email" value={val} onChange={e => set(e.target.value)} className="qt" placeholder="name@company.com" autoFocus style={css} />;
+
+    case 'number':
+      return <input type="number" value={val} onChange={e => set(e.target.value)} className="qt" placeholder="0" autoFocus
+        style={{ ...css, fontSize:'clamp(48px,8vw,80px)', fontWeight:400, letterSpacing:'-3px', padding:'0 0 12px', textAlign:'left', width:220 }} />;
+
+    case 'date':
+      return <input type="date" value={val} onChange={e => set(e.target.value)} className="qt" style={{ ...css, fontSize:24 }} />;
+
+    case 'yes_no':
+      return (
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14, maxWidth:440 }}>
+          {[{l:'Yes', v:'yes'}, {l:'No', v:'no'}].map(o => (
+            <motion.button key={o.v} whileHover={{ y:-4 }} whileTap={{ scale:0.97 }} onClick={() => set(o.v)}
+              style={{ padding:'32px 0', borderRadius:20, border:`1.5px solid ${val===o.v ? tc : 'rgba(22,15,8,0.08)'}`, background: val===o.v ? tc : 'rgba(255,255,255,0.6)', cursor:'pointer', fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:22, letterSpacing:'-0.5px', color: val===o.v ? '#fff' : '#160F08', transition:'all 0.25s', backdropFilter:'blur(6px)', boxShadow: val===o.v ? `0 12px 36px ${tc}35` : 'none' }}>
+              {o.l}
             </motion.button>
-          );
-        })}
-      </div>
-    );
+          ))}
+        </div>
+      );
+
+    case 'single_choice':
+      return (
+        <div style={{ display:'flex', flexDirection:'column', gap:9, maxWidth:580 }}>
+          {(q.options||[]).map((o, i) => {
+            const on = val === o.value;
+            return (
+              <motion.button key={i} whileTap={{ scale:0.99 }} onClick={() => set(o.value)}
+                className={`qc${on?' on':''}`} style={css}>
+                <div className={`qdot r${on?' on':''}`}>
+                  {on && <Icons.Check style={{ color:'white' }} />}
+                </div>
+                <span className="qlbl">{o.label}</span>
+                <span className="qkey">{String.fromCharCode(65+i)}</span>
+              </motion.button>
+            );
+          })}
+        </div>
+      );
+
     case 'multiple_choice': {
       const sel = Array.isArray(val) ? val : [];
       return (
-        <div style={{ display:'flex', flexDirection:'column', gap:10, maxWidth:560 }}>
-          {(q.options||[]).map((o,i) => {
-            const active = sel.includes(o.value);
+        <div style={{ display:'flex', flexDirection:'column', gap:9, maxWidth:580 }}>
+          {(q.options||[]).map((o, i) => {
+            const on = sel.includes(o.value);
             return (
               <motion.button key={i} whileTap={{ scale:0.99 }}
-                onClick={() => set(active ? sel.filter(v=>v!==o.value) : [...sel,o.value])}
-                className={`q-choice${active?' active':''}`}
-                style={active?{borderColor:tc,background:tc+'08'}:{}}>
-                <div className={`q-checkbox${active?' active':''}`} style={active?{'--act-color':tc}:{}}>
-                  {active && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7"/></svg>}
+                onClick={() => set(on ? sel.filter(v=>v!==o.value) : [...sel, o.value])}
+                className={`qc${on?' on':''}`} style={css}>
+                <div className={`qdot s${on?' on':''}`}>
+                  {on && <Icons.Check style={{ color:'white' }} />}
                 </div>
-                <span className="q-label">{o.label}</span>
+                <span className="qlbl">{o.label}</span>
               </motion.button>
             );
           })}
         </div>
       );
     }
-    case 'dropdown': return (
-      <select value={val} onChange={e => set(e.target.value)}
-        style={{ fontFamily:'Fraunces,serif', fontWeight:300, fontSize:22, color:'var(--espresso)', background:'var(--warm-white)', border:'1.5px solid rgba(22,15,8,0.12)', borderRadius:14, padding:'14px 20px', outline:'none', cursor:'pointer', width:'100%', maxWidth:480, transition:'border-color 0.2s' }}
-        onFocus={e => e.target.style.borderColor=tc} onBlur={e => e.target.style.borderColor='rgba(22,15,8,0.12)'}>
-        <option value="">Choose an option…</option>
-        {(q.options||[]).map((o,i) => <option key={i} value={o.value}>{o.label}</option>)}
-      </select>
-    );
-    case 'rating': {
-      const r = parseInt(val)||0;
+
+    case 'dropdown':
       return (
-        <div style={{ display:'flex', gap:8 }}>
+        <div style={{ position:'relative', maxWidth:460 }}>
+          <select value={val} onChange={e => set(e.target.value)}
+            style={{ width:'100%', padding:'16px 44px 16px 20px', appearance:'none', WebkitAppearance:'none', background:'rgba(255,255,255,0.75)', border:'1.5px solid rgba(22,15,8,0.09)', borderRadius:16, fontFamily:'Fraunces,serif', fontWeight:300, fontSize:19, color: val ? '#160F08' : 'rgba(22,15,8,0.28)', outline:'none', cursor:'pointer', backdropFilter:'blur(6px)', transition:'border-color 0.2s' }}
+            onFocus={e => e.target.style.borderColor = tc} onBlur={e => e.target.style.borderColor = 'rgba(22,15,8,0.09)'}>
+            <option value="">Select an option…</option>
+            {(q.options||[]).map((o,i) => <option key={i} value={o.value}>{o.label}</option>)}
+          </select>
+          <Icons.Chevron style={{ position:'absolute', right:14, top:'50%', transform:'translateY(-50%)', pointerEvents:'none', color:'rgba(22,15,8,0.3)' }} />
+        </div>
+      );
+
+    case 'rating': {
+      const r = parseInt(val) || 0;
+      return (
+        <div style={{ display:'flex', gap:4 }}>
           {[1,2,3,4,5].map(s => (
-            <motion.button key={s} whileHover={{ scale:1.2, y:-8 }} whileTap={{ scale:0.9 }}
-              onClick={() => set(s)} className={`star-btn${s<=r?' lit':''}`}>⭐</motion.button>
+            <motion.button key={s} whileHover={{ scale:1.2, y:-6 }} whileTap={{ scale:0.85 }}
+              onClick={() => set(s)}
+              style={{ background:'none', border:'none', cursor:'pointer', padding:4, lineHeight:1, color: s <= r ? tc : 'rgba(22,15,8,0.14)', transition:'color 0.2s' }}>
+              <Icons.Star filled={s <= r} style={{ color:'currentColor', width:38, height:38 }} />
+            </motion.button>
           ))}
         </div>
       );
     }
+
     case 'scale': {
-      const v = parseInt(val)||0;
+      const v = parseInt(val) || 0;
       return (
-        <div style={{ maxWidth:560 }}>
-          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:12, fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(22,15,8,0.35)' }}>
+        <div style={{ maxWidth:580 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', marginBottom:12, fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:sub }}>
             <span>Not at all</span><span>Extremely</span>
           </div>
-          <div style={{ display:'flex', gap:6 }}>
+          <div style={{ display:'flex', gap:5 }}>
             {[1,2,3,4,5,6,7,8,9,10].map(n => (
-              <motion.button key={n} whileHover={{ y:-4 }} whileTap={{ scale:0.92 }}
-                onClick={() => set(n)} className={`scale-btn${n===v?' active':''}`}
-                style={n===v?{'--act-color':tc,borderColor:tc,background:tc,color:'#fff'}:{}}>
+              <motion.button key={n} whileHover={{ y:-4 }} whileTap={{ scale:0.9 }} onClick={() => set(n)}
+                className={`qsc${n===v?' on':''}`}
+                style={n===v ? { borderColor:tc, background:tc, boxShadow:`0 6px 24px ${tc}40`, color:'white' } : {}}>
                 {n}
               </motion.button>
             ))}
@@ -649,9 +572,223 @@ function QInput({ q, val, set, tc }) {
         </div>
       );
     }
-    case 'ranking': return <RankingInput q={q} val={val||[]} set={set} tc={tc} />;
-    case 'slider':  return <SliderInput  q={q} val={val}     set={set} tc={tc} />;
-    case 'matrix':  return <MatrixInput  q={q} val={val||{}} set={set} tc={tc} />;
-    default: return <input type="text" value={val} onChange={e => set(e.target.value)} className="q-text-input" placeholder="Your answer…" style={cssVars} />;
+
+    case 'ranking': {
+      const opts = (() => {
+        const raw = parseOpts(q.options);
+        if (!raw) return [];
+        if (Array.isArray(raw)) return raw;
+        return [];
+      })();
+      if (!opts.length) return <div style={{ fontFamily:'Fraunces,serif', fontSize:15, color:sub, padding:'16px 0' }}>No options for this question.</div>;
+      return <RankInput opts={opts} val={val} set={set} tc={tc} />;
+    }
+
+    case 'slider': {
+      const rules = q.validation_rules || {};
+      const min = Number(rules.min ?? 0), max = Number(rules.max ?? 100), step = Number(rules.step ?? 1);
+      return <SliderInput val={val} set={set} tc={tc} min={min} max={max} step={step}
+        minLabel={rules.min_label || String(min)} maxLabel={rules.max_label || String(max)} />;
+    }
+
+    case 'matrix': {
+      // Supabase returns JSONB as a plain JS object already; parseOpts handles string fallback
+      const opts = parseOpts(q.options);
+      const rows = (opts && Array.isArray(opts.rows))    ? opts.rows    : [];
+      const cols = (opts && Array.isArray(opts.columns)) ? opts.columns : [];
+      if (!rows.length || !cols.length) return (
+        <div style={{ fontFamily:'Fraunces,serif', fontSize:15, color:sub, padding:'16px 0', lineHeight:1.6 }}>
+          This matrix question has no rows or columns yet.<br/>
+          <span style={{ fontFamily:'Syne,sans-serif', fontSize:10, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase' }}>
+            Open the survey editor and add rows &amp; columns to this question, then save.
+          </span>
+        </div>
+      );
+      return <MatrixInput rows={rows} cols={cols} val={val||{}} set={set} tc={tc} sub={sub} />;
+    }
+
+    default:
+      return <input type="text" value={val} onChange={e => set(e.target.value)} className="qt" placeholder="Your answer…" style={css} />;
   }
+}
+
+// ─── RankInput ────────────────────────────────────────────────────────────────
+function RankInput({ opts, val, set, tc }) {
+  const init = () => {
+    if (Array.isArray(val) && val.length === opts.length && val.every(v => opts.some(o => o.value === v))) return val;
+    return opts.map(o => o.value);
+  };
+  const [items, setItems] = useState(init);
+  const getLabel = v => opts.find(o => o.value === v)?.label ?? v;
+
+  function reorder(next) { setItems(next); set(next); }
+
+  return (
+    <div style={{ maxWidth:520 }}>
+      <div style={{ display:'inline-flex', alignItems:'center', gap:7, padding:'5px 13px', borderRadius:999, border:`1px solid rgba(22,15,8,0.09)`, background:'rgba(22,15,8,0.03)', marginBottom:20 }}>
+        <Icons.Grip style={{ color:'rgba(22,15,8,0.3)' }} />
+        <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:'rgba(22,15,8,0.4)' }}>Drag to rank · 1 = top</span>
+      </div>
+      <Reorder.Group axis="y" values={items} onReorder={reorder}
+        style={{ listStyle:'none', padding:0, margin:0, display:'flex', flexDirection:'column', gap:8 }}>
+        {items.map((v, i) => (
+          <Reorder.Item key={v} value={v} whileDrag={{ scale:1.03, rotate:1, zIndex:50 }} style={{ cursor:'grab', listStyle:'none' }}>
+            <motion.div layout style={{ display:'flex', alignItems:'center', gap:14, padding:'14px 18px', background: i===0 ? `${tc}08` : 'rgba(255,255,255,0.65)', border:`1.5px solid ${i===0 ? tc+'28' : 'rgba(22,15,8,0.08)'}`, borderRadius:16, userSelect:'none', backdropFilter:'blur(4px)', transition:'border-color 0.25s, background 0.25s' }}>
+              <motion.div layout animate={{ background: i===0 ? tc : 'rgba(22,15,8,0.06)' }} transition={{ duration:0.3 }}
+                style={{ width:30, height:30, borderRadius:'50%', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, boxShadow: i===0 ? `0 4px 14px ${tc}40` : 'none', transition:'box-shadow 0.3s' }}>
+                <span style={{ fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:11, color: i===0 ? '#fff' : 'rgba(22,15,8,0.35)', transition:'color 0.3s' }}>{i+1}</span>
+              </motion.div>
+              <span style={{ fontFamily:'Fraunces,serif', fontWeight:300, fontSize:16, color:'#160F08', flex:1, lineHeight:1.4 }}>{getLabel(v)}</span>
+              <Icons.Grip style={{ color:'rgba(22,15,8,0.18)', flexShrink:0 }} />
+            </motion.div>
+          </Reorder.Item>
+        ))}
+      </Reorder.Group>
+      {items.length > 0 && (
+        <div style={{ marginTop:18, display:'flex', alignItems:'center', gap:8 }}>
+          <div style={{ width:16, height:16, borderRadius:'50%', background:`${tc}15`, display:'flex', alignItems:'center', justifyContent:'center' }}>
+            <Icons.Check style={{ color:tc, width:8, height:8 }} />
+          </div>
+          <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:'rgba(22,15,8,0.3)' }}>
+            Top: <span style={{ color:tc }}>{getLabel(items[0])}</span>
+          </span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── SliderInput — fully custom pointer drag ──────────────────────────────────
+function SliderInput({ val, set, tc, min, max, step, minLabel, maxLabel }) {
+  const trackRef = useRef(null);
+  const dragging = useRef(false);
+  const [drag, setDrag] = useState(false);
+  const [hover, setHover] = useState(false);
+
+  const has = val !== '' && val != null;
+  const cur = has ? Number(val) : null;
+  const pct = cur != null ? ((cur - min) / (max - min)) * 100 : 0;
+
+  function snap(raw) { return Math.max(min, Math.min(max, Math.round(raw / step) * step)); }
+  function fromX(clientX) { const r = trackRef.current.getBoundingClientRect(); return snap(min + Math.max(0, Math.min(1, (clientX - r.left) / r.width)) * (max - min)); }
+
+  function onDown(e) { e.preventDefault(); dragging.current=true; setDrag(true); trackRef.current.setPointerCapture(e.pointerId); set(fromX(e.clientX)); }
+  function onMove(e) { if (!dragging.current) return; set(fromX(e.clientX)); }
+  function onUp()    { dragging.current=false; setDrag(false); }
+  function onKey(e)  { const d = e.shiftKey ? step*10 : step; if (e.key==='ArrowRight'||e.key==='ArrowUp') { e.preventDefault(); set(snap((cur??Math.round((min+max)/2))+d)); } else if (e.key==='ArrowLeft'||e.key==='ArrowDown') { e.preventDefault(); set(snap((cur??Math.round((min+max)/2))-d)); } }
+
+  return (
+    <div style={{ maxWidth:520, userSelect:'none' }}>
+      {/* Value */}
+      <div style={{ marginBottom:44, textAlign:'left' }}>
+        <AnimatePresence mode="wait">
+          {cur != null ? (
+            <motion.div key="v" initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-6 }} transition={{ duration:0.2 }}>
+              <span style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:'clamp(56px,9vw,88px)', letterSpacing:'-4px', color:tc, lineHeight:1 }}>{cur}</span>
+              <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase', color:'rgba(22,15,8,0.25)', marginLeft:12 }}>selected</span>
+            </motion.div>
+          ) : (
+            <motion.div key="e" initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}>
+              <span style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:'clamp(56px,9vw,88px)', letterSpacing:'-4px', color:'rgba(22,15,8,0.07)', lineHeight:1 }}>–</span>
+              <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.18em', textTransform:'uppercase', color:'rgba(22,15,8,0.2)', marginLeft:12 }}>drag to select</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Track */}
+      <div ref={trackRef} tabIndex={0} role="slider" aria-valuemin={min} aria-valuemax={max} aria-valuenow={cur??min}
+        onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp} onPointerCancel={onUp}
+        onKeyDown={onKey} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+        style={{ position:'relative', height:52, cursor: drag ? 'grabbing' : 'grab', touchAction:'none', outline:'none' }}>
+        {/* Track BG */}
+        <div style={{ position:'absolute', top:'50%', left:0, right:0, height:3, transform:'translateY(-50%)', background:'rgba(22,15,8,0.08)', borderRadius:999, overflow:'hidden' }}>
+          <div style={{ position:'absolute', left:0, top:0, bottom:0, width:`${cur!=null?pct:0}%`, background:`linear-gradient(90deg,${tc}80,${tc})`, borderRadius:999, transition: drag ? 'none' : 'width 0.08s' }} />
+        </div>
+        {/* Thumb */}
+        <motion.div animate={{ scale: drag ? 1.4 : hover ? 1.12 : 1 }} transition={{ type:'spring', stiffness:600, damping:28 }}
+          style={{ position:'absolute', top:'50%', left:`${cur!=null?pct:50}%`, transform:'translate(-50%,-50%)', width:24, height:24, borderRadius:'50%', background: cur!=null ? tc : 'rgba(22,15,8,0.2)', border:'3px solid white', boxShadow: drag ? `0 4px 20px ${tc}55, 0 0 0 6px ${tc}15` : '0 2px 10px rgba(22,15,8,0.18)', pointerEvents:'none', transition: drag ? 'left 0s,background 0.2s,box-shadow 0.2s' : 'left 0.04s,background 0.2s,box-shadow 0.2s' }} />
+      </div>
+
+      {/* Labels */}
+      <div style={{ display:'flex', justifyContent:'space-between', marginTop:10 }}>
+        <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:'rgba(22,15,8,0.28)' }}>{minLabel}</span>
+        <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:'rgba(22,15,8,0.28)' }}>{maxLabel}</span>
+      </div>
+    </div>
+  );
+}
+
+// ─── MatrixInput ──────────────────────────────────────────────────────────────
+function MatrixInput({ rows, cols, val, set, tc, sub }) {
+  const answered = Object.keys(val).length;
+  const pct = rows.length ? Math.round((answered / rows.length) * 100) : 0;
+
+  function toggle(rv, cv) {
+    const next = { ...val };
+    if (next[rv] === cv) delete next[rv]; else next[rv] = cv;
+    set(next);
+  }
+
+  return (
+    <div style={{ width:'100%' }}>
+      {/* Progress */}
+      <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:24 }}>
+        <div style={{ flex:1, height:2, borderRadius:999, background:'rgba(22,15,8,0.07)', overflow:'hidden' }}>
+          <motion.div animate={{ width:`${pct}%` }} transition={{ duration:0.5, ease:[0.16,1,0.3,1] }}
+            style={{ height:'100%', background:tc, borderRadius:999 }} />
+        </div>
+        <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:sub, flexShrink:0 }}>{answered}/{rows.length}</span>
+      </div>
+
+      <div style={{ overflowX:'auto' }}>
+        <table style={{ width:'100%', borderCollapse:'separate', borderSpacing:'0', minWidth: cols.length > 3 ? 480 : 'auto' }}>
+          <thead>
+            <tr>
+              <th style={{ width:'36%', paddingBottom:14 }} />
+              {cols.map((c, ci) => (
+                <th key={c.value??ci} style={{ paddingBottom:14, paddingLeft:8, paddingRight:8, textAlign:'center', fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(22,15,8,0.35)', whiteSpace:'nowrap' }}>
+                  {c.label}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, ri) => {
+              const sel = val[row.value];
+              const done = sel !== undefined;
+              return (
+                <motion.tr key={row.value??ri} initial={{ opacity:0, x:-10 }} animate={{ opacity:1, x:0 }} transition={{ delay:ri*0.04 }}>
+                  <td style={{ fontFamily:'Fraunces,serif', fontWeight:300, fontSize:15, color: done ? '#160F08' : 'rgba(22,15,8,0.5)', paddingRight:20, paddingTop:5, paddingBottom:5, verticalAlign:'middle', transition:'color 0.2s', whiteSpace:'nowrap' }}>
+                    <span style={{ display:'flex', alignItems:'center', gap:7 }}>
+                      {done && <motion.span initial={{ scale:0 }} animate={{ scale:1 }} style={{ color:tc, lineHeight:1, flexShrink:0 }}><Icons.Check style={{ color:tc, width:10, height:10 }} /></motion.span>}
+                      {row.label}
+                    </span>
+                  </td>
+                  {cols.map((col, ci) => {
+                    const on = sel === col.value;
+                    return (
+                      <td key={col.value??ci} style={{ textAlign:'center', padding:'5px 8px', verticalAlign:'middle' }}>
+                        <motion.button whileHover={{ scale:1.12 }} whileTap={{ scale:0.88 }} onClick={() => toggle(row.value, col.value)}
+                          aria-label={`${row.label}: ${col.label}`} aria-pressed={on}
+                          style={{ width:32, height:32, borderRadius:'50%', border:`2px solid ${on ? tc : 'rgba(22,15,8,0.12)'}`, background: on ? tc : 'transparent', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto', transition:'border-color 0.2s, background 0.2s', boxShadow: on ? `0 4px 14px ${tc}35` : 'none' }}>
+                          {on && <motion.div initial={{ scale:0 }} animate={{ scale:1 }} transition={{ type:'spring', stiffness:500 }}><Icons.Check style={{ color:'white', width:10, height:10 }} /></motion.div>}
+                        </motion.button>
+                      </td>
+                    );
+                  })}
+                </motion.tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {answered === rows.length && rows.length > 0 && (
+        <motion.div initial={{ opacity:0, y:6 }} animate={{ opacity:1, y:0 }} style={{ marginTop:16, display:'flex', alignItems:'center', gap:6, color:tc }}>
+          <Icons.Check style={{ color:tc }} />
+          <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase' }}>All rows answered</span>
+        </motion.div>
+      )}
+    </div>
+  );
 }

@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
+import { useLoading } from '../context/LoadingContext';
 
 const Logo = () => (
   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0, lineHeight: 1 }}>
@@ -18,7 +19,9 @@ export default function ResetPassword() {
   const [email, setEmail] = useState('');
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState(false);
+  const { stopLoading } = useLoading();
   const nav = useNavigate();
+  useEffect(() => { stopLoading(); }, [stopLoading]);
 
   const go = async e => {
     e.preventDefault();

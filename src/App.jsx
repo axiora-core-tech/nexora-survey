@@ -3,6 +3,9 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import PageLoader from "./pages/PageLoader";
 
+// ── Loading context ───────────────────────────────────────────────
+import { LoadingProvider, useLoading } from './context/LoadingContext';
+
 // ── Layout & guards ──────────────────────────────────────────────
 import DashboardLayout  from './components/DashboardLayout';
 import ProtectedRoute   from './components/ProtectedRoute';
@@ -26,7 +29,17 @@ import UpdatePassword   from './pages/UpdatePassword';
 // ── Auth store ───────────────────────────────────────────────────
 import useAuthStore from './hooks/useAuth';
 
-export default function App() {
+/**
+ * GlobalSpinner
+ * Reads isLoading from context (derived from location.key during render —
+ * no effect timing issues) and shows the full-page overlay when true.
+ */
+function GlobalSpinner() {
+  const { isLoading } = useLoading();
+  return isLoading ? <PageLoader /> : null;
+}
+
+function AppRoutes() {
   const { initialize, initialized } = useAuthStore();
 
   useEffect(() => { initialize(); }, []);
@@ -35,6 +48,8 @@ export default function App() {
 
   return (
     <>
+      <GlobalSpinner />
+
       <Toaster
         position="top-right"
         toastOptions={{
@@ -55,7 +70,7 @@ export default function App() {
 
       <Routes>
         {/* ── Public ── */}
-        <Route path="/"          element={<LandingPage />} />
+        <Route path="/"               element={<LandingPage />} />
         <Route path="/login"           element={<LoginPage />} />
         <Route path="/register"        element={<RegisterPage />} />
         <Route path="/reset-password"  element={<ResetPassword />} />
@@ -82,5 +97,13 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
+  );
+}
+
+export default function App() {
+  return (
+    <LoadingProvider>
+      <AppRoutes />
+    </LoadingProvider>
   );
 }

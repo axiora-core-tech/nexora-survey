@@ -5,26 +5,28 @@ import { supabase } from '../lib/supabase';
 import useAuthStore from '../hooks/useAuth';
 import { hasPermission, SURVEY_STATUS, timeAgo, isExpired, formatDate } from '../lib/constants';
 import toast from 'react-hot-toast';
+import { useLoading } from '../context/LoadingContext';
 
 const STATUS_FILTERS = ['all', 'active', 'draft', 'paused', 'expired', 'closed'];
 
 export default function SurveyList() {
   const { profile } = useAuthStore();
   const nav = useNavigate();
+  const { stopLoading } = useLoading();
   const [surveys, setSurveys] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [menu, setMenu] = useState(null);
 
   const location = useLocation();
-  useEffect(() => { if (profile?.id) load(); }, [profile?.id, location.key]);
+  useEffect(() => { if (profile?.id) load(); else stopLoading(); }, [profile?.id, location.key]);
 
   async function load() {
-    setLoading(true);
-    const { data } = await supabase.from('surveys').select('*,creator:user_profiles!created_by(full_name)').order('created_at', { ascending: false });
-    setSurveys(data || []);
-    setLoading(false);
+    try {
+      const { data } = await supabase.from('surveys').select('*,creator:user_profiles!created_by(full_name)').order('created_at', { ascending: false });
+      setSurveys(data || []);
+    } catch (e) { console.error(e); }
+    finally { stopLoading(); }
   }
 
   const list = surveys.filter(s =>
@@ -96,11 +98,7 @@ export default function SurveyList() {
       </div>
 
       {/* Grid */}
-      {loading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px,1fr))', gap: 20 }}>
-          {[1,2,3].map(i => <div key={i} style={{ height: 180, background: 'var(--cream-deep)', borderRadius: 20 }} className="animate-pulse" />)}
-        </div>
-      ) : list.length === 0 ? (
+      {list.length === 0 ? (
         <div style={{ background: 'var(--warm-white)', borderRadius: 24, border: '1px solid rgba(22,15,8,0.07)', textAlign: 'center', padding: '80px 40px' }}>
           <div style={{ fontFamily: 'Playfair Display, serif', fontSize: 64, color: 'rgba(22,15,8,0.06)', fontWeight: 900, letterSpacing: -3, marginBottom: 16 }}>Empty</div>
           <p style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 16, color: 'rgba(22,15,8,0.4)' }}>

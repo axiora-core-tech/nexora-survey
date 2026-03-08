@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import useAuthStore from '../hooks/useAuth';
 import { ROLE_LABELS, hasPermission } from '../lib/constants';
 import toast from 'react-hot-toast';
+import { useLoading } from '../context/LoadingContext';
 
 const ROLE_COLORS = { super_admin: 'rgba(139,92,246,0.12)', admin: 'rgba(255,69,0,0.1)', manager: 'rgba(255,184,0,0.12)', creator: 'rgba(30,122,74,0.1)', viewer: 'rgba(22,15,8,0.06)' };
 const ROLE_TEXT   = { super_admin: '#7C3AED', admin: 'var(--coral)', manager: '#A07000', creator: 'var(--sage)', viewer: 'rgba(22,15,8,0.4)' };
@@ -12,18 +13,21 @@ const label = { fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, le
 
 export default function TeamManagement() {
   const { profile } = useAuthStore();
+  const { stopLoading } = useLoading();
   const [members, setMembers] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [iE, sIE] = useState(''); const [iR, sIR] = useState('viewer'); const [iN, sIN] = useState('');
   const [busy, setBusy] = useState(false);
 
   const location = useLocation();
-  useEffect(() => { if (profile?.id) load(); }, [profile?.id, location.key]);
+  useEffect(() => { if (profile?.id) load(); else stopLoading(); }, [profile?.id, location.key]);
 
   async function load() {
-    const { data } = await supabase.from('user_profiles').select('*').eq('tenant_id', profile.tenant_id).order('created_at');
-    setMembers(data || []); setLoading(false);
+    try {
+      const { data } = await supabase.from('user_profiles').select('*').eq('tenant_id', profile.tenant_id).order('created_at');
+      setMembers(data || []);
+    } catch (e) { console.error(e); }
+    finally { stopLoading(); }
   }
   async function invite(e) {
     e.preventDefault();
@@ -67,12 +71,7 @@ export default function TeamManagement() {
       </div>
 
       {/* Member grid */}
-      {loading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {[1,2,3].map(i => <div key={i} style={{ height: 72, background: 'var(--cream-deep)', borderRadius: 16 }} className="animate-pulse" />)}
-        </div>
-      ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px,1fr))', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px,1fr))', gap: 16 }}>
           {members.map(m => (
             <div key={m.id} style={{ background: 'var(--warm-white)', borderRadius: 18, border: '1px solid rgba(22,15,8,0.07)', padding: 20, display: 'flex', alignItems: 'center', gap: 16, opacity: m.is_active === false ? 0.4 : 1, transition: 'box-shadow 0.2s' }}
               onMouseEnter={e => e.currentTarget.style.boxShadow = '0 12px 40px rgba(22,15,8,0.08)'}
@@ -112,7 +111,6 @@ export default function TeamManagement() {
             </div>
           ))}
         </div>
-      )}
 
       {/* Invite modal */}
       {showModal && (

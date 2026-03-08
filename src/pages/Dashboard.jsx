@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import useAuthStore from '../hooks/useAuth';
 import { hasPermission, timeAgo, SURVEY_STATUS } from '../lib/constants';
+import { useLoading } from '../context/LoadingContext';
 
 const S = {
   page: { },
@@ -33,15 +34,14 @@ const STAT_ACCENTS = ['var(--coral)', 'var(--espresso)', 'var(--saffron)', 'var(
 
 export default function Dashboard() {
   const { profile, tenant } = useAuthStore();
+  const { stopLoading } = useLoading();
   const [stats, setStats] = useState({ surveys: 0, responses: 0, completions: 0, team: 0 });
   const [recent, setRecent] = useState([]);
-  const [loading, setLoading] = useState(true);
 
   const location = useLocation();
-  useEffect(() => { if (profile?.id) load(); }, [profile?.id, location.key]);
+  useEffect(() => { if (profile?.id) load(); else stopLoading(); }, [profile?.id, location.key]);
 
   async function load() {
-    setLoading(true);
     try {
       const [sv, r, c, t] = await Promise.all([
         supabase.from('surveys').select('*', { count: 'exact', head: true }),
@@ -53,7 +53,7 @@ export default function Dashboard() {
       const { data } = await supabase.from('surveys').select('*, creator:user_profiles!created_by(full_name)').order('created_at', { ascending: false }).limit(6);
       setRecent(data || []);
     } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+    finally { stopLoading(); }
   }
 
   const h = new Date().getHours();
@@ -96,7 +96,7 @@ export default function Dashboard() {
             transition={{ delay: i * 0.07, ease: [0.16,1,0.3,1] }}
             whileHover={{ y: -4, boxShadow: '0 24px 60px rgba(22,15,8,0.1)' }}
             style={S.statCard(STAT_ACCENTS[i])}>
-            <div style={S.statNum}>{loading ? '—' : item.val}</div>
+            <div style={S.statNum}>{item.val}</div>
             <div style={S.statLabel}>{item.label}</div>
           </motion.div>
         ))}
@@ -112,11 +112,7 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      {loading ? (
-        <div style={S.grid}>
-          {[1,2,3].map(i => <div key={i} style={S.skeleton} />)}
-        </div>
-      ) : recent.length === 0 ? (
+      {recent.length === 0 ? (
         <div style={S.emptyState}>
           <div style={{ fontFamily: "'Playfair Display', serif", fontSize: 72, color: 'rgba(22,15,8,0.06)', fontWeight: 900, marginBottom: 16, letterSpacing: -4 }}>Empty</div>
           <h3 style={S.emptyTitle}>No surveys yet</h3>

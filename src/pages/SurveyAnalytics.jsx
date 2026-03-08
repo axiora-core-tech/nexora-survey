@@ -6,6 +6,7 @@ import { formatDateTime } from '../lib/constants';
 import AIInsightsPanel from '../components/AIInsightsPanel';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement } from 'chart.js';
 import { Doughnut, Bar } from 'react-chartjs-2';
+import { useLoading } from '../context/LoadingContext';
 ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement);
 
 // Nexora palette for charts
@@ -31,16 +32,15 @@ const STAT_TOPS = ['var(--coral)', 'var(--espresso)', 'var(--saffron)'];
 export default function SurveyAnalytics() {
   const { id } = useParams();
   const { profile } = useAuthStore();
+  const { stopLoading } = useLoading();
   const [sv, setSv]       = useState(null);
   const [qs, sQs]         = useState([]);
   const [rs, sRs]         = useState([]);
   const [ans, sAns]       = useState([]);
-  const [loading, setL]   = useState(true);
 
-  useEffect(() => { if (profile?.id) load(); }, [id, profile?.id]);
+  useEffect(() => { if (profile?.id) load(); else stopLoading(); }, [id, profile?.id]);
 
   async function load() {
-    setL(true);
     try {
       const { data: s }  = await supabase.from('surveys').select('*').eq('id', id).single();
       setSv(s);
@@ -55,7 +55,7 @@ export default function SurveyAnalytics() {
         sAns(a || []);
       }
     } catch (e) { console.error(e); }
-    finally { setL(false); }
+    finally { stopLoading(); }
   }
 
   const total = rs.length;
@@ -114,11 +114,6 @@ export default function SurveyAnalytics() {
     plugins: { legend: { display: false }, tooltip: { cornerRadius: 10, backgroundColor: 'rgba(22,15,8,0.9)', titleFont: { family: 'Syne' }, bodyFont: { family: 'Fraunces' } } },
   };
 
-  if (loading) return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {[200, 100, 160, 160, 160].map((h, i) => <div key={i} style={{ height: h, background: 'var(--cream-deep)', borderRadius: 20 }} className="animate-pulse" />)}
-    </div>
-  );
   if (!sv) return <div style={{ textAlign: 'center', padding: '80px 0', fontFamily: 'Fraunces, serif', color: 'rgba(22,15,8,0.35)' }}>Survey not found</div>;
 
   const statCards = [

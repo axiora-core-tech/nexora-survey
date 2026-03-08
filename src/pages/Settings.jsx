@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import useAuthStore from '../hooks/useAuth';
 import { hasPermission, ROLE_LABELS } from '../lib/constants';
 import toast from 'react-hot-toast';
+import { useLoading } from '../context/LoadingContext';
 
 const card  = { background: 'var(--warm-white)', borderRadius: 20, border: '1px solid rgba(22,15,8,0.07)', padding: '36px 40px', marginBottom: 20 };
 const label = { fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.38)', display: 'block', marginBottom: 10 };
@@ -15,6 +16,9 @@ export default function Settings() {
   // updated Supabase but never synced back to Zustand, so the nav header kept
   // showing the old org name until a full page refresh.
   const { profile, tenant, updateProfile, updateTenant } = useAuthStore();
+  const { stopLoading } = useLoading();
+  // No async data fetch — stop the nav spinner immediately
+  useEffect(() => { stopLoading(); }, [stopLoading]);
   const [pF, sPF] = useState({ full_name: profile?.full_name || '' });
   const [tF, sTF] = useState({ name: tenant?.name || '', primary_color: tenant?.primary_color || '#FF4500' });
   const [sP, sSP] = useState(false);

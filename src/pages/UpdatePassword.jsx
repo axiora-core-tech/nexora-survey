@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
+import { useLoading } from '../context/LoadingContext';
 
 const Logo = () => (
   <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0, lineHeight: 1 }}>
@@ -21,8 +22,11 @@ export default function UpdatePassword() {
   const [ready, setReady] = useState(false);
   const nav = useNavigate();
 
+  const { stopLoading } = useLoading();
+
   // Supabase fires PASSWORD_RECOVERY event when user arrives via email link
   useEffect(() => {
+    stopLoading();
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') setReady(true);
     });
@@ -31,7 +35,7 @@ export default function UpdatePassword() {
       if (session) setReady(true);
     });
     return () => subscription.unsubscribe();
-  }, []);
+  }, [stopLoading]);
 
   const go = async e => {
     e.preventDefault();

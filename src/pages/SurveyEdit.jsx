@@ -6,18 +6,20 @@ import { supabase } from '../lib/supabase';
 import useAuthStore from '../hooks/useAuth';
 import { QUESTION_TYPES, hasPermission, SURVEY_STATUS, formatDate, isExpired } from '../lib/constants';
 import toast from 'react-hot-toast';
-import PageLoader from './PageLoader';
+import { useLoading } from '../context/LoadingContext';
 import { HiOutlinePlus, HiOutlineTrash, HiOutlineArrowUp, HiOutlineArrowDown, HiOutlineSave, HiOutlineX, HiOutlineLink, HiOutlineChartBar, HiOutlinePlay, HiOutlinePause, HiOutlineRefresh, HiOutlineShare } from 'react-icons/hi';
-const hasO=t=>['single_choice','multiple_choice','dropdown'].includes(t);
+const hasO=t=>['single_choice','multiple_choice','dropdown','ranking'].includes(t);
+const isMx=t=>t==='matrix';
 const inp="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-dark text-sm placeholder:text-gray-400 focus:outline-none focus:border-accent transition-colors";
 
 export default function SurveyEdit(){
   const{id}=useParams();const{profile}=useAuthStore();const nav=useNavigate();
-  const[loading,setLoading]=useState(true);const[busy,setBusy]=useState(false);const[sv,setSv]=useState(null);const[qs,sQs]=useState([]);const[tab,setTab]=useState('details');
+  const{stopLoading}=useLoading();
+  const[busy,setBusy]=useState(false);const[sv,setSv]=useState(null);const[qs,sQs]=useState([]);const[tab,setTab]=useState('details');
   const[shareOpen,setShareOpen]=useState(false);const[pubShareOpen,setPubShareOpen]=useState(false);const[shares,setShares]=useState([]);const[users,setUsers]=useState([]);
 
-  useEffect(()=>{if(profile?.id)load();},[id,profile?.id]);
-  async function load(){try{const{data:s,error}=await supabase.from('surveys').select('*').eq('id',id).single();if(error)throw error;setSv({...s,expires_at:s.expires_at?new Date(s.expires_at).toISOString().slice(0,16):''});const{data:q}=await supabase.from('survey_questions').select('*').eq('survey_id',id).order('sort_order');sQs((q||[]).map(x=>({...x,_id:x.id})));const{data:sh}=await supabase.from('survey_shares').select('*,user:user_profiles!shared_with(full_name,email)').eq('survey_id',id);setShares(sh||[]);const{data:u}=await supabase.from('user_profiles').select('id,full_name,email,role');setUsers(u||[]);}catch(e){console.error(e);toast.error('Failed');nav('/surveys');}finally{setLoading(false);}}
+  useEffect(()=>{if(profile?.id)load();else stopLoading();},[id,profile?.id]);
+  async function load(){try{const{data:s,error}=await supabase.from('surveys').select('*').eq('id',id).single();if(error)throw error;setSv({...s,expires_at:s.expires_at?new Date(s.expires_at).toISOString().slice(0,16):''});const{data:q}=await supabase.from('survey_questions').select('*').eq('survey_id',id).order('sort_order');sQs((q||[]).map(x=>({...x,_id:x.id})));const{data:sh}=await supabase.from('survey_shares').select('*,user:user_profiles!shared_with(full_name,email)').eq('survey_id',id);setShares(sh||[]);const{data:u}=await supabase.from('user_profiles').select('id,full_name,email,role');setUsers(u||[]);}catch(e){console.error(e);toast.error('Failed');nav('/surveys');}finally{stopLoading();}}
   const s=(k,v)=>setSv(p=>({...p,[k]:v}));const sQ=(tid,k,v)=>sQs(a=>a.map(q=>q._id===tid?{...q,[k]:v}:q));
   const addQ=()=>sQs(a=>[...a,{_id:'new_'+Math.random().toString(36).slice(2),question_text:'',question_type:'short_text',options:[],is_required:false,description:''}]);
   const delQ=async tid=>{if(qs.length<=1)return toast.error('Need ≥1');if(!tid.startsWith('new_'))await supabase.from('survey_questions').delete().eq('id',tid);sQs(a=>a.filter(q=>q._id!==tid));};
@@ -25,12 +27,10 @@ export default function SurveyEdit(){
   const addOpt=tid=>sQs(a=>a.map(q=>q._id===tid?{...q,options:[...(q.options||[]),{label:'',value:''}]}:q));
   const sOpt=(tid,i,v)=>sQs(a=>a.map(q=>{if(q._id!==tid)return q;const o=[...(q.options||[])];o[i]={label:v,value:v.toLowerCase().replace(/\s+/g,'_')};return{...q,options:o};}));
   const delOpt=(tid,i)=>sQs(a=>a.map(q=>q._id!==tid?q:{...q,options:q.options.filter((_,j)=>j!==i)}));
-  async function save(){if(!sv.title.trim())return toast.error('Title required');setBusy(true);try{const{data,error}=await supabase.from('surveys').update({title:sv.title,description:sv.description||null,welcome_message:sv.welcome_message||null,thank_you_message:sv.thank_you_message||null,expires_at:sv.expires_at||null,allow_anonymous:sv.allow_anonymous,require_email:sv.require_email,show_progress_bar:sv.show_progress_bar,theme_color:sv.theme_color}).eq('id',id).select().single();if(error)throw error;if(!data)throw new Error('Update failed');for(let i=0;i<qs.length;i++){const q=qs[i];const d={survey_id:id,question_text:q.question_text,question_type:q.question_type,options:hasO(q.question_type)?q.options:null,is_required:q.is_required,description:q.description||null,sort_order:i};if(q._id.startsWith('new_')){const{error:e}=await supabase.from('survey_questions').insert(d);if(e)throw e;}else{const{error:e}=await supabase.from('survey_questions').update(d).eq('id',q._id);if(e)throw e;}}toast.success('Saved!');await load();}catch(e){console.error(e);toast.error(e.message||'Failed');}finally{setBusy(false);}}
+  async function save(){if(!sv.title.trim())return toast.error('Title required');setBusy(true);try{const{data,error}=await supabase.from('surveys').update({title:sv.title,description:sv.description||null,welcome_message:sv.welcome_message||null,thank_you_message:sv.thank_you_message||null,expires_at:sv.expires_at||null,allow_anonymous:sv.allow_anonymous,require_email:sv.require_email,show_progress_bar:sv.show_progress_bar,theme_color:sv.theme_color}).eq('id',id).select().single();if(error)throw error;if(!data)throw new Error('Update failed');for(let i=0;i<qs.length;i++){const q=qs[i];const d={survey_id:id,question_text:q.question_text,question_type:q.question_type,options:hasO(q.question_type)?q.options:isMx(q.question_type)?(q.options||{rows:[],columns:[]}):null,is_required:q.is_required,description:q.description||null,sort_order:i};if(q._id.startsWith('new_')){const{error:e}=await supabase.from('survey_questions').insert(d);if(e)throw e;}else{const{error:e}=await supabase.from('survey_questions').update(d).eq('id',q._id);if(e)throw e;}}toast.success('Saved!');await load();}catch(e){console.error(e);toast.error(e.message||'Failed');}finally{setBusy(false);}}
   async function chg(st){const u={status:st};if(st==='active'&&isExpired(sv.expires_at)){const d=prompt('Days:','7');if(!d)return;const x=new Date();x.setDate(x.getDate()+parseInt(d));u.expires_at=x.toISOString();}await supabase.from('surveys').update(u).eq('id',id);toast.success('Updated');load();}
   async function share(uid){await supabase.from('survey_shares').upsert({survey_id:id,shared_with:uid,shared_by:profile.id,permission:'view_analytics'});toast.success('Shared');load();}
   function copyLink(){navigator.clipboard.writeText(`${window.location.origin}/s/${sv.slug}`);toast.success('Copied!');}
-  // BUG FIX: replaced plain-text loading state with branded PageLoader
-  if(loading)return<PageLoader label="Loading survey…" />;
   if(!sv)return<div style={{ textAlign:'center',padding:'80px 0',fontFamily:'Fraunces,serif',color:'rgba(22,15,8,0.35)' }}>Survey not found</div>;
   const tabs=[{id:'details',l:'Details'},{id:'questions',l:`Questions (${qs.length})`},{id:'settings',l:'Settings'}];
   const eSty = {
@@ -152,6 +152,41 @@ export default function SurveyEdit(){
                   <button onClick={() => addOpt(q._id)} style={{ fontFamily: 'Syne, sans-serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--coral)', background: 'none', border: 'none', cursor: 'none', padding: '6px 0', textAlign: 'left' }}>+ Add option</button>
                 </div>
               )}
+              {isMx(q.question_type) && (() => {
+                const raw = q.options;
+                const mx = raw && !Array.isArray(raw) && typeof raw === 'object' ? raw : { rows: [], columns: [] };
+                const setMx = (next) => sQ(q._id, 'options', next);
+                const addRow = () => setMx({...mx, rows:[...(mx.rows||[]),{label:`Row ${(mx.rows||[]).length+1}`,value:`row_${(mx.rows||[]).length+1}`}]});
+                const addCol = () => setMx({...mx, columns:[...(mx.columns||[]),{label:`Col ${(mx.columns||[]).length+1}`,value:`col_${(mx.columns||[]).length+1}`}]});
+                const updRow = (i,v) => { const r=[...(mx.rows||[])]; r[i]={label:v,value:v.toLowerCase().replace(/\s+/g,'_')}; setMx({...mx,rows:r}); };
+                const updCol = (i,v) => { const cs=[...(mx.columns||[])]; cs[i]={label:v,value:v.toLowerCase().replace(/\s+/g,'_')}; setMx({...mx,columns:cs}); };
+                const delRow = (i) => setMx({...mx, rows:(mx.rows||[]).filter((_,j)=>j!==i)});
+                const delCol = (i) => setMx({...mx, columns:(mx.columns||[]).filter((_,j)=>j!==i)});
+                return (
+                  <div style={{ marginTop:8, display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                    <div>
+                      <div style={{fontFamily:'Syne,sans-serif',fontSize:9,fontWeight:700,letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(22,15,8,0.4)',marginBottom:8}}>Rows</div>
+                      {(mx.rows||[]).map((r,i)=>(
+                        <div key={i} style={{display:'flex',gap:8,marginBottom:6}}>
+                          <input value={r.label} onChange={e=>updRow(i,e.target.value)} placeholder={`Row ${i+1}`} style={{...eSty.inp,flex:1,padding:'8px 12px',fontSize:13}} onFocus={eSty.fi} onBlur={eSty.fo}/>
+                          <button onClick={()=>delRow(i)} style={{background:'none',border:'none',cursor:'pointer',color:'rgba(22,15,8,0.2)',fontSize:12,padding:'0 4px'}}>✕</button>
+                        </div>
+                      ))}
+                      <button onClick={addRow} style={{fontFamily:'Syne,sans-serif',fontSize:9,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--coral)',background:'none',border:'none',cursor:'pointer',padding:'4px 0'}}>+ Add row</button>
+                    </div>
+                    <div>
+                      <div style={{fontFamily:'Syne,sans-serif',fontSize:9,fontWeight:700,letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(22,15,8,0.4)',marginBottom:8}}>Columns</div>
+                      {(mx.columns||[]).map((col,i)=>(
+                        <div key={i} style={{display:'flex',gap:8,marginBottom:6}}>
+                          <input value={col.label} onChange={e=>updCol(i,e.target.value)} placeholder={`Col ${i+1}`} style={{...eSty.inp,flex:1,padding:'8px 12px',fontSize:13}} onFocus={eSty.fi} onBlur={eSty.fo}/>
+                          <button onClick={()=>delCol(i)} style={{background:'none',border:'none',cursor:'pointer',color:'rgba(22,15,8,0.2)',fontSize:12,padding:'0 4px'}}>✕</button>
+                        </div>
+                      ))}
+                      <button onClick={addCol} style={{fontFamily:'Syne,sans-serif',fontSize:9,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--coral)',background:'none',border:'none',cursor:'pointer',padding:'4px 0'}}>+ Add column</button>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
         ))}

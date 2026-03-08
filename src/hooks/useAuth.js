@@ -6,6 +6,7 @@ import { supabase } from '../lib/supabase';
 let _authSubscription = null;
 let _visibilityHandler = null;
 let _initializing = false;  // synchronous guard — prevents StrictMode double-invoke race
+let _tabWasHidden = false;  // tracks if the tab was backgrounded so checkSession can force-refresh
 
 const useAuthStore = create((set, get) => ({
   user: null,
@@ -61,28 +62,67 @@ const useAuthStore = create((set, get) => ({
 
     _authSubscription = subscription;
 
-    // STALE SESSION FIX: When the tab returns from the background, the browser
-    // may have suspended JS timers and Supabase's proactive token refresh may have
-    // missed its window. On visibility change we re-check the session so that
-    // any navigation the user makes immediately after will have a valid token.
+    // STALE SESSION FIX (v2): When the tab goes to the background the browser
+    // suspends JS timers.  Supabase's internal auto-refresh timer AND its
+    // navigator.locks-based token-refresh lock can both stall.  If the lock is
+    // stale when a data query fires, the Supabase client waits for the lock
+    // forever and the fetch *never leaves the browser* — exactly the "API calls
+    // are not firing" symptom.
+    //
+    // stopAutoRefresh() releases the stale lock + cancels the dead timer.
+    // startAutoRefresh() re-acquires the lock and immediately checks whether a
+    // refresh is needed.  We follow up with an explicit refreshSession() so
+    // that by the time checkSession() runs, the token is guaranteed fresh.
     if (_visibilityHandler) {
       document.removeEventListener('visibilitychange', _visibilityHandler);
     }
     _visibilityHandler = async () => {
-      if (document.visibilityState !== 'visible') return;
-      await get().checkSession();
+      if (document.visibilityState === 'visible') {
+        _tabWasHidden = true;                       // signal checkSession to force-refresh
+        supabase.auth.startAutoRefresh();            // restart timer + release stale lock
+        await get().checkSession();                  // validate & reload profile if needed
+      } else {
+        supabase.auth.stopAutoRefresh();             // prevent stale lock buildup while hidden
+      }
     };
     document.addEventListener('visibilitychange', _visibilityHandler);
   },
 
   // STALE SESSION FIX: Single entry-point for session validation.
   // Called on tab focus and on every navigation from DashboardLayout.
-  //   - Session valid   + profile set   → noop (fast path, no network call)
-  //   - Session valid   + profile null  → reload profile (sets loading: true during fetch)
-  //   - Session expired                 → clear state (ProtectedRoute will redirect to /login)
+  //
+  // Two paths:
+  //   WAKE PATH  (_tabWasHidden): call refreshSession() which makes a real
+  //              network round-trip, obtains a fresh JWT, and unblocks any
+  //              data queries that would otherwise hang on the stale lock.
+  //   FAST PATH  (normal nav):    read from cache via getSession() — no
+  //              network call, no visible delay.
+  //
+  // After either path:
+  //   - Session valid + profile set   → noop
+  //   - Session valid + profile null  → reload profile (sets loading: true)
+  //   - Session expired / missing     → clear state → ProtectedRoute redirects
   checkSession: async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      let session;
+
+      if (_tabWasHidden) {
+        // Tab just came back — force a real token refresh so the new JWT is
+        // available before any child-page data queries fire.
+        _tabWasHidden = false;
+        const { data, error } = await supabase.auth.refreshSession();
+        if (error) {
+          // Refresh failed (e.g. refresh-token also expired) — treat as signed-out.
+          console.warn('Session refresh failed after wake:', error.message);
+          set({ user: null, profile: null, tenant: null, loading: false });
+          return false;
+        }
+        session = data.session;
+      } else {
+        // Normal navigation — fast cached read, no network call.
+        const { data } = await supabase.auth.getSession();
+        session = data.session;
+      }
 
       if (session?.user) {
         if (!get().profile) {
@@ -95,8 +135,6 @@ const useAuthStore = create((set, get) => ({
         return true;
       } else {
         // No valid session — sign out cleanly so ProtectedRoute redirects to /login.
-        // Avoid calling supabase.auth.signOut() here because the session is already
-        // gone; just clear the local store state.
         set({ user: null, profile: null, tenant: null, loading: false });
         return false;
       }
