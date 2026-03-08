@@ -95,7 +95,9 @@ export default function RankingInput({ q, val, set, tc }) {
               borderRadius: 12,
               display: 'flex', alignItems: 'center', gap: 10,
             }}>
-            <span style={{ fontSize: 14 }}>🏆</span>
+            <span style={{ display: 'flex', alignItems: 'center', color: tc }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H3V4h3M18 9h3V4h-3"/><path d="M6 4h12v7a6 6 0 0 1-12 0V4z"/><path d="M12 17v4M8 21h8"/></svg>
+            </span>
             <span style={{
               fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700,
               letterSpacing: '0.14em', textTransform: 'uppercase',

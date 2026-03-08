@@ -49,7 +49,7 @@ export default function NotificationFeed() {
         ...(responses || []).filter(r => r.survey).map(r => ({
           id: `resp-${r.id}`,
           type: 'response',
-          icon: '📥',
+          icon: 'inbox',
           text: `New response on "${r.survey?.title}"`,
           time: r.created_at,
           to: `/surveys/${r.survey?.id}/analytics`,
@@ -57,7 +57,7 @@ export default function NotificationFeed() {
         ...(surveys || []).map(s => ({
           id: `sv-${s.id}`,
           type: 'survey',
-          icon: s.status === 'active' ? '▶' : s.status === 'paused' ? '⏸' : '📋',
+          icon: s.status === 'active' ? 'active' : s.status === 'paused' ? 'paused' : 'survey',
           text: s.status === 'active' ? `"${s.title}" is live` : s.status === 'paused' ? `"${s.title}" was paused` : `"${s.title}" created`,
           time: s.updated_at || s.created_at,
           to: `/surveys/${s.id}/edit`,
@@ -107,7 +107,7 @@ export default function NotificationFeed() {
         onMouseEnter={e => e.currentTarget.style.color = 'var(--espresso)'}
         onMouseLeave={e => !open && (e.currentTarget.style.color = 'rgba(22,15,8,0.4)')}
       >
-        🔔
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         {unread > 0 && (
           <motion.span
             initial={{ scale: 0 }} animate={{ scale: 1 }} transition={{ type: 'spring', stiffness: 400, damping: 15 }}
@@ -143,24 +143,35 @@ export default function NotificationFeed() {
               )}
               {!loading && events.length === 0 && (
                 <div style={{ padding: '32px 24px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 32, marginBottom: 8 }}>🌱</div>
+                  <div style={{ marginBottom: 8, display: 'flex', justifyContent: 'center', color: 'rgba(22,15,8,0.2)' }}>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 17.24 4H6.76a2 2 0 0 0-1.79 1.11z"/></svg>
+                  </div>
                   <p style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 13, color: 'rgba(22,15,8,0.4)', margin: 0 }}>No activity yet</p>
                 </div>
               )}
-              {!loading && events.map((ev, i) => (
-                <button key={ev.id} onClick={() => { nav(ev.to); setClose(); }}
-                  style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 18px', background: i < unread ? 'rgba(255,69,0,0.03)' : 'none', border: 'none', borderBottom: '1px solid rgba(22,15,8,0.05)', cursor: 'pointer', textAlign: 'left', transition: 'background 0.15s' }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(22,15,8,0.03)'}
-                  onMouseLeave={e => e.currentTarget.style.background = i < unread ? 'rgba(255,69,0,0.03)' : 'none'}
-                >
-                  <span style={{ fontSize: 16, flexShrink: 0, marginTop: 1 }}>{ev.icon}</span>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 13, color: 'var(--espresso)', margin: '0 0 3px', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.text}</p>
-                    <span style={{ fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', color: 'rgba(22,15,8,0.35)' }}>{timeAgo(ev.time)}</span>
-                  </div>
-                  {i < 3 && <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--coral)', flexShrink: 0, marginTop: 5 }} />}
-                </button>
-              ))}
+              {!loading && events.map((ev, i) => {
+                const iconEl = ev.icon === 'inbox'
+                  ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 17.24 4H6.76a2 2 0 0 0-1.79 1.11z"/></svg>
+                  : ev.icon === 'active'
+                  ? <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M5 3l14 9-14 9V3z"/></svg>
+                  : ev.icon === 'paused'
+                  ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><line x1="8" y1="5" x2="8" y2="19"/><line x1="16" y1="5" x2="16" y2="19"/></svg>
+                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>;
+                return (
+                  <button key={ev.id} onClick={() => { nav(ev.to); setClose(); }}
+                    style={{ width: '100%', display: 'flex', alignItems: 'flex-start', gap: 12, padding: '12px 18px', background: i < unread ? 'rgba(255,69,0,0.03)' : 'none', border: 'none', borderBottom: '1px solid rgba(22,15,8,0.05)', cursor: 'pointer', textAlign: 'left', transition: 'background 0.15s' }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(22,15,8,0.03)'}
+                    onMouseLeave={e => e.currentTarget.style.background = i < unread ? 'rgba(255,69,0,0.03)' : 'none'}
+                  >
+                    <span style={{ width: 20, height: 20, borderRadius: 6, background: 'rgba(22,15,8,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1, color: 'rgba(22,15,8,0.45)' }}>{iconEl}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 13, color: 'var(--espresso)', margin: '0 0 3px', lineHeight: 1.4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.text}</p>
+                      <span style={{ fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 600, letterSpacing: '0.08em', color: 'rgba(22,15,8,0.35)' }}>{timeAgo(ev.time)}</span>
+                    </div>
+                    {i < 3 && <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--coral)', flexShrink: 0, marginTop: 5 }} />}
+                  </button>
+                );
+              })}
             </div>
           </motion.div>
         )}

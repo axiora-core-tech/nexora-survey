@@ -7,13 +7,24 @@ import { hasPermission } from '../lib/constants';
 import toast from 'react-hot-toast';
 
 // ── Static actions ────────────────────────────────────────────────────────────
+// Icon IDs map to compact SVG paths rendered inline
+const ICON_PATHS = {
+  dashboard: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/><path d="M9 21V12h6v9"/></svg>,
+  surveys:   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>,
+  analytics: <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 20h18M7 20V12M11 20V8M15 20V14M19 20V4"/></svg>,
+  team:      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="7" r="3"/><path d="M3 21v-1a6 6 0 0 1 6-6v0a6 6 0 0 1 6 6v1"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-1a4 4 0 0 0-3-3.85"/></svg>,
+  settings:  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>,
+  new:       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12h14"/></svg>,
+  edit:      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>,
+};
+
 const STATIC_ACTIONS = [
-  { id: 'nav-dashboard',  label: 'Go to Dashboard',    icon: '⌂', group: 'Navigate', to: '/dashboard' },
-  { id: 'nav-surveys',    label: 'Go to Surveys',       icon: '📋', group: 'Navigate', to: '/surveys' },
-  { id: 'nav-analytics',  label: 'Go to Analytics',     icon: '📊', group: 'Navigate', to: '/surveys' },
-  { id: 'nav-team',       label: 'Go to Team',          icon: '👥', group: 'Navigate', to: '/team', perm: 'manage_team' },
-  { id: 'nav-settings',   label: 'Go to Settings',      icon: '⚙',  group: 'Navigate', to: '/settings' },
-  { id: 'new-survey',     label: 'Create New Survey',   icon: '✦',  group: 'Actions',  to: '/surveys/new', perm: 'create_survey' },
+  { id: 'nav-dashboard',  label: 'Go to Dashboard',    icon: 'dashboard', group: 'Navigate', to: '/dashboard' },
+  { id: 'nav-surveys',    label: 'Go to Surveys',       icon: 'surveys',   group: 'Navigate', to: '/surveys' },
+  { id: 'nav-analytics',  label: 'Go to Analytics',     icon: 'analytics', group: 'Navigate', to: '/surveys' },
+  { id: 'nav-team',       label: 'Go to Team',          icon: 'team',      group: 'Navigate', to: '/team', perm: 'manage_team' },
+  { id: 'nav-settings',   label: 'Go to Settings',      icon: 'settings',  group: 'Navigate', to: '/settings' },
+  { id: 'new-survey',     label: 'Create New Survey',   icon: 'new',       group: 'Actions',  to: '/surveys/new', perm: 'create_survey' },
 ];
 
 export default function CommandPalette({ onClose }) {
@@ -54,8 +65,8 @@ export default function CommandPalette({ onClose }) {
         .limit(5);
 
       const surveyActions = (surveys || []).flatMap(sv => [
-        { id: `sv-edit-${sv.id}`,     label: sv.title,             icon: '📝', group: 'Surveys', to: `/surveys/${sv.id}/edit`,      meta: sv.status },
-        { id: `sv-analytics-${sv.id}`, label: `${sv.title} — Analytics`, icon: '📊', group: 'Surveys', to: `/surveys/${sv.id}/analytics` },
+        { id: `sv-edit-${sv.id}`,     label: sv.title,             icon: 'edit',      group: 'Surveys', to: `/surveys/${sv.id}/edit`,      meta: sv.status },
+        { id: `sv-analytics-${sv.id}`, label: `${sv.title} — Analytics`, icon: 'analytics', group: 'Surveys', to: `/surveys/${sv.id}/analytics` },
       ]);
 
       const combined = [...staticFiltered, ...surveyActions].slice(0, 10);
@@ -157,7 +168,9 @@ export default function CommandPalette({ onClose }) {
                     cursor: 'pointer', textAlign: 'left', transition: 'background 0.12s',
                   }}
                 >
-                  <span style={{ fontSize: 16, width: 24, textAlign: 'center', flexShrink: 0 }}>{item.icon}</span>
+                  <span style={{ width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: selected === item._idx ? 'rgba(253,245,232,0.7)' : 'rgba(22,15,8,0.4)' }}>
+                    {ICON_PATHS[item.icon] || ICON_PATHS.edit}
+                  </span>
                   <span style={{ fontFamily: 'Syne, sans-serif', fontSize: 12, fontWeight: 600, color: selected === item._idx ? 'var(--cream)' : 'var(--espresso)', flex: 1, letterSpacing: '0.02em' }}>
                     {item.label}
                   </span>

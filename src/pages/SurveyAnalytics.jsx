@@ -125,16 +125,16 @@ function StatCard({ label, value, accent='var(--coral)', sub }) {
 
 function AutoInsight({ type='info', children }) {
   const map = {
-    info:     { bg:'rgba(0,71,255,0.06)',   border:'rgba(0,71,255,0.12)',  color:'#0047FF',           icon:'i' },
-    positive: { bg:'rgba(30,122,74,0.08)',  border:'rgba(30,122,74,0.15)', color:'var(--sage)',       icon:'↑' },
-    warning:  { bg:'rgba(255,184,0,0.09)',  border:'rgba(255,184,0,0.2)',  color:'#9A6D00',           icon:'!' },
-    alert:    { bg:'rgba(255,69,0,0.07)',   border:'rgba(255,69,0,0.14)',  color:'var(--coral)',      icon:'→' },
+    info:     { bg:'rgba(0,71,255,0.06)',   border:'rgba(0,71,255,0.12)',  color:'#0047FF',           icon:<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg> },
+    positive: { bg:'rgba(30,122,74,0.08)',  border:'rgba(30,122,74,0.15)', color:'var(--sage)',       icon:<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg> },
+    warning:  { bg:'rgba(255,184,0,0.09)',  border:'rgba(255,184,0,0.2)',  color:'#9A6D00',           icon:<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg> },
+    alert:    { bg:'rgba(255,69,0,0.07)',   border:'rgba(255,69,0,0.14)',  color:'var(--coral)',      icon:<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg> },
   };
   const st = map[type] || map.info;
   return (
     <motion.div initial={{ opacity:0, y:-6 }} animate={{ opacity:1, y:0 }}
       style={{ display:'flex', alignItems:'flex-start', gap:12, padding:'11px 16px', borderRadius:14, background:st.bg, border:`1px solid ${st.border}` }}>
-      <div style={{ width:20, height:20, borderRadius:6, background:st.border, display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:10, color:st.color, flexShrink:0 }}>{st.icon}</div>
+      <div style={{ width:20, height:20, borderRadius:6, background:st.border, display:'flex', alignItems:'center', justifyContent:'center', color:st.color, flexShrink:0 }}>{st.icon}</div>
       <span style={{ fontFamily:'Fraunces,serif', fontWeight:400, fontSize:13, color:st.color, lineHeight:1.5 }}>{children}</span>
     </motion.div>
   );
@@ -155,7 +155,7 @@ const TABS = [
   { id:'Dropoff',       label:'Drop-off'      },
   { id:'Questions',     label:'Questions'     },
   { id:'TextInsights',  label:'Text Insights' },
-  { id:'Feedback',      label:'★ Feedback'     },
+  { id:'Feedback',      label:'Feedback'      },
   { id:'AI',            label:'✦ AI Insights' },
 ];
 
@@ -809,14 +809,18 @@ function FeedbackTab({ feedback }) {
       <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} style={{ ...S.card, display:'grid', gridTemplateColumns:'auto 1fr', gap:32, alignItems:'center' }}>
         <div style={{ textAlign:'center' }}>
           <div style={S.statNum}>{avg}</div>
-          <div style={{ fontSize:22, letterSpacing:2, color:'#FFB800', marginTop:4 }}>{'★'.repeat(Math.round(avg))}{'☆'.repeat(5-Math.round(avg))}</div>
+          <div style={{ display:'flex', justifyContent:'center', gap:2, marginTop:4 }}>
+            {[1,2,3,4,5].map(i => (
+              <svg key={i} width="18" height="18" viewBox="0 0 24 24" fill={i <= Math.round(avg) ? '#FFB800' : 'none'} stroke="#FFB800" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+            ))}
+          </div>
           <div style={{ ...S.statLbl, marginTop:8 }}>{feedback.length} rating{feedback.length !== 1 ? 's' : ''}</div>
         </div>
         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
           {dist.slice().reverse().map(d => (
             <div key={d.star} style={{ display:'flex', alignItems:'center', gap:10 }}>
               <span style={{ fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, color:'rgba(22,15,8,0.4)', minWidth:16, textAlign:'right' }}>{d.star}</span>
-              <span style={{ fontSize:12, color:'#FFB800' }}>★</span>
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="#FFB800" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
               <div style={{ flex:1, height:7, background:'var(--cream-deep)', borderRadius:999 }}>
                 <motion.div initial={{ width:0 }} animate={{ width:`${(d.count/maxCount)*100}%` }} transition={{ duration:0.7, ease:[0.16,1,0.3,1] }}
                   style={{ height:'100%', borderRadius:999, background: starColor(d.star) }} />
@@ -833,7 +837,11 @@ function FeedbackTab({ feedback }) {
           <div style={{ display:'flex', flexDirection:'column', gap:10, maxHeight:360, overflowY:'auto' }}>
             {feedback.filter(f => f.comment).map(f => (
               <div key={f.id} style={{ ...S.textResp, display:'flex', gap:12 }}>
-                <span style={{ fontSize:13, color:'#FFB800', flexShrink:0 }}>{'★'.repeat(f.rating)}</span>
+                <span style={{ display:'flex', gap:1, flexShrink:0 }}>
+                  {[1,2,3,4,5].map(i => (
+                    <svg key={i} width="11" height="11" viewBox="0 0 24 24" fill={i <= f.rating ? '#FFB800' : 'none'} stroke="#FFB800" strokeWidth="1.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                  ))}
+                </span>
                 <span>{f.comment}</span>
               </div>
             ))}
@@ -947,10 +955,11 @@ export default function SurveyAnalytics() {
       {/* ── Page header ── */}
       <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', marginBottom:40, gap:20 }}>
         <div>
-          <Link to={`/surveys/${id}/edit`} style={S.backLink}
+          <Link to={`/surveys/${id}/edit`} style={{ ...S.backLink, display: 'flex', alignItems: 'center', gap: 5 }}
             onMouseEnter={e=>e.currentTarget.style.color='var(--coral)'}
             onMouseLeave={e=>e.currentTarget.style.color='rgba(22,15,8,0.35)'}>
-            ← Back to survey
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+            Back to survey
           </Link>
           <div style={S.tag}>Analytics</div>
           <h1 style={S.h1}>{sv.title}</h1>
@@ -968,20 +977,23 @@ export default function SurveyAnalytics() {
             </button>
           ))}
           <div style={{ width: 1, height: 24, background: 'rgba(22,15,8,0.1)', margin: '0 4px' }} />
-          <button onClick={() => { navigator.clipboard.writeText(window.location.href); import('react-hot-toast').then(m => m.default.success('Analytics link copied!')); }} style={S.exportBtn}
+          <button onClick={() => { navigator.clipboard.writeText(window.location.href); import('react-hot-toast').then(m => m.default.success('Analytics link copied!')); }} style={{ ...S.exportBtn, display: 'flex', alignItems: 'center', gap: 5 }}
             onMouseEnter={e=>{ e.currentTarget.style.borderColor='var(--coral)'; e.currentTarget.style.color='var(--coral)'; }}
             onMouseLeave={e=>{ e.currentTarget.style.borderColor='rgba(22,15,8,0.12)'; e.currentTarget.style.color='rgba(22,15,8,0.55)'; }}>
-            ⎘ Share
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+            Share
           </button>
-          <button onClick={csv} style={S.exportBtn}
+          <button onClick={csv} style={{ ...S.exportBtn, display: 'flex', alignItems: 'center', gap: 5 }}
             onMouseEnter={e=>{ e.currentTarget.style.borderColor='var(--espresso)'; e.currentTarget.style.color='var(--espresso)'; }}
             onMouseLeave={e=>{ e.currentTarget.style.borderColor='rgba(22,15,8,0.12)'; e.currentTarget.style.color='rgba(22,15,8,0.55)'; }}>
-            ↓ CSV
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            CSV
           </button>
-          <button onClick={exportPDF} style={S.exportBtn}
+          <button onClick={exportPDF} style={{ ...S.exportBtn, display: 'flex', alignItems: 'center', gap: 5 }}
             onMouseEnter={e=>{ e.currentTarget.style.borderColor='var(--coral)'; e.currentTarget.style.color='var(--coral)'; }}
             onMouseLeave={e=>{ e.currentTarget.style.borderColor='rgba(22,15,8,0.12)'; e.currentTarget.style.color='rgba(22,15,8,0.55)'; }}>
-            ↓ PDF
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            PDF
           </button>
         </div>
       </div>

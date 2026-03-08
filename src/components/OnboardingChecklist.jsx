@@ -4,12 +4,20 @@ import { Link } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import useAuthStore from '../hooks/useAuth';
 
+const STEP_ICONS = {
+  create_survey: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M9 7h6M9 11h6M9 15h4"/></svg>,
+  publish_survey: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>,
+  get_responses: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 17.24 4H6.76a2 2 0 0 0-1.79 1.11z"/></svg>,
+  view_analytics: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 20h18M7 20V12M11 20V8M15 20V14M19 20V4"/></svg>,
+  invite_team: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>,
+};
+
 const STEPS = [
-  { id: 'create_survey',    label: 'Create your first survey',    desc: 'Build a survey from scratch or use a template.',     icon: '📋', to: '/surveys/new', cta: 'Create survey' },
-  { id: 'publish_survey',   label: 'Publish and share it',        desc: 'Activate your survey and copy the share link.',       icon: '🚀', to: '/surveys',     cta: 'Go to surveys' },
-  { id: 'get_responses',    label: 'Collect your first response', desc: 'Share the link with your audience.',                  icon: '📥', to: '/surveys',     cta: 'View surveys' },
-  { id: 'view_analytics',   label: 'Explore analytics',           desc: 'See insights, completion rates, and response data.',  icon: '📊', to: '/surveys',     cta: 'View analytics' },
-  { id: 'invite_team',      label: 'Invite a team member',        desc: 'Collaborate by sharing survey access.',               icon: '👥', to: '/team',        cta: 'Go to team' },
+  { id: 'create_survey',  label: 'Create your first survey',    desc: 'Build a survey from scratch or use a template.',    to: '/surveys/new', cta: 'Create survey' },
+  { id: 'publish_survey', label: 'Publish and share it',        desc: 'Activate your survey and copy the share link.',      to: '/surveys',     cta: 'Go to surveys' },
+  { id: 'get_responses',  label: 'Collect your first response', desc: 'Share the link with your audience.',                 to: '/surveys',     cta: 'View surveys' },
+  { id: 'view_analytics', label: 'Explore analytics',           desc: 'See insights, completion rates, and response data.', to: '/surveys',     cta: 'View analytics' },
+  { id: 'invite_team',    label: 'Invite a team member',        desc: 'Collaborate by sharing survey access.',              to: '/team',        cta: 'Go to team' },
 ];
 
 export default function OnboardingChecklist({ surveyCount, responseCount }) {
@@ -76,7 +84,12 @@ export default function OnboardingChecklist({ surveyCount, responseCount }) {
           >
             Dismiss
           </button>
-          <span style={{ color: 'rgba(22,15,8,0.3)', fontSize: 12 }}>{minimised ? '▸' : '▾'}</span>
+          <span style={{ color: 'rgba(22,15,8,0.3)', display: 'flex', alignItems: 'center' }}>
+            {minimised
+              ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            }
+          </span>
         </div>
       </div>
 
@@ -98,8 +111,11 @@ export default function OnboardingChecklist({ surveyCount, responseCount }) {
                       onMouseEnter={e => { if (!done) e.currentTarget.style.borderColor = 'var(--coral)'; }}
                       onMouseLeave={e => { if (!done) e.currentTarget.style.borderColor = 'rgba(22,15,8,0.07)'; }}
                     >
-                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: done ? 'rgba(30,122,74,0.12)' : 'rgba(22,15,8,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: done ? 14 : 16, flexShrink: 0 }}>
-                        {done ? '✓' : step.icon}
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: done ? 'rgba(30,122,74,0.12)' : 'rgba(22,15,8,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: done ? 'var(--sage)' : 'rgba(22,15,8,0.45)' }}>
+                        {done
+                          ? <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                          : STEP_ICONS[step.id]
+                        }
                       </div>
                       <div>
                         <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 11, letterSpacing: '0.04em', color: done ? 'var(--sage)' : 'var(--espresso)', marginBottom: 2, textDecoration: done ? 'line-through' : 'none', opacity: done ? 0.7 : 1 }}>{step.label}</div>

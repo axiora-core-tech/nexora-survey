@@ -93,30 +93,30 @@ export default function SurveyCreate() {
             </div>
             <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:16 }}>
               {[
-                { name:'NPS Survey', desc:'Measure customer loyalty with the Net Promoter Score methodology.', time:'2 min', icon:'⭐', qs:[
+                { name:'NPS Survey', desc:'Measure customer loyalty with the Net Promoter Score methodology.', time:'2 min', icon:'NPS', qs:[
                   {question_text:'How likely are you to recommend us to a friend or colleague?',question_type:'scale',is_required:true,description:'0 = Not at all likely, 10 = Extremely likely'},
                   {question_text:'What is the main reason for your score?',question_type:'long_text',is_required:false,description:''},
                   {question_text:'What could we do to improve your experience?',question_type:'long_text',is_required:false,description:''},
                 ]},
-                { name:'Product Feedback', desc:'Gather actionable feedback on your product features and UX.', time:'3 min', icon:'🛠️', qs:[
+                { name:'Product Feedback', desc:'Gather actionable feedback on your product features and UX.', time:'3 min', icon:'UX', qs:[
                   {question_text:'How satisfied are you with the product overall?',question_type:'rating',is_required:true,description:''},
                   {question_text:'Which features do you use most often?',question_type:'multiple_choice',is_required:false,options:[{label:'Dashboard',value:'dashboard'},{label:'Analytics',value:'analytics'},{label:'Sharing',value:'sharing'},{label:'Integrations',value:'integrations'}]},
                   {question_text:'What feature would you most like to see added?',question_type:'long_text',is_required:false},
                   {question_text:'How easy is the product to use?',question_type:'scale',is_required:true,description:'1 = Very difficult, 10 = Very easy'},
                 ]},
-                { name:'Employee Pulse', desc:'Quick check-in on team morale, workload, and engagement.', time:'4 min', icon:'💼', qs:[
+                { name:'Employee Pulse', desc:'Quick check-in on team morale, workload, and engagement.', time:'4 min', icon:'HR', qs:[
                   {question_text:'How satisfied are you with your work environment?',question_type:'rating',is_required:true},
                   {question_text:'How manageable is your current workload?',question_type:'scale',is_required:true,description:'1 = Overwhelmed, 10 = Very manageable'},
                   {question_text:'Do you feel your contributions are recognised?',question_type:'yes_no',is_required:true},
                   {question_text:'What would most improve your day-to-day experience?',question_type:'long_text',is_required:false},
                 ]},
-                { name:'Event Feedback', desc:'Collect structured feedback right after an event or workshop.', time:'2 min', icon:'🎤', qs:[
+                { name:'Event Feedback', desc:'Collect structured feedback right after an event or workshop.', time:'2 min', icon:'EVT', qs:[
                   {question_text:'How would you rate this event overall?',question_type:'rating',is_required:true},
                   {question_text:'How well did the event meet your expectations?',question_type:'scale',is_required:true,description:'1 = Far below, 10 = Far exceeded'},
                   {question_text:'What was the highlight of the event?',question_type:'short_text',is_required:false},
                   {question_text:'What could be improved for next time?',question_type:'long_text',is_required:false},
                 ]},
-                { name:'Market Research', desc:'Understand your audience segments and buying intent.', time:'5 min', icon:'📊', qs:[
+                { name:'Market Research', desc:'Understand your audience segments and buying intent.', time:'5 min', icon:'MKT', qs:[
                   {question_text:'Which of the following best describes your role?',question_type:'single_choice',is_required:true,options:[{label:'Individual Contributor',value:'ic'},{label:'Manager',value:'manager'},{label:'Director or above',value:'director'},{label:'Founder/Owner',value:'founder'}]},
                   {question_text:'What is your primary challenge in your work today?',question_type:'long_text',is_required:true},
                   {question_text:'Which tools do you currently use?',question_type:'multiple_choice',is_required:false,options:[{label:'Spreadsheets',value:'spreadsheets'},{label:'Survey tools',value:'survey'},{label:'CRM',value:'crm'},{label:'BI tools',value:'bi'}]},
@@ -145,7 +145,7 @@ export default function SurveyCreate() {
         </div>
       )}
       {/* Header — full width, matches all other pages */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 40, flexWrap: 'nowrap' }}>
+      <div className="np-page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 40, flexWrap: 'wrap' }}>
         <div>
           <div style={{ fontFamily: 'Syne, sans-serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--coral)', marginBottom: 10 }}>Research</div>
           <h1 style={{ fontFamily: 'Playfair Display, serif', fontWeight: 900, fontSize: 'clamp(28px,3.5vw,48px)', letterSpacing: '-2px', color: 'var(--espresso)', margin: 0 }}>New Survey</h1>
@@ -155,7 +155,8 @@ export default function SurveyCreate() {
           <button onClick={() => setShowTemplates(true)} style={{ ...btnBase, background: 'var(--cream-deep)', color: 'rgba(22,15,8,0.6)', display:'flex', alignItems:'center', gap:6 }}
             onMouseEnter={e => { if (!busy) e.currentTarget.style.background = 'rgba(22,15,8,0.1)'; }}
             onMouseLeave={e => { if (!busy) e.currentTarget.style.background = 'var(--cream-deep)'; }}>
-            ☰ Templates
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            Templates
           </button>
           <button onClick={() => save('draft')} disabled={busy} style={{ ...btnBase, background: 'var(--cream-deep)', color: 'rgba(22,15,8,0.6)' }}
             onMouseEnter={e => { if (!busy) e.currentTarget.style.background = 'rgba(22,15,8,0.1)'; }}

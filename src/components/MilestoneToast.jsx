@@ -66,17 +66,22 @@ export function showMilestoneToast(count) {
       >
         <ConfettiCanvas />
         <div style={{ position: 'relative', zIndex: 1 }}>
-          <div style={{ fontSize: 28, marginBottom: 8 }}>🎉</div>
+          <div style={{ marginBottom: 8, color: 'var(--coral)' }}>
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2l2.4 7.4L22 12l-7.6 2.6L12 22l-2.4-7.4L2 12l7.6-2.6L12 2z"/>
+              <path d="M5 5l1 1M17.5 5l1 1M5 19l1-1M17.5 19l1 1" strokeWidth="1" opacity="0.5"/>
+            </svg>
+          </div>
           <div style={{ fontFamily: 'Playfair Display, serif', fontWeight: 700, fontSize: 18, color: 'var(--cream)', marginBottom: 4 }}>
             {count} {count === 1 ? 'response' : 'responses'}!
           </div>
           <div style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 13, color: 'rgba(253,245,232,0.55)' }}>
-            {count === 1   ? 'Your first response is in 🚀' :
+            {count === 1   ? 'Your first response is in — momentum starts here.' :
              count === 10  ? 'Double digits — great momentum!' :
              count === 50  ? 'Fifty responses! You\'re on a roll.' :
              count === 100 ? 'A century! Incredible engagement.' :
              count === 500 ? 'Five hundred! This is serious research.' :
-                             'One thousand responses. 🏆 Legendary.'}
+                             'One thousand responses. Legendary.'}
           </div>
         </div>
       </motion.div>

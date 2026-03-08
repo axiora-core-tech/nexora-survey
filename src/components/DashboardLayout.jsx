@@ -6,6 +6,7 @@ import PageLoader from '../pages/PageLoader';
 import { hasPermission, ROLE_LABELS } from '../lib/constants';
 import CommandPalette from './CommandPalette';
 import NotificationFeed from './NotificationFeed';
+import { IcoMenu, IcoClose, IcoSettings, IcoArrowLeft, IcoClock } from './Icons';
 
 // Nav items — Settings removed (lives in avatar menu now)
 const NAV = [
@@ -75,7 +76,7 @@ export default function DashboardLayout() {
         import('react-hot-toast').then(({ default: toast }) => {
           warnToastId.current = toast('You\'ll be signed out in 1 minute due to inactivity', {
             duration: 60000,
-            icon: '⏱',
+            icon: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#FF4500" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15.5 14.5"/></svg>,
             style: { fontFamily: 'Syne, sans-serif', fontSize: 13, fontWeight: 600,
                      letterSpacing: '0.04em', background: '#160F08', color: '#FDF5E8',
                      borderRadius: 12, padding: '12px 18px' },
@@ -282,7 +283,8 @@ export default function DashboardLayout() {
                       style={menuItemStyle(false)}
                       onMouseEnter={e => { e.currentTarget.style.background = 'rgba(253,245,232,0.08)'; e.currentTarget.style.color = 'var(--cream)'; }}
                       onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(253,245,232,0.45)'; }}>
-                      ⚙ Settings
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 8, verticalAlign: 'middle' }}><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                      Settings
                     </Link>
 
                     {/* Issue #2: Reset password link */}
@@ -290,14 +292,16 @@ export default function DashboardLayout() {
                       style={menuItemStyle(false)}
                       onMouseEnter={e => { e.currentTarget.style.background = 'rgba(253,245,232,0.08)'; e.currentTarget.style.color = 'var(--cream)'; }}
                       onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(253,245,232,0.45)'; }}>
-                      🔑 Reset password
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 8, verticalAlign: 'middle' }}><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                      Reset password
                     </Link>
 
                     <div style={{ borderTop: '1px solid rgba(253,245,232,0.08)', marginTop: 4, paddingTop: 4 }}>
                       <button onClick={handleSignOut} style={menuItemStyle(true)}
                         onMouseEnter={e => { e.currentTarget.style.background = 'rgba(214,59,31,0.15)'; e.currentTarget.style.color = 'var(--terracotta)'; }}
                         onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'rgba(214,59,31,0.7)'; }}>
-                        ↩ Sign out
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 8, verticalAlign: 'middle' }}><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                        Sign out
                       </button>
                     </div>
                   </motion.div>
@@ -307,8 +311,8 @@ export default function DashboardLayout() {
           </div>
 
           <button onClick={() => setMobileOpen(v => !v)} className="np-mobile-nav"
-            style={{ background: 'none', border: 'none', cursor: 'none', padding: 6, color: 'var(--espresso)', fontSize: 20, lineHeight: 1 }}>
-            {mobileOpen ? '✕' : '☰'}
+            style={{ background: 'none', border: 'none', cursor: 'none', padding: 6, color: 'var(--espresso)', lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {mobileOpen ? <IcoClose size={22} color="var(--espresso)" /> : <IcoMenu size={22} color="var(--espresso)" />}
           </button>
         </div>
       </header>
@@ -370,6 +374,24 @@ export default function DashboardLayout() {
         }
         @media (min-width: 769px) {
           .np-mobile-nav { display: none !important; }
+        }
+        /* Page header mobile stack */
+        @media (max-width: 640px) {
+          .np-page-header {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 16px !important;
+          }
+          .np-page-header > div:last-child {
+            flex-wrap: wrap !important;
+            width: 100% !important;
+          }
+          .np-page-header > div:last-child > button,
+          .np-page-header > div:last-child > a {
+            flex: 1 1 auto !important;
+            justify-content: center !important;
+            text-align: center !important;
+          }
         }
 
         /* Hide system cursor everywhere inside app */

@@ -15,10 +15,10 @@ import { motion, AnimatePresence } from 'framer-motion';
  */
 
 const TYPE_ICONS = {
-  positive: { icon: '↑', bg: 'rgba(30,122,74,0.08)',  border: 'rgba(30,122,74,0.15)',  color: 'var(--sage)'       },
-  warning:  { icon: '!', bg: 'rgba(255,184,0,0.08)',   border: 'rgba(255,184,0,0.2)',   color: '#A07000'            },
-  info:     { icon: 'i', bg: 'rgba(0,71,255,0.06)',    border: 'rgba(0,71,255,0.12)',   color: 'rgba(0,71,255,0.8)' },
-  action:   { icon: '→', bg: 'rgba(255,69,0,0.07)',    border: 'rgba(255,69,0,0.15)',   color: 'var(--coral)'       },
+  positive: { icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>, bg: 'rgba(30,122,74,0.08)',  border: 'rgba(30,122,74,0.15)',  color: 'var(--sage)'       },
+  warning:  { icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>, bg: 'rgba(255,184,0,0.08)',   border: 'rgba(255,184,0,0.2)',   color: '#A07000'            },
+  info:     { icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>, bg: 'rgba(0,71,255,0.06)',    border: 'rgba(0,71,255,0.12)',   color: 'rgba(0,71,255,0.8)' },
+  action:   { icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>, bg: 'rgba(255,69,0,0.07)',    border: 'rgba(255,69,0,0.15)',   color: 'var(--coral)'       },
 };
 
 const PRIORITY_STYLES = {
@@ -168,7 +168,7 @@ export default function AIInsightsPanel({ survey, analytics, questionAnalytics }
                   <motion.div key={i}
                     initial={{ opacity:0, x:-8 }} animate={{ opacity:1, x:0 }} transition={{ delay: i * 0.06 }}
                     style={{ display:'flex', gap:14, padding:'16px 18px', borderRadius:16, background:st.bg, border:`1px solid ${st.border}` }}>
-                    <div style={{ width:26, height:26, borderRadius:8, background:st.border, display:'flex', alignItems:'center', justifyContent:'center', fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:12, color:st.color, flexShrink:0 }}>{st.icon}</div>
+                    <div style={{ width:26, height:26, borderRadius:8, background:st.border, display:'flex', alignItems:'center', justifyContent:'center', color:st.color, flexShrink:0 }}>{st.icon}</div>
                     <div>
                       <div style={{ fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:12, letterSpacing:'0.02em', color:'var(--espresso)', marginBottom:5 }}>{ins.title}</div>
                       <p style={{ ...S.body, margin:0, fontSize:13 }}>{ins.detail}</p>

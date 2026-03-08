@@ -277,18 +277,19 @@ export default function SurveyList() {
                         <div style={{ position: 'fixed', inset: 0, zIndex: 10 }} onClick={() => setMenu(null)} />
                         <div style={{ position: 'absolute', right: 0, top: 36, zIndex: 20, width: 190, background: 'var(--espresso)', borderRadius: 16, padding: 8, boxShadow: '0 24px 60px rgba(22,15,8,0.25)' }}>
                           {[
-                            { label: '✏️  Edit',        action: () => { nav(`/surveys/${sv.id}/edit`); setMenu(null); } },
-                            { label: '📊  Analytics',   action: () => { nav(`/surveys/${sv.id}/analytics`); setMenu(null); } },
-                            { label: '🔗  Copy link',   action: () => copy(sv.slug) },
-                            { label: '⎘  Duplicate',   action: () => duplicate(sv) },
-                            sv.status !== 'active' && { label: '▶  Activate',  action: () => chg(sv.id, 'active'), coral: true },
-                            sv.status === 'active' && { label: '⏸  Pause',    action: () => chg(sv.id, 'paused') },
-                            hasPermission(profile?.role, 'delete_survey') && { label: '🗑  Delete',    action: () => confirmDelete(sv.id, sv.title), danger: true },
+                            { label: 'Edit',        icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>, action: () => { nav(`/surveys/${sv.id}/edit`); setMenu(null); } },
+                            { label: 'Analytics',   icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 20h18M7 20V12M11 20V8M15 20V14M19 20V4"/></svg>, action: () => { nav(`/surveys/${sv.id}/analytics`); setMenu(null); } },
+                            { label: 'Copy link',   icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>, action: () => copy(sv.slug) },
+                            { label: 'Duplicate',   icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>, action: () => duplicate(sv) },
+                            sv.status !== 'active' && { label: 'Activate',  icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l6 3.5-6 3.5V8.5z" fill="currentColor" stroke="none"/></svg>, action: () => chg(sv.id, 'active'), coral: true },
+                            sv.status === 'active' && { label: 'Pause',     icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><line x1="10" y1="8" x2="10" y2="16"/><line x1="14" y1="8" x2="14" y2="16"/></svg>, action: () => chg(sv.id, 'paused') },
+                            hasPermission(profile?.role, 'delete_survey') && { label: 'Delete', icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>, action: () => confirmDelete(sv.id, sv.title), danger: true },
                           ].filter(Boolean).map(item => (
                             <button key={item.label} onClick={item.action}
-                              style={{ width: '100%', display: 'block', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'Syne, sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: item.danger ? 'var(--terracotta)' : item.coral ? 'var(--coral)' : 'rgba(253,245,232,0.7)', borderRadius: 10, transition: 'background 0.15s' }}
+                              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'Syne, sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: item.danger ? 'var(--terracotta)' : item.coral ? 'var(--coral)' : 'rgba(253,245,232,0.7)', borderRadius: 10, transition: 'background 0.15s' }}
                               onMouseEnter={e => e.currentTarget.style.background = 'rgba(253,245,232,0.08)'}
                               onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                              <span style={{ opacity: 0.7, display: 'flex', alignItems: 'center' }}>{item.icon}</span>
                               {item.label}
                             </button>
                           ))}
@@ -316,12 +317,18 @@ export default function SurveyList() {
                 )}
 
                 <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid rgba(22,15,8,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <Link to={`/surveys/${sv.id}/analytics`} style={{ fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.4)', textDecoration: 'none', transition: 'color 0.2s' }}
+                  <Link to={`/surveys/${sv.id}/analytics`} style={{ display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.4)', textDecoration: 'none', transition: 'color 0.2s' }}
                     onMouseEnter={e => e.currentTarget.style.color = 'var(--coral)'}
-                    onMouseLeave={e => e.currentTarget.style.color = 'rgba(22,15,8,0.4)'}>Analytics →</Link>
-                  <Link to={`/surveys/${sv.id}/edit`} style={{ fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.4)', textDecoration: 'none', transition: 'color 0.2s' }}
+                    onMouseLeave={e => e.currentTarget.style.color = 'rgba(22,15,8,0.4)'}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 20h18M7 20V12M11 20V8M15 20V14M19 20V4"/></svg>
+                    Analytics
+                  </Link>
+                  <Link to={`/surveys/${sv.id}/edit`} style={{ display: 'flex', alignItems: 'center', gap: 5, fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.4)', textDecoration: 'none', transition: 'color 0.2s' }}
                     onMouseEnter={e => e.currentTarget.style.color = 'var(--espresso)'}
-                    onMouseLeave={e => e.currentTarget.style.color = 'rgba(22,15,8,0.4)'}>Edit</Link>
+                    onMouseLeave={e => e.currentTarget.style.color = 'rgba(22,15,8,0.4)'}>
+                    Edit
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                  </Link>
                 </div>
               </div>
             </motion.div>
