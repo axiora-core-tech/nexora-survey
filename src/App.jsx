@@ -40,7 +40,7 @@ function GlobalSpinner() {
 }
 
 function AppRoutes() {
-  const { initialize, initialized } = useAuthStore();
+  const { initialize, initialized, user } = useAuthStore();
 
   useEffect(() => { initialize(); }, []);
 
@@ -70,7 +70,7 @@ function AppRoutes() {
 
       <Routes>
         {/* ── Public ── */}
-        <Route path="/"               element={<LandingPage />} />
+        <Route path="/"               element={initialized && user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
         <Route path="/login"           element={<LoginPage />} />
         <Route path="/register"        element={<RegisterPage />} />
         <Route path="/reset-password"  element={<ResetPassword />} />
@@ -94,7 +94,7 @@ function AppRoutes() {
         </Route>
 
         {/* ── Fallback ── */}
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to={initialized && user ? "/dashboard" : "/"} replace />} />
       </Routes>
     </>
   );

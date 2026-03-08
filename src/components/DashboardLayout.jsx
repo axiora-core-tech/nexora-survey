@@ -35,6 +35,70 @@ export default function DashboardLayout() {
     checkSession();
   }, [loc.key]);
 
+  // ── Auto sign-out after inactivity ───────────────────────────────────────
+  // Signs out after 30 minutes of no mouse/keyboard/scroll/touch activity.
+  // The toast gives the user a heads-up 60 s before the cut-off.
+  // Only applies inside the dashboard (this layout); survey response pages
+  // are public and never wrapped by DashboardLayout.
+  const IDLE_LIMIT   = 30 * 60 * 1000;   // 30 min
+  const WARN_BEFORE  =  1 * 60 * 1000;   //  1 min warning
+  const idleTimer    = useRef(null);
+  const warnTimer    = useRef(null);
+  const warnToastId  = useRef(null);
+
+  useEffect(() => {
+    if (!profile) return;   // not yet authenticated — nothing to time out
+
+    const clearTimers = () => {
+      clearTimeout(idleTimer.current);
+      clearTimeout(warnTimer.current);
+    };
+
+    const scheduleSignOut = () => {
+      clearTimers();
+
+      // Warn 1 minute before
+      warnTimer.current = setTimeout(() => {
+        // Dynamic import avoids a circular dep; toast is already loaded by App.jsx
+        import('react-hot-toast').then(({ default: toast }) => {
+          warnToastId.current = toast('You\'ll be signed out in 1 minute due to inactivity', {
+            duration: 60000,
+            icon: '⏱',
+            style: { fontFamily: 'Syne, sans-serif', fontSize: 13, fontWeight: 600,
+                     letterSpacing: '0.04em', background: '#160F08', color: '#FDF5E8',
+                     borderRadius: 12, padding: '12px 18px' },
+          });
+        });
+      }, IDLE_LIMIT - WARN_BEFORE);
+
+      // Sign out when idle limit is reached
+      idleTimer.current = setTimeout(async () => {
+        await signOut();
+        nav('/login');
+      }, IDLE_LIMIT);
+    };
+
+    const onActivity = () => {
+      // Dismiss warning toast if user becomes active again
+      if (warnToastId.current) {
+        import('react-hot-toast').then(({ default: toast }) => {
+          toast.dismiss(warnToastId.current);
+        });
+        warnToastId.current = null;
+      }
+      scheduleSignOut();
+    };
+
+    const EVENTS = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart', 'wheel'];
+    EVENTS.forEach(e => window.addEventListener(e, onActivity, { passive: true }));
+    scheduleSignOut(); // start on mount
+
+    return () => {
+      clearTimers();
+      EVENTS.forEach(e => window.removeEventListener(e, onActivity));
+    };
+  }, [profile]);
+
   // ── Custom cursor refs — must be declared before any early return ──────────
   const cursorRef = useRef(null);
   const ringRef   = useRef(null);

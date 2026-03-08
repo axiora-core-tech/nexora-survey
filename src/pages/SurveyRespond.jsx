@@ -61,9 +61,10 @@ export default function SurveyRespond() {
   const [saved, setSaved] = useState(null);
 
   const { stopLoading } = useLoading();
-  const token  = useRef(null);
-  const timer  = useRef(null);
-  const rId    = useRef(null);
+  const token         = useRef(null);
+  const timer         = useRef(null);
+  const rId           = useRef(null);
+  const insertPending = useRef(null);   // guards against concurrent ensureR() calls
 
   const tracker = useResponseTracking(rId);
   useExitDetection(rId, tracker.onAbandon, done);
@@ -98,16 +99,54 @@ export default function SurveyRespond() {
     finally { stopLoading(); }
   }
 
-  // ── Ensure response row exists (via Netlify function) ─────────────────────
+  // ── Ensure response row exists ───────────────────────────────────────────
+  // Race-safe: a pending promise ref means concurrent calls (e.g. rapid typing
+  // triggering multiple debounced auto-saves) all await the same insert instead
+  // of each firing their own — which caused the duplicate session_token 409.
+  // Additionally handles the 23505 duplicate-key case defensively by fetching
+  // the existing row, so even a true race between two tabs never hard-crashes.
   async function ensureR() {
     if (rId.current) return rId.current;
-    const { data, error } = await supabase
-      .from('survey_responses')
-      .insert({ survey_id: sv.id, session_token: token.current, respondent_email: email || null, status: 'in_progress' })
-      .select('id').single();
-    if (error) throw error;
-    rId.current = data.id;
-    return rId.current;
+    if (insertPending.current) return insertPending.current;
+
+    insertPending.current = (async () => {
+      // Check first — covers browser back/forward cache restoring a stale ref
+      const { data: existing } = await supabase
+        .from('survey_responses')
+        .select('id')
+        .eq('session_token', token.current)
+        .eq('status', 'in_progress')
+        .maybeSingle();
+
+      if (existing) { rId.current = existing.id; return existing.id; }
+
+      const { data, error } = await supabase
+        .from('survey_responses')
+        .insert({ survey_id: sv.id, session_token: token.current, respondent_email: email || null, status: 'in_progress' })
+        .select('id').single();
+
+      if (error) {
+        // 23505 = unique_violation — another concurrent call won the race
+        if (error.code === '23505') {
+          const { data: dup } = await supabase
+            .from('survey_responses')
+            .select('id')
+            .eq('session_token', token.current)
+            .maybeSingle();
+          if (dup) { rId.current = dup.id; return dup.id; }
+        }
+        throw error;
+      }
+
+      rId.current = data.id;
+      return data.id;
+    })();
+
+    try {
+      return await insertPending.current;
+    } finally {
+      insertPending.current = null;
+    }
   }
 
   // ── Auto-save (via Netlify function) ─────────────────────────────────────
