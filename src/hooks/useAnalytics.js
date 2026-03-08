@@ -25,7 +25,7 @@ import { useMemo } from 'react';
  *  deviceBreakdown     { desktop, mobile, tablet, unknown }  (counts)
  *  questionAnalytics   [{ question, data }]  — per-question answer stats
  */
-export function useAnalytics(qs, rs, ans) {
+export function useAnalytics(qs, rs, ans, trendDays = 14) {
   return useMemo(() => {
     if (!rs || !qs) return emptyResult();
 
@@ -150,12 +150,12 @@ export function useAnalytics(qs, rs, ans) {
       else                qualityBreakdown.low++;
     });
 
-    // ── 14-day response trend ────────────────────────────────────────────
+    // ── Response trend (configurable window) ─────────────────────────────
     const today   = new Date();
-    const days    = Array.from({ length: 14 }, (_, i) => {
+    const days    = Array.from({ length: trendDays }, (_, i) => {
       const d = new Date(today);
-      d.setDate(today.getDate() - (13 - i));
-      return d.toISOString().slice(0, 10); // 'YYYY-MM-DD'
+      d.setDate(today.getDate() - (trendDays - 1 - i));
+      return d.toISOString().slice(0, 10);
     });
 
     const trendMap = {};

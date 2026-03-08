@@ -3,6 +3,7 @@ import useAuthStore from '../hooks/useAuth';
 import { hasPermission, ROLE_LABELS } from '../lib/constants';
 import toast from 'react-hot-toast';
 import { useLoading } from '../context/LoadingContext';
+import { supabase } from '../lib/supabase';
 
 const card  = { background: 'var(--warm-white)', borderRadius: 20, border: '1px solid rgba(22,15,8,0.07)', padding: '36px 40px', marginBottom: 20 };
 const label = { fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.38)', display: 'block', marginBottom: 10 };
@@ -23,6 +24,32 @@ export default function Settings() {
   const [tF, sTF] = useState({ name: tenant?.name || '', primary_color: tenant?.primary_color || '#FF4500' });
   const [sP, sSP] = useState(false);
   const [sT, sST] = useState(false);
+  const [pwF, setPwF] = useState({ current: '', next: '', confirm: '' });
+  const [sPw, setSPw] = useState(false);
+
+  async function savePw(e) {
+    e.preventDefault();
+    if (pwF.next.length < 8) return toast.error('Password must be at least 8 characters');
+    if (pwF.next !== pwF.confirm) return toast.error('Passwords do not match');
+    setSPw(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: pwF.next });
+      if (error) throw error;
+      toast.success('Password updated');
+      setPwF({ current: '', next: '', confirm: '' });
+    } catch (e) {
+      toast.error(e.message || 'Failed to update password');
+    } finally { setSPw(false); }
+  }
+
+  const [dark, setDark] = useState(() => document.documentElement.getAttribute('data-theme') === 'dark');
+
+  function toggleDark() {
+    const next = !dark;
+    setDark(next);
+    document.documentElement.setAttribute('data-theme', next ? 'dark' : 'light');
+    localStorage.setItem('np-theme', next ? 'dark' : 'light');
+  }
 
   async function saveP(e) {
     e.preventDefault(); sSP(true);
@@ -83,6 +110,37 @@ export default function Settings() {
         </form>
       </div>
 
+      {/* Password */}
+      <div style={card}>
+        <div style={secH}>Change Password</div>
+        <form onSubmit={savePw} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div>
+            <label style={label}>New Password</label>
+            <input type="password" value={pwF.next} onChange={e => setPwF(p => ({ ...p, next: e.target.value }))}
+              placeholder="At least 8 characters" style={inp}
+              onFocus={e => e.target.style.borderColor = 'var(--coral)'}
+              onBlur={e => e.target.style.borderColor = 'rgba(22,15,8,0.1)'} />
+          </div>
+          <div>
+            <label style={label}>Confirm New Password</label>
+            <input type="password" value={pwF.confirm} onChange={e => setPwF(p => ({ ...p, confirm: e.target.value }))}
+              placeholder="Repeat new password" style={inp}
+              onFocus={e => e.target.style.borderColor = 'var(--coral)'}
+              onBlur={e => e.target.style.borderColor = 'rgba(22,15,8,0.1)'} />
+          </div>
+          {pwF.next && pwF.confirm && pwF.next !== pwF.confirm && (
+            <p style={{ fontFamily: 'Syne, sans-serif', fontSize: 10, fontWeight: 700, color: 'var(--terracotta)', margin: '-10px 0 0', letterSpacing: '0.06em' }}>Passwords don't match</p>
+          )}
+          <div>
+            <button type="submit" disabled={sPw || !pwF.next || !pwF.confirm} style={{ ...btn, opacity: (sPw || !pwF.next || !pwF.confirm) ? 0.5 : 1 }}
+              onMouseEnter={e => { if (!sPw) e.currentTarget.style.background = 'var(--coral)'; }}
+              onMouseLeave={e => { if (!sPw) e.currentTarget.style.background = 'var(--espresso)'; }}>
+              {sPw ? 'Updating…' : 'Update password'}
+            </button>
+          </div>
+        </form>
+      </div>
+
       {/* Organisation */}
       {hasPermission(profile?.role, 'manage_tenant') && (
         <div style={card}>
@@ -130,6 +188,22 @@ export default function Settings() {
           </form>
         </div>
       )}
+
+      {/* Preferences */}
+      <div style={card}>
+        <div style={secH}>Preferences</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 0' }}>
+          <div>
+            <div style={{ fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 13, color: 'var(--espresso)', marginBottom: 4 }}>Dark mode</div>
+            <div style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 13, color: 'rgba(22,15,8,0.5)' }}>Easy on the eyes at night</div>
+          </div>
+          {/* Toggle switch */}
+          <button onClick={toggleDark} role="switch" aria-checked={dark}
+            style={{ width: 48, height: 26, borderRadius: 999, border: 'none', background: dark ? 'var(--coral)' : 'rgba(22,15,8,0.15)', cursor: 'pointer', position: 'relative', transition: 'background 0.25s', flexShrink: 0 }}>
+            <span style={{ position: 'absolute', top: 3, left: dark ? 24 : 4, width: 20, height: 20, borderRadius: '50%', background: '#fff', boxShadow: '0 1px 4px rgba(0,0,0,0.2)', transition: 'left 0.25s cubic-bezier(0.34,1.56,0.64,1)' }} />
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

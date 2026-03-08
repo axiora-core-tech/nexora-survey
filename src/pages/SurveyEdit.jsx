@@ -20,6 +20,8 @@ export default function SurveyEdit(){
   const{stopLoading}=useLoading();
   const[busy,setBusy]=useState(false);const[sv,setSv]=useState(null);const[qs,sQs]=useState([]);const[tab,setTab]=useState('details');
   const[shareOpen,setShareOpen]=useState(false);const[pubShareOpen,setPubShareOpen]=useState(false);const[shares,setShares]=useState([]);const[users,setUsers]=useState([]);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewStep, setPreviewStep] = useState(0);
   const [extendOpen, setExtendOpen] = useState(false);
   const [dirty, setDirty] = useState(false);
 
@@ -66,7 +68,63 @@ export default function SurveyEdit(){
     fo: e => e.target.style.borderColor = 'rgba(22,15,8,0.1)',
   };
   return(<div className="max-w-3xl mx-auto">
-    {/* ── Extend expiry modal ── */}
+    {/* ── Survey Preview Modal ── */}
+    {previewOpen && (
+      <div style={{ position:'fixed',inset:0,zIndex:8000,background:'rgba(22,15,8,0.7)',backdropFilter:'blur(8px)',display:'flex',alignItems:'center',justifyContent:'center',padding:24 }}
+        onClick={e=>{ if(e.target===e.currentTarget) setPreviewOpen(false); }}>
+        <div style={{ background:'var(--cream)',borderRadius:24,width:'100%',maxWidth:520,maxHeight:'85vh',overflow:'auto',boxShadow:'0 40px 100px rgba(22,15,8,0.4)',position:'relative' }}>
+          {/* Preview header */}
+          <div style={{ position:'sticky',top:0,background:'rgba(253,245,232,0.95)',backdropFilter:'blur(8px)',padding:'16px 24px',borderBottom:'1px solid rgba(22,15,8,0.08)',display:'flex',alignItems:'center',justifyContent:'space-between',zIndex:1 }}>
+            <span style={{ fontFamily:'Syne,sans-serif',fontSize:9,fontWeight:700,letterSpacing:'0.16em',textTransform:'uppercase',color:'var(--coral)' }}>Preview Mode</span>
+            <button onClick={()=>setPreviewOpen(false)} style={{ background:'none',border:'none',cursor:'pointer',color:'rgba(22,15,8,0.4)',fontSize:18 }}>✕</button>
+          </div>
+          <div style={{ padding:36 }}>
+            {/* Welcome */}
+            {previewStep === -1 || previewStep === 0 && sv.welcome_message ? (
+              <div style={{ textAlign:'center', paddingBottom:24 }}>
+                <h2 style={{ fontFamily:'Playfair Display,serif',fontWeight:700,fontSize:28,letterSpacing:'-0.5px',color:'var(--espresso)',marginBottom:12 }}>{sv.title}</h2>
+                {sv.welcome_message && <p style={{ fontFamily:'Fraunces,serif',fontWeight:300,fontSize:15,color:'rgba(22,15,8,0.6)',lineHeight:1.7,marginBottom:24 }}>{sv.welcome_message}</p>}
+                <button onClick={()=>setPreviewStep(0)} style={{ padding:'12px 32px',borderRadius:999,border:'none',background:'var(--espresso)',color:'var(--cream)',fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:11,letterSpacing:'0.1em',textTransform:'uppercase',cursor:'pointer' }}>Begin →</button>
+              </div>
+            ) : previewStep < qs.length ? (
+              <div>
+                {sv.show_progress_bar && (
+                  <div style={{ height:3,background:'rgba(22,15,8,0.08)',borderRadius:10,marginBottom:28,overflow:'hidden' }}>
+                    <div style={{ height:'100%',width:`${((previewStep+1)/qs.length)*100}%`,background:sv.theme_color||'var(--coral)',borderRadius:10,transition:'width 0.3s' }}/>
+                  </div>
+                )}
+                <div style={{ fontFamily:'Syne,sans-serif',fontSize:9,fontWeight:700,letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(22,15,8,0.35)',marginBottom:8 }}>Question {previewStep+1} of {qs.length}</div>
+                <h3 style={{ fontFamily:'Playfair Display,serif',fontWeight:700,fontSize:22,color:'var(--espresso)',marginBottom:8,letterSpacing:'-0.3px' }}>
+                  {qs[previewStep]?.question_text || '(No question text)'}
+                  {qs[previewStep]?.is_required && <span style={{ color:'var(--coral)',marginLeft:4 }}>*</span>}
+                </h3>
+                {qs[previewStep]?.description && <p style={{ fontFamily:'Fraunces,serif',fontWeight:300,fontSize:13,color:'rgba(22,15,8,0.5)',marginBottom:20 }}>{qs[previewStep].description}</p>}
+                {/* Placeholder input */}
+                <div style={{ background:'var(--warm-white)',borderRadius:12,padding:'14px 18px',border:'1.5px solid rgba(22,15,8,0.1)',fontFamily:'Fraunces,serif',fontSize:14,color:'rgba(22,15,8,0.35)',marginBottom:28 }}>
+                  {qs[previewStep]?.question_type === 'rating' ? '★ ★ ★ ★ ★' :
+                   qs[previewStep]?.question_type === 'yes_no' ? 'Yes / No' :
+                   qs[previewStep]?.question_type === 'scale' ? '← 1 · 2 · 3 · 4 · 5 · 6 · 7 · 8 · 9 · 10 →' :
+                   qs[previewStep]?.question_type === 'single_choice' || qs[previewStep]?.question_type === 'multiple_choice' ?
+                     (qs[previewStep].options||[]).map(o=>o.label).join(' · ') || 'Options preview' :
+                   'Your answer here…'}
+                </div>
+                <div style={{ display:'flex',justifyContent:'space-between' }}>
+                  <button onClick={()=>setPreviewStep(s=>Math.max(0,s-1))} disabled={previewStep===0} style={{ padding:'10px 20px',borderRadius:999,border:'1px solid rgba(22,15,8,0.12)',background:'transparent',color:'rgba(22,15,8,0.5)',fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:10,letterSpacing:'0.1em',textTransform:'uppercase',cursor:previewStep===0?'not-allowed':'pointer',opacity:previewStep===0?0.4:1 }}>← Back</button>
+                  <button onClick={()=>setPreviewStep(s=>s+1)} style={{ padding:'10px 24px',borderRadius:999,border:'none',background:'var(--espresso)',color:'var(--cream)',fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:10,letterSpacing:'0.1em',textTransform:'uppercase',cursor:'pointer' }}>{previewStep===qs.length-1?'Finish':'Next →'}</button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ textAlign:'center', paddingBottom:8 }}>
+                <div style={{ fontSize:48,marginBottom:16 }}>🎉</div>
+                <h3 style={{ fontFamily:'Playfair Display,serif',fontWeight:700,fontSize:24,color:'var(--espresso)',marginBottom:12 }}>Thank you!</h3>
+                <p style={{ fontFamily:'Fraunces,serif',fontWeight:300,fontSize:15,color:'rgba(22,15,8,0.6)',lineHeight:1.7 }}>{sv.thank_you_message || 'Your response has been recorded.'}</p>
+                <button onClick={()=>setPreviewStep(0)} style={{ marginTop:24,padding:'10px 24px',borderRadius:999,border:'1px solid rgba(22,15,8,0.12)',background:'transparent',color:'rgba(22,15,8,0.5)',fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:10,letterSpacing:'0.1em',textTransform:'uppercase',cursor:'pointer' }}>↺ Restart preview</button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
     <ConfirmModal
       open={extendOpen} onClose={()=>setExtendOpen(false)}
       title="Reactivate survey"
@@ -75,7 +133,7 @@ export default function SurveyEdit(){
       prompt={{label:'Extend by (days)',defaultValue:'7',type:'number',min:1,max:365}}
       onConfirm={doExtend}
     />
-    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 40, flexWrap: 'nowrap' }}>
+    <div className="np-page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 40, flexWrap: 'wrap' }}>
       <div style={{ minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4, flexWrap: 'wrap' }}>
           <h1 style={{ fontFamily: 'Playfair Display, serif', fontWeight: 900, fontSize: 28, letterSpacing: '-1px', color: 'var(--espresso)', margin: 0, lineHeight: 1.1 }}>{sv.title}</h1>
@@ -106,6 +164,7 @@ export default function SurveyEdit(){
         <Link to={`/surveys/${id}/analytics`} style={{ padding: '9px 16px', borderRadius: 999, border: '1px solid rgba(22,15,8,0.1)', background: 'transparent', color: 'rgba(22,15,8,0.5)', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', textDecoration: 'none', whiteSpace: 'nowrap', transition: 'all 0.2s' }} onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--espresso)'; e.currentTarget.style.color = 'var(--espresso)'; }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(22,15,8,0.1)'; e.currentTarget.style.color = 'rgba(22,15,8,0.5)'; }}>Analytics</Link>
         <button onClick={() => setPubShareOpen(true)} style={{ padding: '9px 16px', borderRadius: 999, border: '1px solid rgba(22,15,8,0.1)', background: 'transparent', color: 'rgba(22,15,8,0.5)', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }} onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--espresso)'; e.currentTarget.style.color = 'var(--espresso)'; }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(22,15,8,0.1)'; e.currentTarget.style.color = 'rgba(22,15,8,0.5)'; }}>🔗 Share</button>
         <ShareModal survey={sv} isOpen={pubShareOpen} onClose={() => setPubShareOpen(false)} />
+        <button onClick={() => { setPreviewStep(0); setPreviewOpen(true); }} style={{ padding: '9px 16px', borderRadius: 999, border: '1px solid rgba(22,15,8,0.12)', background: 'transparent', color: 'rgba(22,15,8,0.5)', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.2s' }} onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--espresso)'; e.currentTarget.style.color = 'var(--espresso)'; }} onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(22,15,8,0.12)'; e.currentTarget.style.color = 'rgba(22,15,8,0.5)'; }}>▷ Preview</button>
         <button onClick={save} disabled={busy} style={{ padding: '9px 20px', borderRadius: 999, border: 'none', background: 'var(--espresso)', color: 'var(--cream)', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap', transition: 'background 0.25s', opacity: busy ? 0.45 : 1 }} onMouseEnter={e => { if (!busy) e.currentTarget.style.background = 'var(--coral)'; }} onMouseLeave={e => { if (!busy) e.currentTarget.style.background = 'var(--espresso)'; }}>{busy ? 'Saving…' : 'Save'}</button>
       </div>
     </div>

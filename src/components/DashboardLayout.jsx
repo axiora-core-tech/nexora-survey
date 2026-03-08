@@ -4,6 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import useAuthStore from '../hooks/useAuth';
 import PageLoader from '../pages/PageLoader';
 import { hasPermission, ROLE_LABELS } from '../lib/constants';
+import CommandPalette from './CommandPalette';
+import NotificationFeed from './NotificationFeed';
 
 // Nav items — Settings removed (lives in avatar menu now)
 const NAV = [
@@ -17,6 +19,16 @@ export default function DashboardLayout() {
   const { profile, tenant, signOut, loading, checkSession } = useAuthStore();
   const [userMenu, setUserMenu]   = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [cmdOpen, setCmdOpen]     = useState(false);
+
+  // Global ⌘K / Ctrl+K to open command palette
+  useEffect(() => {
+    const h = e => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); setCmdOpen(o => !o); }
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, []);
   const nav = useNavigate();
   const loc = useLocation();
 
@@ -221,9 +233,23 @@ export default function DashboardLayout() {
           })}
         </nav>
 
-        {/* Right: org + avatar */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+        {/* Right: org + notifications + cmd + avatar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           {tenant && <span style={{ fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.25)' }} className="np-desktop-nav">{tenant.name}</span>}
+
+          {/* ⌘K trigger */}
+          <button onClick={() => setCmdOpen(true)}
+            className="np-desktop-nav"
+            title="Command palette (⌘K)"
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 999, border: '1px solid rgba(22,15,8,0.08)', background: 'var(--cream)', cursor: 'pointer', transition: 'border-color 0.2s' }}
+            onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(22,15,8,0.2)'}
+            onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(22,15,8,0.08)'}>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(22,15,8,0.35)" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            <kbd style={{ fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, color: 'rgba(22,15,8,0.35)', letterSpacing: '0.06em', background: 'none', border: 'none', padding: 0 }}>⌘K</kbd>
+          </button>
+
+          {/* Notifications */}
+          <NotificationFeed />
 
           <div style={{ position: 'relative' }}>
             <button onClick={() => setUserMenu(v => !v)}
@@ -315,6 +341,11 @@ export default function DashboardLayout() {
       <main style={{ maxWidth: 1320, margin: '0 auto', padding: '52px 48px 40px', width: '100%', boxSizing: 'border-box' }}>
         <Outlet />
       </main>
+
+      {/* Command Palette */}
+      <AnimatePresence>
+        {cmdOpen && <CommandPalette onClose={() => setCmdOpen(false)} />}
+      </AnimatePresence>
 
       {/* Issue #6: Footer */}
       <footer style={{ maxWidth: 1320, margin: '0 auto', padding: '24px 48px 40px', width: '100%', boxSizing: 'border-box', borderTop: '1px solid rgba(22,15,8,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

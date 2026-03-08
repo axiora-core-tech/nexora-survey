@@ -30,6 +30,10 @@ import UpdatePassword   from './pages/UpdatePassword';
 import useAuthStore from './hooks/useAuth';
 import ErrorBoundary from './components/ErrorBoundary';
 
+// Apply persisted theme before first render
+const savedTheme = localStorage.getItem('np-theme');
+if (savedTheme) document.documentElement.setAttribute('data-theme', savedTheme);
+
 /**
  * GlobalSpinner
  * Reads isLoading from context (derived from location.key during render —

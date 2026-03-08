@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useLoading } from "../context/LoadingContext";
 
 /* ─────────────────────────────────────────────────────────────────
    LANDING PAGE — Nexora Pulse
@@ -540,8 +539,6 @@ export default function Landing() {
   const navigate = useNavigate();
   const onEnterApp = () => navigate('/login');
   const bodyRef = useRef(null);
-  const { stopLoading } = useLoading();
-  useEffect(() => { stopLoading(); }, [stopLoading]);
 
   // Inject CSS once
   useEffect(() => {

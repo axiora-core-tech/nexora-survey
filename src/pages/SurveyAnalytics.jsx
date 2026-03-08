@@ -854,6 +854,7 @@ export default function SurveyAnalytics() {
   const [ans, sAns]     = useState([]);
   const [tab, setTab]   = useState('Overview');
   const [feedback, setFeedback] = useState([]);
+  const [trendDays, setTrendDays] = useState(14);
 
   useEffect(() => { if (profile?.id) load(); else stopLoading(); }, [id, profile?.id]);
 
@@ -877,7 +878,7 @@ export default function SurveyAnalytics() {
     finally { stopLoading(); }
   }
 
-  const analytics = useAnalytics(qs, rs, ans);
+  const analytics = useAnalytics(qs, rs, ans, trendDays);
 
   function csv() {
     const h = ['#','Status','Email','Started','Completed',...qs.map(q=>q.question_text)];
@@ -958,14 +959,27 @@ export default function SurveyAnalytics() {
             {sv.expires_at && ` · Expires ${formatDateTime(sv.expires_at)}`}
           </div>
         </div>
-        <div style={{ display:'flex', gap:8 }}>
+        <div style={{ display:'flex', gap:8, flexWrap:'wrap', alignItems:'center' }}>
+          {/* Date range */}
+          {[7, 14, 30, 90].map(d => (
+            <button key={d} onClick={() => setTrendDays(d)}
+              style={{ ...S.exportBtn, background: trendDays === d ? 'var(--espresso)' : 'transparent', color: trendDays === d ? 'var(--cream)' : 'rgba(22,15,8,0.55)', borderColor: trendDays === d ? 'transparent' : 'rgba(22,15,8,0.12)', padding: '8px 14px' }}>
+              {d}d
+            </button>
+          ))}
+          <div style={{ width: 1, height: 24, background: 'rgba(22,15,8,0.1)', margin: '0 4px' }} />
+          <button onClick={() => { navigator.clipboard.writeText(window.location.href); import('react-hot-toast').then(m => m.default.success('Analytics link copied!')); }} style={S.exportBtn}
+            onMouseEnter={e=>{ e.currentTarget.style.borderColor='var(--coral)'; e.currentTarget.style.color='var(--coral)'; }}
+            onMouseLeave={e=>{ e.currentTarget.style.borderColor='rgba(22,15,8,0.12)'; e.currentTarget.style.color='rgba(22,15,8,0.55)'; }}>
+            ⎘ Share
+          </button>
           <button onClick={csv} style={S.exportBtn}
             onMouseEnter={e=>{ e.currentTarget.style.borderColor='var(--espresso)'; e.currentTarget.style.color='var(--espresso)'; }}
             onMouseLeave={e=>{ e.currentTarget.style.borderColor='rgba(22,15,8,0.12)'; e.currentTarget.style.color='rgba(22,15,8,0.55)'; }}>
             ↓ CSV
           </button>
           <button onClick={exportPDF} style={S.exportBtn}
-            onMouseEnter={e=>{ e.currentTarget.style.borderColor='var(--coral)'; e.currentTarget.style.color='var(--coral)'; e.currentTarget.style.borderColor='var(--coral)'; }}
+            onMouseEnter={e=>{ e.currentTarget.style.borderColor='var(--coral)'; e.currentTarget.style.color='var(--coral)'; }}
             onMouseLeave={e=>{ e.currentTarget.style.borderColor='rgba(22,15,8,0.12)'; e.currentTarget.style.color='rgba(22,15,8,0.55)'; }}>
             ↓ PDF
           </button>
