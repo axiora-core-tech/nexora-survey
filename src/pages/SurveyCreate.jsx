@@ -38,6 +38,7 @@ export default function SurveyCreate() {
   const [tmplCat, setTmplCat]             = useState('');
   const [tmplDesc, setTmplDesc]           = useState('');
   const [tmplNewCat, setTmplNewCat]       = useState('');
+  const [tmplQs, setTmplQs]               = useState([{ _id: 'tq0', question_text: '', question_type: 'short_text', is_required: false }]);
   const [customTemplates, setCustomTemplates] = useState(() => {
     try { return JSON.parse(localStorage.getItem('np-custom-templates') || '[]'); } catch { return []; }
   });
@@ -57,12 +58,13 @@ export default function SurveyCreate() {
       desc: tmplDesc.trim() || 'Custom template',
       time: `${Math.max(1, Math.ceil(qs.length * 0.5))} min`,
       createdAt: new Date().toISOString(),
-      qs: qs.map(q => ({ question_text: q.question_text, question_type: q.question_type, options: q.options, is_required: q.is_required, description: q.description })),
+      qs: tmplQs.filter(q => q.question_text.trim()).map(q => ({ question_text: q.question_text, question_type: q.question_type, is_required: q.is_required, description: '' })),
     };
     persistCustom([newT, ...customTemplates]);
     toast.success(`Template "${newT.name}" saved!`);
     setShowCreateTmpl(false);
     setTmplName(''); setTmplDesc(''); setTmplCat(''); setTmplNewCat('');
+    setTmplQs([{ _id: 'tq0', question_text: '', question_type: 'short_text', is_required: false }]);
     setTmplTab('mine');
   }
 
@@ -267,7 +269,7 @@ export default function SurveyCreate() {
                 <div style={{ background:'rgba(255,69,0,0.04)',border:'1.5px solid rgba(255,69,0,0.12)',borderRadius:16,padding:'18px 22px',marginBottom:24,display:'flex',alignItems:'center',justifyContent:'space-between',gap:16,flexWrap:'wrap' }}>
                   <div>
                     <div style={{ fontFamily:'Playfair Display,serif',fontWeight:700,fontSize:15,color:'var(--espresso)',marginBottom:3 }}>Save current survey as template</div>
-                    <div style={{ fontFamily:'Fraunces,serif',fontWeight:300,fontSize:12,color:'rgba(22,15,8,0.45)' }}>Capture your {qs.length} question{qs.length!==1?'s':''} as a reusable template in any category.</div>
+                    <div style={{ fontFamily:'Fraunces,serif',fontWeight:300,fontSize:12,color:'rgba(22,15,8,0.45)' }}>Define questions for your reusable template, name it, and save.</div>
                   </div>
                   <button onClick={()=>setShowCreateTmpl(true)} style={{ flexShrink:0,display:'inline-flex',alignItems:'center',gap:7,padding:'10px 22px',borderRadius:999,border:'none',background:'var(--espresso)',color:'var(--cream)',fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:10,letterSpacing:'0.12em',textTransform:'uppercase',cursor:'pointer',transition:'background 0.2s' }}
                     onMouseEnter={e=>e.currentTarget.style.background='var(--coral)'}
@@ -312,14 +314,53 @@ export default function SurveyCreate() {
                           onBlur={e=>e.target.style.borderColor='rgba(22,15,8,0.1)'} />
                       </div>
                     )}
-                    <div style={{ marginBottom:20 }}>
+                    <div style={{ marginBottom:16 }}>
                       <label style={{ fontFamily:'Syne,sans-serif',fontSize:9,fontWeight:700,letterSpacing:'0.18em',textTransform:'uppercase',color:'rgba(22,15,8,0.38)',display:'block',marginBottom:8 }}>Description (optional)</label>
                       <input value={tmplDesc} onChange={e=>setTmplDesc(e.target.value)} placeholder="What is this template for?" style={{ width:'100%',boxSizing:'border-box',padding:'12px 16px',background:'var(--warm-white)',border:'1.5px solid rgba(22,15,8,0.1)',borderRadius:12,fontFamily:'Fraunces,serif',fontSize:14,color:'var(--espresso)',outline:'none' }}
                         onFocus={e=>e.target.style.borderColor='var(--coral)'}
                         onBlur={e=>e.target.style.borderColor='rgba(22,15,8,0.1)'} />
                     </div>
+
+                    {/* ── Template Questions ── */}
+                    <div style={{ marginBottom:20 }}>
+                      <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10 }}>
+                        <label style={{ fontFamily:'Syne,sans-serif',fontSize:9,fontWeight:700,letterSpacing:'0.18em',textTransform:'uppercase',color:'rgba(22,15,8,0.38)',display:'block' }}>Questions</label>
+                        <button type="button" onClick={()=>setTmplQs(prev=>[...prev,{_id:'tq'+Date.now(),question_text:'',question_type:'short_text',is_required:false}])}
+                          style={{ display:'inline-flex',alignItems:'center',gap:5,padding:'5px 12px',borderRadius:999,border:'none',background:'var(--espresso)',color:'var(--cream)',fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:8,letterSpacing:'0.12em',textTransform:'uppercase',cursor:'pointer',transition:'background 0.2s' }}
+                          onMouseEnter={e=>e.currentTarget.style.background='var(--coral)'}
+                          onMouseLeave={e=>e.currentTarget.style.background='var(--espresso)'}>
+                          <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                          Add question
+                        </button>
+                      </div>
+                      <div style={{ display:'flex',flexDirection:'column',gap:10 }}>
+                        {tmplQs.map((tq,qi)=>(
+                          <div key={tq._id} style={{ display:'grid',gridTemplateColumns:'1fr auto auto',gap:8,alignItems:'center',padding:'12px 14px',background:'var(--warm-white)',borderRadius:12,border:'1.5px solid rgba(22,15,8,0.08)' }}>
+                            <input
+                              value={tq.question_text}
+                              onChange={e=>setTmplQs(prev=>prev.map(q=>q._id===tq._id?{...q,question_text:e.target.value}:q))}
+                              placeholder={`Question ${qi+1}…`}
+                              style={{ background:'none',border:'none',outline:'none',fontFamily:'Fraunces,serif',fontSize:13,color:'var(--espresso)',width:'100%' }}
+                            />
+                            <select
+                              value={tq.question_type}
+                              onChange={e=>setTmplQs(prev=>prev.map(q=>q._id===tq._id?{...q,question_type:e.target.value}:q))}
+                              style={{ padding:'5px 8px',borderRadius:8,border:'1px solid rgba(22,15,8,0.1)',background:'var(--cream-deep)',fontFamily:'Syne,sans-serif',fontSize:8,fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',color:'rgba(22,15,8,0.55)',outline:'none',cursor:'pointer',flexShrink:0 }}>
+                              {QUESTION_TYPES.map(t=><option key={t.value} value={t.value}>{t.label}</option>)}
+                            </select>
+                            {tmplQs.length>1?(
+                              <button type="button" onClick={()=>setTmplQs(prev=>prev.filter(q=>q._id!==tq._id))}
+                                style={{ background:'none',border:'none',cursor:'pointer',color:'rgba(22,15,8,0.2)',fontSize:13,padding:'2px 4px',borderRadius:6,transition:'color 0.15s',flexShrink:0 }}
+                                onMouseEnter={e=>e.currentTarget.style.color='var(--terracotta)'}
+                                onMouseLeave={e=>e.currentTarget.style.color='rgba(22,15,8,0.2)'}>✕</button>
+                            ):<span style={{width:22}}/>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
                     <div style={{ display:'flex',gap:10 }}>
-                      <button onClick={()=>setShowCreateTmpl(false)} style={{ flex:1,padding:'11px 0',borderRadius:999,border:'1px solid rgba(22,15,8,0.1)',background:'transparent',fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:10,letterSpacing:'0.1em',textTransform:'uppercase',color:'rgba(22,15,8,0.45)',cursor:'pointer' }}>Cancel</button>
+                      <button onClick={()=>{ setShowCreateTmpl(false); setTmplQs([{ _id: 'tq0', question_text: '', question_type: 'short_text', is_required: false }]); }} style={{ flex:1,padding:'11px 0',borderRadius:999,border:'1px solid rgba(22,15,8,0.1)',background:'transparent',fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:10,letterSpacing:'0.1em',textTransform:'uppercase',color:'rgba(22,15,8,0.45)',cursor:'pointer' }}>Cancel</button>
                       <button onClick={saveAsTemplate} style={{ flex:2,padding:'11px 0',borderRadius:999,border:'none',background:'var(--espresso)',color:'var(--cream)',fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:10,letterSpacing:'0.12em',textTransform:'uppercase',cursor:'pointer',transition:'background 0.2s' }}
                         onMouseEnter={e=>e.currentTarget.style.background='var(--coral)'}
                         onMouseLeave={e=>e.currentTarget.style.background='var(--espresso)'}>

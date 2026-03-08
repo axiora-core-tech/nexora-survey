@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useLocation } from 'react-router-dom';
 import useAuthStore from '../hooks/useAuth';
@@ -24,6 +24,45 @@ const pillBtn = (active) => ({
   letterSpacing: '0.12em', textTransform: 'uppercase',
   cursor: 'pointer', transition: 'all 0.2s',
 });
+
+
+// ── RoleDropdown — mirrors SurveyList sort dropdown exactly ──────────────────
+function RoleDropdown({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open]);
+
+  return (
+    <div style={{ position: 'relative', display: 'inline-block' }} ref={ref}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ padding: '7px 14px', borderRadius: 999, border: '1px solid rgba(22,15,8,0.08)', cursor: 'pointer', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', background: 'var(--warm-white)', color: ROLE_TEXT[value] || 'rgba(22,15,8,0.5)', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', transition: 'border-color 0.2s' }}
+        onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(22,15,8,0.2)'}
+        onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(22,15,8,0.08)'}>
+        {ROLE_LABELS[value]}
+        <span style={{ fontSize: 7, opacity: 0.45 }}>{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <div style={{ position: 'absolute', left: 0, top: 'calc(100% + 6px)', zIndex: 50, background: 'var(--espresso)', borderRadius: 14, padding: 6, boxShadow: '0 16px 48px rgba(22,15,8,0.25)', minWidth: '100%' }}>
+          {Object.entries(ROLE_LABELS).map(([v, l]) => (
+            <button key={v} onClick={() => { onChange(v); setOpen(false); }}
+              style={{ display: 'block', width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: v === value ? 'var(--coral)' : 'rgba(253,245,232,0.7)', borderRadius: 9, transition: 'background 0.15s', whiteSpace: 'nowrap' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'rgba(253,245,232,0.08)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+              {v === value ? '✓  ' : ''}{l}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function TeamManagement() {
   const { profile } = useAuthStore();
@@ -130,16 +169,9 @@ export default function TeamManagement() {
               </div>
               <div style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 12, color: 'rgba(22,15,8,0.38)', marginBottom: 10, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.email}</div>
 
-              {/* Role — native select styled to match design system, or static badge */}
+              {/* Role — custom dropdown matching SurveyList sort style */}
               {hasPermission(profile?.role, 'manage_team') && m.id !== profile.id ? (
-                <div style={{ position: 'relative', display: 'inline-block' }}>
-                  <select value={m.role} onChange={e => chgRole(m.id, e.target.value)}
-                    style={{ appearance: 'none', WebkitAppearance: 'none', fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', padding: '6px 28px 6px 12px', borderRadius: 999, border: `1.5px solid ${ROLE_COLORS[m.role]}`, background: ROLE_COLORS[m.role], color: ROLE_TEXT[m.role], cursor: 'pointer', outline: 'none', transition: 'all 0.2s' }}>
-                    {Object.entries(ROLE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                  </select>
-                  {/* Chevron icon */}
-                  <svg style={{ position: 'absolute', right: 9, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} width="8" height="8" viewBox="0 0 24 24" fill="none" stroke={ROLE_TEXT[m.role]} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                </div>
+                <RoleDropdown value={m.role} onChange={role => chgRole(m.id, role)} />
               ) : (
                 <span style={{ display: 'inline-block', fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', padding: '6px 12px', borderRadius: 999, background: ROLE_COLORS[m.role], color: ROLE_TEXT[m.role] }}>
                   {ROLE_LABELS[m.role]}

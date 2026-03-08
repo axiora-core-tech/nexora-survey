@@ -29,9 +29,16 @@ export function useAnalytics(qs, rs, ans, trendDays = 14) {
   return useMemo(() => {
     if (!rs || !qs) return emptyResult();
 
-    const total     = rs.length;
-    const completed = rs.filter(r => r.status === 'completed');
-    const abandoned = rs.filter(r => r.status === 'abandoned');
+    // ── Restrict all metrics to the selected time window ────────────────
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - trendDays);
+    const rsW  = rs.filter(r => !r.started_at || new Date(r.started_at) >= cutoff);
+    const wIds = new Set(rsW.map(r => r.id));
+    const ansW = ans.filter(a => wIds.has(a.response_id));
+
+    const total     = rsW.length;
+    const completed = rsW.filter(r => r.status === 'completed');
+    const abandoned = rsW.filter(r => r.status === 'abandoned');
 
     // ── Core rates ──────────────────────────────────────────────────────
     const completionRate = total ? Math.round((completed.length / total) * 100) : 0;
@@ -42,8 +49,8 @@ export function useAnalytics(qs, rs, ans, trendDays = 14) {
     // then bucket them into milestone bands.
     const milestones = { pct25: 0, pct50: 0, pct75: 0, pct100: 0 };
     if (total > 0 && qs.length > 0) {
-      rs.forEach(r => {
-        const answered = new Set(ans.filter(a => a.response_id === r.id).map(a => a.question_id));
+      rsW.forEach(r => {
+        const answered = new Set(ansW.filter(a => a.response_id === r.id).map(a => a.question_id));
         const pct = answered.size / qs.length;
         if (pct >= 0.25) milestones.pct25++;
         if (pct >= 0.50) milestones.pct50++;
@@ -64,7 +71,7 @@ export function useAnalytics(qs, rs, ans, trendDays = 14) {
     const npsQ = qs.find(q => q.question_type === 'scale');
     let nps = null;
     if (npsQ) {
-      const scores = ans
+      const scores = ansW
         .filter(a => a.question_id === npsQ.id && a.answer_value)
         .map(a => parseInt(a.answer_value))
         .filter(n => n >= 1 && n <= 10);
@@ -85,13 +92,13 @@ export function useAnalytics(qs, rs, ans, trendDays = 14) {
       // "reached" = answered this question OR any question after it
       const qIdsFromHere = qs.slice(i).map(x => x.id);
       const responseIdsReached = new Set(
-        ans
+        ansW
           .filter(a => qIdsFromHere.includes(a.question_id))
           .map(a => a.response_id)
       );
       // "answered this specific question"
       const answeredThis = new Set(
-        ans.filter(a => a.question_id === q.id).map(a => a.response_id)
+        ansW.filter(a => a.question_id === q.id).map(a => a.response_id)
       );
 
       // reached = answered any Q at this index or later
@@ -100,7 +107,7 @@ export function useAnalytics(qs, rs, ans, trendDays = 14) {
       // dropped = reached this Q but didn't answer it (or didn't go further)
       const prevReached = i === 0 ? total : (() => {
         const prevIds = qs.slice(i - 1).map(x => x.id);
-        return new Set(ans.filter(a => prevIds.includes(a.question_id)).map(a => a.response_id)).size;
+        return new Set(ansW.filter(a => prevIds.includes(a.question_id)).map(a => a.response_id)).size;
       })();
 
       const dropped   = Math.max(0, prevReached - reached);
@@ -119,7 +126,7 @@ export function useAnalytics(qs, rs, ans, trendDays = 14) {
 
     // ── Timing heatmap (from metadata.time_per_question) ────────────────
     const timingMap = {};  // { qId: [seconds...] }
-    rs.forEach(r => {
+    rsW.forEach(r => {
       const tpq = r.metadata?.time_per_question;
       if (!tpq) return;
       Object.entries(tpq).forEach(([qId, secs]) => {
@@ -142,7 +149,7 @@ export function useAnalytics(qs, rs, ans, trendDays = 14) {
 
     // ── Quality breakdown ────────────────────────────────────────────────
     const qualityBreakdown = { high: 0, medium: 0, low: 0, unscored: 0 };
-    rs.forEach(r => {
+    rsW.forEach(r => {
       const qs = r.metadata?.quality_score;
       if (qs == null) { qualityBreakdown.unscored++; return; }
       if (qs >= 70)       qualityBreakdown.high++;
@@ -160,7 +167,7 @@ export function useAnalytics(qs, rs, ans, trendDays = 14) {
 
     const trendMap = {};
     days.forEach(d => { trendMap[d] = { started: 0, completed: 0 }; });
-    rs.forEach(r => {
+    rsW.forEach(r => {
       const d = r.started_at?.slice(0, 10);
       if (trendMap[d]) {
         trendMap[d].started++;
@@ -175,7 +182,7 @@ export function useAnalytics(qs, rs, ans, trendDays = 14) {
 
     // ── Device breakdown ─────────────────────────────────────────────────
     const deviceBreakdown = { desktop: 0, mobile: 0, tablet: 0, unknown: 0 };
-    rs.forEach(r => {
+    rsW.forEach(r => {
       const dev = r.metadata?.device || 'unknown';
       deviceBreakdown[dev] = (deviceBreakdown[dev] || 0) + 1;
     });
@@ -183,7 +190,7 @@ export function useAnalytics(qs, rs, ans, trendDays = 14) {
     // ── Per-question answer analytics ────────────────────────────────────
     const questionAnalytics = qs.map(q => ({
       question: q,
-      data:     computeQuestionData(q, ans),
+      data:     computeQuestionData(q, ansW),
     }));
 
     return {
@@ -202,7 +209,7 @@ export function useAnalytics(qs, rs, ans, trendDays = 14) {
       deviceBreakdown,
       questionAnalytics,
     };
-  }, [qs, rs, ans]);
+  }, [qs, rs, ans, trendDays]);
 }
 
 // ─── Per-question data computation ──────────────────────────────────────────

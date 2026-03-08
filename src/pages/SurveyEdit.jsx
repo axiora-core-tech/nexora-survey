@@ -27,8 +27,8 @@ const roField = (val, placeholder='—') => (
 );
 
 function getPreviewSection(step, qsLen) {
-  if (step < 0) return 'Welcome';
-  if (step >= qsLen) return 'Thank You';
+  if (step < 0) return 'Details';
+  if (step >= qsLen) return 'Post Survey';
   return 'Questions';
 }
 
@@ -117,8 +117,7 @@ export default function SurveyEdit(){
   function copyLink(){navigator.clipboard.writeText(`${window.location.origin}/s/${sv.slug}`);toast.success('Copied!');}
 
   function openPreview(){
-    if(tab==='questions'){setPreviewStep(0);}
-    else{setPreviewStep(sv.welcome_message?-1:0);}
+    setPreviewStep(-1); // always open on Details
     setPreviewOpen(true);
   }
 
@@ -156,14 +155,14 @@ export default function SurveyEdit(){
             </div>
             {/* Section tabs */}
             <div style={{display:'flex',gap:3,background:'var(--cream-deep)',borderRadius:10,padding:3}}>
-              {['Welcome','Questions','Thank You'].map(sec=>{
+              {['Details','Questions','Post Survey'].map(sec=>{
                 const active=curSection===sec;
                 return(
                   <button key={sec}
                     onClick={()=>{
-                      if(sec==='Welcome')setPreviewStep(sv.welcome_message?-1:0);
-                      if(sec==='Questions')setPreviewStep(0);
-                      if(sec==='Thank You')setPreviewStep(qs.length);
+                      if(sec==='Details')setPreviewStep(-1);
+                      if(sec==='Questions')setPreviewStep(Math.max(0,Math.min(previewStep,qs.length-1)));
+                      if(sec==='Post Survey')setPreviewStep(qs.length);
                     }}
                     style={{flex:1,padding:'7px 4px',borderRadius:8,border:'none',cursor:'pointer',fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:9,letterSpacing:'0.1em',textTransform:'uppercase',transition:'all 0.2s',background:active?'var(--espresso)':'transparent',color:active?'var(--cream)':'rgba(22,15,8,0.35)',boxShadow:active?'0 2px 8px rgba(22,15,8,0.15)':'none'}}>
                     {sec}
@@ -174,16 +173,28 @@ export default function SurveyEdit(){
           </div>
 
           <div style={{padding:36}}>
-            {/* Welcome */}
-            {curSection==='Welcome'&&(
+            {/* Details */}
+            {curSection==='Details'&&(
               <div style={{textAlign:'center',paddingBottom:24}}>
-                <h2 style={{fontFamily:'Playfair Display,serif',fontWeight:700,fontSize:26,letterSpacing:'-0.5px',color:'var(--espresso)',marginBottom:14}}>{sv.title}</h2>
+                <div style={{display:'inline-flex',alignItems:'center',gap:6,marginBottom:16,padding:'5px 14px',borderRadius:999,background:'rgba(255,69,0,0.07)',fontFamily:'Syne,sans-serif',fontSize:8,fontWeight:700,letterSpacing:'0.16em',textTransform:'uppercase',color:'var(--coral)'}}>
+                  <span style={{width:5,height:5,borderRadius:'50%',background:'var(--coral)',display:'inline-block'}}/>
+                  Preview Mode
+                </div>
+                <h2 style={{fontFamily:'Playfair Display,serif',fontWeight:700,fontSize:26,letterSpacing:'-0.5px',color:'var(--espresso)',marginBottom:10}}>{sv.title}</h2>
+                {sv.description&&<p style={{fontFamily:'Fraunces,serif',fontWeight:300,fontSize:14,color:'rgba(22,15,8,0.45)',lineHeight:1.7,marginBottom:16}}>{sv.description}</p>}
                 {sv.welcome_message
-                  ?<p style={{fontFamily:'Fraunces,serif',fontWeight:300,fontSize:15,color:'rgba(22,15,8,0.6)',lineHeight:1.7,marginBottom:24}}>{sv.welcome_message}</p>
-                  :<p style={{fontFamily:'Fraunces,serif',fontWeight:300,fontSize:14,color:'rgba(22,15,8,0.3)',lineHeight:1.7,marginBottom:24,fontStyle:'italic'}}>No welcome message set.</p>}
-                <button onClick={()=>setPreviewStep(0)} style={{padding:'12px 32px',borderRadius:999,border:'none',background:'var(--espresso)',color:'var(--cream)',fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:11,letterSpacing:'0.1em',textTransform:'uppercase',cursor:'pointer',transition:'background 0.2s'}}
-                  onMouseEnter={e=>e.currentTarget.style.background='var(--coral)'}
-                  onMouseLeave={e=>e.currentTarget.style.background='var(--espresso)'}>Begin →</button>
+                  ?<p style={{fontFamily:'Fraunces,serif',fontWeight:300,fontSize:15,color:'rgba(22,15,8,0.6)',lineHeight:1.7,marginBottom:24,padding:'14px 18px',background:'var(--warm-white)',borderRadius:12,textAlign:'left',border:'1px solid rgba(22,15,8,0.07)'}}>{sv.welcome_message}</p>
+                  :<p style={{fontFamily:'Fraunces,serif',fontWeight:300,fontSize:14,color:'rgba(22,15,8,0.28)',lineHeight:1.7,marginBottom:24,fontStyle:'italic'}}>No welcome message set.</p>}
+                <div style={{display:'flex',gap:8,justifyContent:'center',flexWrap:'wrap',marginBottom:24}}>
+                  <span style={{fontFamily:'Syne,sans-serif',fontSize:8,fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',padding:'4px 10px',borderRadius:999,background:'rgba(22,15,8,0.06)',color:'rgba(22,15,8,0.4)'}}>{qs.length} question{qs.length!==1?'s':''}</span>
+                  {sv.show_progress_bar&&<span style={{fontFamily:'Syne,sans-serif',fontSize:8,fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',padding:'4px 10px',borderRadius:999,background:'rgba(22,15,8,0.06)',color:'rgba(22,15,8,0.4)'}}>Progress bar on</span>}
+                  {sv.allow_anonymous&&<span style={{fontFamily:'Syne,sans-serif',fontSize:8,fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',padding:'4px 10px',borderRadius:999,background:'rgba(22,15,8,0.06)',color:'rgba(22,15,8,0.4)'}}>Anonymous</span>}
+                </div>
+                {qs.length>0
+                  ?<button onClick={()=>setPreviewStep(0)} style={{padding:'12px 32px',borderRadius:999,border:'none',background:'var(--espresso)',color:'var(--cream)',fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:11,letterSpacing:'0.1em',textTransform:'uppercase',cursor:'pointer',transition:'background 0.2s'}}
+                    onMouseEnter={e=>e.currentTarget.style.background='var(--coral)'}
+                    onMouseLeave={e=>e.currentTarget.style.background='var(--espresso)'}>Begin →</button>
+                  :<p style={{fontFamily:'Fraunces,serif',fontSize:13,color:'rgba(22,15,8,0.35)',fontStyle:'italic'}}>No questions added yet.</p>}
               </div>
             )}
 
@@ -220,15 +231,15 @@ export default function SurveyEdit(){
               </div>
             )}
 
-            {/* Thank you */}
-            {curSection==='Thank You'&&(
+            {/* Post Survey */}
+            {curSection==='Post Survey'&&(
               <div style={{textAlign:'center',paddingBottom:8}}>
                 <div style={{marginBottom:16,color:'var(--coral)',display:'flex',justifyContent:'center'}}>
                   <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l2.4 7.4L22 12l-7.6 2.6L12 22l-2.4-7.4L2 12l7.6-2.6L12 2z"/></svg>
                 </div>
                 <h3 style={{fontFamily:'Playfair Display,serif',fontWeight:700,fontSize:24,color:'var(--espresso)',marginBottom:12}}>Thank you!</h3>
                 <p style={{fontFamily:'Fraunces,serif',fontWeight:300,fontSize:15,color:'rgba(22,15,8,0.6)',lineHeight:1.7}}>{sv.thank_you_message||'Your response has been recorded.'}</p>
-                <button onClick={()=>setPreviewStep(sv.welcome_message?-1:0)} style={{marginTop:24,padding:'10px 24px',borderRadius:999,border:'1px solid rgba(22,15,8,0.12)',background:'transparent',color:'rgba(22,15,8,0.5)',fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:10,letterSpacing:'0.1em',textTransform:'uppercase',cursor:'pointer'}}>↺ Restart preview</button>
+                <button onClick={()=>setPreviewStep(-1)} style={{marginTop:24,padding:'10px 24px',borderRadius:999,border:'1px solid rgba(22,15,8,0.12)',background:'transparent',color:'rgba(22,15,8,0.5)',fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:10,letterSpacing:'0.1em',textTransform:'uppercase',cursor:'pointer'}}>↺ Restart preview</button>
               </div>
             )}
           </div>

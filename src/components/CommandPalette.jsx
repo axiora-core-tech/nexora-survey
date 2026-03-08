@@ -126,7 +126,7 @@ export default function CommandPalette({ onClose }) {
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: -8, scale: 0.98 }}
         transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-        style={{ width: '100%', maxWidth: 640, background: 'var(--warm-white)', borderRadius: 22, boxShadow: '0 48px 120px rgba(22,15,8,0.4)', overflow: 'hidden', border: '1px solid rgba(22,15,8,0.06)' }}
+        style={{ width: '100%', maxWidth: 700, background: 'var(--warm-white)', borderRadius: 22, boxShadow: '0 48px 120px rgba(22,15,8,0.4)', overflow: 'hidden', border: '1px solid rgba(22,15,8,0.06)' }}
       >
         {/* Search input */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '20px 24px', borderBottom: '1.5px solid rgba(22,15,8,0.07)' }}>
@@ -148,7 +148,7 @@ export default function CommandPalette({ onClose }) {
         </div>
 
         {/* Results */}
-        <div style={{ maxHeight: 460, overflowY: 'auto', padding: '10px 10px' }}>
+        <div style={{ maxHeight: 520, overflowY: 'auto', padding: '10px 10px' }}>
           {results.length === 0 && !loading && (
             <div style={{ padding: '48px 20px', textAlign: 'center' }}>
               <div style={{ width: 40, height: 40, borderRadius: 12, background: 'var(--cream-deep)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
@@ -170,15 +170,35 @@ export default function CommandPalette({ onClose }) {
                   onMouseEnter={() => setSelected(item._idx)}
                   style={{
                     width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '11px 14px', borderRadius: 12, border: 'none',
-                    background: selected === item._idx ? 'var(--espresso)' : 'transparent',
+                    padding: item.id === 'new-survey' ? '13px 14px' : '11px 14px',
+                    borderRadius: 12,
+                    border: item.id === 'new-survey' ? '1.5px solid rgba(255,69,0,0.18)' : 'none',
+                    background: item.id === 'new-survey'
+                      ? (selected === item._idx ? 'var(--coral)' : 'rgba(255,69,0,0.05)')
+                      : (selected === item._idx ? 'var(--espresso)' : 'transparent'),
                     cursor: 'pointer', textAlign: 'left', transition: 'background 0.12s',
+                    marginBottom: item.id === 'new-survey' ? 2 : 0,
                   }}
                 >
-                  <span style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, borderRadius: 8, background: selected === item._idx ? 'rgba(253,245,232,0.1)' : 'var(--cream-deep)', color: selected === item._idx ? 'rgba(253,245,232,0.8)' : 'rgba(22,15,8,0.45)' }}>
+                  <span style={{
+                    width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    flexShrink: 0, borderRadius: 8,
+                    background: item.id === 'new-survey'
+                      ? (selected === item._idx ? 'rgba(255,255,255,0.18)' : 'rgba(255,69,0,0.12)')
+                      : (selected === item._idx ? 'rgba(253,245,232,0.1)' : 'var(--cream-deep)'),
+                    color: item.id === 'new-survey'
+                      ? (selected === item._idx ? '#fff' : 'var(--coral)')
+                      : (selected === item._idx ? 'rgba(253,245,232,0.8)' : 'rgba(22,15,8,0.45)'),
+                  }}>
                     {ICON_PATHS[item.icon] || ICON_PATHS.edit}
                   </span>
-                  <span style={{ fontFamily: 'Syne, sans-serif', fontSize: 12, fontWeight: 600, color: selected === item._idx ? 'var(--cream)' : 'var(--espresso)', flex: 1, letterSpacing: '0.02em' }}>
+                  <span style={{
+                    fontFamily: 'Syne, sans-serif', fontSize: 12, fontWeight: 700,
+                    color: item.id === 'new-survey'
+                      ? (selected === item._idx ? '#fff' : 'var(--coral)')
+                      : (selected === item._idx ? 'var(--cream)' : 'var(--espresso)'),
+                    flex: 1, letterSpacing: '0.02em',
+                  }}>
                     {item.label}
                   </span>
                   {item.meta && (
@@ -186,7 +206,17 @@ export default function CommandPalette({ onClose }) {
                       {item.meta}
                     </span>
                   )}
-                  <kbd style={{ fontFamily: 'Syne, sans-serif', fontSize: 9, padding: '3px 7px', borderRadius: 6, background: selected === item._idx ? 'rgba(253,245,232,0.12)' : 'var(--cream-deep)', color: selected === item._idx ? 'rgba(253,245,232,0.5)' : 'rgba(22,15,8,0.3)', border: `1px solid ${selected === item._idx ? 'rgba(253,245,232,0.1)' : 'rgba(22,15,8,0.08)'}`, flexShrink: 0 }}>↵</kbd>
+                  <kbd style={{
+                    fontFamily: 'Syne, sans-serif', fontSize: 9, padding: '3px 7px', borderRadius: 6,
+                    background: item.id === 'new-survey'
+                      ? (selected === item._idx ? 'rgba(255,255,255,0.18)' : 'rgba(255,69,0,0.08)')
+                      : (selected === item._idx ? 'rgba(253,245,232,0.12)' : 'var(--cream-deep)'),
+                    color: item.id === 'new-survey'
+                      ? (selected === item._idx ? 'rgba(255,255,255,0.7)' : 'var(--coral)')
+                      : (selected === item._idx ? 'rgba(253,245,232,0.5)' : 'rgba(22,15,8,0.3)'),
+                    border: `1px solid ${item.id === 'new-survey' ? 'rgba(255,69,0,0.12)' : (selected === item._idx ? 'rgba(253,245,232,0.1)' : 'rgba(22,15,8,0.08)')}`,
+                    flexShrink: 0,
+                  }}>↵</kbd>
                 </button>
               ))}
             </div>
