@@ -560,8 +560,8 @@ function QuestionCard({ question:q, data:d, index:i }) {
         // Text responses (short_text / long_text preview)
         <div>
           <div style={{ display:'flex', flexDirection:'column', gap:7, maxHeight:220, overflowY:'auto' }}>
-            {d.items.slice(0,18).map((r,j) => <div key={j} style={S.textResp}>{r}</div>)}
-            {d.items.length > 18 && (
+            {(d.items ?? []).slice(0,18).map((r,j) => <div key={j} style={S.textResp}>{r}</div>)}
+            {(d.items ?? []).length > 18 && (
               <div style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(22,15,8,0.28)', paddingLeft:4 }}>
                 +{d.items.length-18} more — view full analysis in Text Insights tab
               </div>
