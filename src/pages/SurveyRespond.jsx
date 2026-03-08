@@ -62,6 +62,7 @@ export default function SurveyRespond() {
   const [err,   setErr]   = useState(null);
   const [email, setEmail] = useState('');
   const [saved, setSaved] = useState(null);
+  const [orgName, setOrgName] = useState('');
 
   const { stopLoading } = useLoading();
   const token         = useRef(null);
@@ -84,6 +85,11 @@ export default function SurveyRespond() {
       if (s.expires_at && new Date(s.expires_at) < new Date()) { setErr('This survey has expired.'); setSv(s); return; }
       setSv(s);
       token.current = getToken(slug);
+      // Fetch org/tenant name for branding
+      if (s.tenant_id) {
+        const { data: t } = await supabase.from('tenants').select('name').eq('id', s.tenant_id).single();
+        if (t?.name) setOrgName(t.name);
+      }
       const { data: q } = await supabase.from('survey_questions').select('*').eq('survey_id', s.id).order('sort_order');
       setQs(q || []);
       const { data: ex } = await supabase.from('survey_responses').select('*, survey_answers(*)').eq('session_token', token.current).eq('status', 'in_progress').single();
@@ -96,7 +102,8 @@ export default function SurveyRespond() {
         setStep(first >= 0 ? first : 0);
         setSaved(ex.last_saved_at);
       } else {
-        setStep(s.welcome_message ? -1 : 0);
+        // Always show landing page first — title + description are always present
+        setStep(-1);
       }
     } catch (e) { console.error(e); setErr('Failed to load survey'); }
     finally { stopLoading(); }
@@ -400,7 +407,10 @@ export default function SurveyRespond() {
         </motion.p>
         <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} transition={{ delay:0.65 }}
           style={{ marginTop:56, display:'flex', alignItems:'center', justifyContent:'center', gap:6 }}>
-          <span style={{ fontFamily:'Syne,sans-serif', fontSize:8, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:'rgba(237,232,223,0.12)' }}>Nexora Pulse</span>
+          <span style={{ fontFamily:'Syne,sans-serif', fontSize:8, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:'rgba(237,232,223,0.12)' }}>Nexora</span>
+          <span style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:13, letterSpacing:'-0.3px', color:'rgba(237,232,223,0.18)' }}>Pulse</span>
+          <div style={{ width:5, height:5, borderRadius:'50%', background:'#FF4500', opacity:0.4, boxShadow:'0 0 6px rgba(255,69,0,0.5)' }} />
+          {orgName && <span style={{ fontFamily:'Syne,sans-serif', fontSize:8, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:'rgba(237,232,223,0.12)' }}>· {orgName}</span>}
         </motion.div>
       </motion.div>
 
@@ -430,9 +440,34 @@ export default function SurveyRespond() {
 
       {/* ── Header ── */}
       <header style={{ flexShrink:0, height:58, display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 32px', position:'relative', zIndex:20 }}>
-        <span style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:16, letterSpacing:'-0.5px', color: dark ? 'rgba(237,232,223,0.3)' : 'rgba(22,15,8,0.25)', lineHeight:1 }}>
-          Pulse
-        </span>
+        {/* Nexora Pulse logo with coral dot */}
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <div style={{ display:'flex', alignItems:'flex-start', gap:0, lineHeight:1 }}>
+            <span style={{ fontFamily:'Syne,sans-serif', fontSize:8, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color: dark ? 'rgba(237,232,223,0.35)' : 'rgba(22,15,8,0.35)', marginRight:6, position:'relative', top:2 }}>
+              Nexora
+            </span>
+            <span style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:19, letterSpacing:'-0.5px', color: dark ? 'rgba(237,232,223,0.7)' : 'rgba(22,15,8,0.55)', lineHeight:1 }}>
+              Pulse
+            </span>
+            {/* Coral dot with sonar rings */}
+            <div style={{ position:'relative', width:7, height:7, background:'#FF4500', borderRadius:'50%', boxShadow:'0 0 8px rgba(255,69,0,0.55)', alignSelf:'flex-start', marginTop:4, marginLeft:5, flexShrink:0 }}>
+              <style>{`
+                @keyframes sonarR { 0% { transform:translate(-50%,-50%) scale(1); opacity:.65; } 60% { opacity:.3; } 100% { transform:translate(-50%,-50%) scale(3.8); opacity:0; } }
+                .np-sonar { position:absolute; border-radius:50%; border:1.5px solid #FF4500; top:50%; left:50%; width:7px; height:7px; transform:translate(-50%,-50%) scale(0); opacity:0; animation: sonarR 3s ease-out infinite; }
+                .np-sonar:nth-child(1){animation-delay:0s}.np-sonar:nth-child(2){animation-delay:.9s}.np-sonar:nth-child(3){animation-delay:1.8s}
+              `}</style>
+              <div className="np-sonar" /><div className="np-sonar" /><div className="np-sonar" />
+            </div>
+          </div>
+          {orgName && (
+            <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+              <div style={{ width:1, height:14, background: dark ? 'rgba(237,232,223,0.15)' : 'rgba(22,15,8,0.12)' }} />
+              <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color: dark ? 'rgba(237,232,223,0.4)' : 'rgba(22,15,8,0.4)' }}>
+                {orgName}
+              </span>
+            </div>
+          )}
+        </div>
         <div style={{ display:'flex', alignItems:'center', gap:24 }}>
           {/* Estimated time */}
           {!onWelcome && remaining.length > 1 && (
@@ -657,6 +692,13 @@ export default function SurveyRespond() {
         .qsc:hover { border-color:rgba(22,15,8,0.18); transform:translateY(-3px); color:#160F08; background:white; }
         .qsc.on { color:white; transform:translateY(-3px); }
       `}</style>
+
+      {/* ── Footer ── */}
+      <footer style={{ flexShrink:0, height:36, display:'flex', alignItems:'center', justifyContent:'center', padding:'0 32px', borderTop:`1px solid ${line}` }}>
+        <span style={{ fontFamily:'Syne,sans-serif', fontSize:8, fontWeight:700, letterSpacing:'0.16em', textTransform:'uppercase', color: dark ? 'rgba(237,232,223,0.15)' : 'rgba(22,15,8,0.2)' }}>
+          © {new Date().getFullYear()} Nexora Pulse · All rights reserved
+        </span>
+      </footer>
     </div>
   );
 }
@@ -698,7 +740,7 @@ function QInput({ q, val, set, tc, fg, sub }) {
     case 'single_choice':
       return (
         <div style={{ display:'flex', flexDirection:'column', gap:9, maxWidth:580 }}>
-          {(q.options||[]).map((o, i) => {
+          {(parseOpts(q.options)||[]).map((o, i) => {
             const on = val === o.value;
             return (
               <motion.button key={i} whileTap={{ scale:0.99 }} onClick={() => set(o.value)}
@@ -718,7 +760,7 @@ function QInput({ q, val, set, tc, fg, sub }) {
       const sel = Array.isArray(val) ? val : [];
       return (
         <div style={{ display:'flex', flexDirection:'column', gap:9, maxWidth:580 }}>
-          {(q.options||[]).map((o, i) => {
+          {(parseOpts(q.options)||[]).map((o, i) => {
             const on = sel.includes(o.value);
             return (
               <motion.button key={i} whileTap={{ scale:0.99 }}
@@ -742,7 +784,7 @@ function QInput({ q, val, set, tc, fg, sub }) {
             style={{ width:'100%', padding:'16px 44px 16px 20px', appearance:'none', WebkitAppearance:'none', background:'rgba(255,255,255,0.75)', border:'1.5px solid rgba(22,15,8,0.09)', borderRadius:16, fontFamily:'Fraunces,serif', fontWeight:300, fontSize:19, color: val ? '#160F08' : 'rgba(22,15,8,0.28)', outline:'none', cursor:'pointer', backdropFilter:'blur(6px)', transition:'border-color 0.2s' }}
             onFocus={e => e.target.style.borderColor = tc} onBlur={e => e.target.style.borderColor = 'rgba(22,15,8,0.09)'}>
             <option value="">Select an option…</option>
-            {(q.options||[]).map((o,i) => <option key={i} value={o.value}>{o.label}</option>)}
+            {(parseOpts(q.options)||[]).map((o,i) => <option key={i} value={o.value}>{o.label}</option>)}
           </select>
           <Icons.Chevron style={{ position:'absolute', right:14, top:'50%', transform:'translateY(-50%)', pointerEvents:'none', color:'rgba(22,15,8,0.3)' }} />
         </div>

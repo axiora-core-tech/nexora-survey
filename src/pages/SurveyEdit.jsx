@@ -13,6 +13,17 @@ import HelpTip from '../components/HelpTip';
 const hasO=t=>['single_choice','multiple_choice','dropdown','ranking'].includes(t);
 const isMx=t=>t==='matrix';
 
+// Supabase can return JSONB as a plain object/array OR as a JSON string.
+// Normalise once so all downstream .map() calls never crash.
+function parseOpts(raw, forMatrix=false) {
+  if (!raw) return forMatrix ? { rows: [], columns: [] } : [];
+  if (typeof raw === 'string') {
+    try { raw = JSON.parse(raw); } catch { return forMatrix ? { rows: [], columns: [] } : []; }
+  }
+  if (forMatrix) return (raw && !Array.isArray(raw) && typeof raw === 'object') ? raw : { rows: [], columns: [] };
+  return Array.isArray(raw) ? raw : [];
+}
+
 const eSty = {
   lbl: { fontFamily:'Syne,sans-serif',fontSize:9,fontWeight:700,letterSpacing:'0.18em',textTransform:'uppercase',color:'rgba(22,15,8,0.4)',display:'block',marginBottom:10 },
   inp: { width:'100%',boxSizing:'border-box',padding:'14px 18px',background:'var(--cream)',border:'1.5px solid rgba(22,15,8,0.1)',borderRadius:14,fontFamily:'Fraunces,serif',fontSize:15,color:'var(--espresso)',outline:'none',transition:'border-color 0.2s, box-shadow 0.2s',resize:'vertical' },
@@ -54,7 +65,10 @@ export default function SurveyEdit(){
       setSv({...s,expires_at:s.expires_at?new Date(s.expires_at).toISOString().slice(0,16):''});
       setIsEditing(s.status==='draft');
       const{data:q}=await supabase.from('survey_questions').select('*').eq('survey_id',id).order('sort_order');
-      sQs((q||[]).map(x=>({...x,_id:x.id})));
+      sQs((q||[]).map(x=>{
+        const opts = isMx(x.question_type) ? parseOpts(x.options, true) : hasO(x.question_type) ? parseOpts(x.options) : x.options;
+        return {...x, _id:x.id, options:opts};
+      }));
       const{data:sh}=await supabase.from('survey_shares').select('*,user:user_profiles!shared_with(full_name,email)').eq('survey_id',id);
       setShares(sh||[]);
       const{data:u}=await supabase.from('user_profiles').select('id,full_name,email,role');
@@ -217,7 +231,7 @@ export default function SurveyEdit(){
                    qs[previewStep]?.question_type==='yes_no'?'Yes / No':
                    qs[previewStep]?.question_type==='scale'?'← 1 · 2 · 3 · 4 · 5 · 6 · 7 · 8 · 9 · 10 →':
                    (qs[previewStep]?.question_type==='single_choice'||qs[previewStep]?.question_type==='multiple_choice')?
-                     ((qs[previewStep].options||[]).map(o=>o.label).join(' · ')||'Options preview'):
+                     (parseOpts(qs[previewStep].options).map(o=>o.label).join(' · ')||'Options preview'):
                    'Your answer here…'}
                 </div>
                 <div style={{display:'flex',justifyContent:'space-between'}}>
@@ -417,7 +431,7 @@ export default function SurveyEdit(){
                 </div>
                 {hasO(q.question_type)&&(
                   <div style={{marginTop:4,paddingLeft:16,borderLeft:'2px solid rgba(255,69,0,0.2)',display:'flex',flexDirection:'column',gap:8}}>
-                    {(q.options||[]).map((o,j)=>(
+                    {parseOpts(q.options).map((o,j)=>(
                       <div key={j} style={{display:'flex',alignItems:'center',gap:10}}>
                         <div style={{width:14,height:14,borderRadius:'50%',border:'2px solid rgba(22,15,8,0.15)',flexShrink:0}}/>
                         <input value={o.label} onChange={e=>sOpt(q._id,j,e.target.value)} placeholder={`Option ${j+1}`} style={{...eSty.inp,flex:1,padding:'10px 14px',fontSize:14}} onFocus={eSty.fi} onBlur={eSty.fo}/>
@@ -428,7 +442,7 @@ export default function SurveyEdit(){
                   </div>
                 )}
                 {isMx(q.question_type)&&(()=>{
-                  const raw=q.options;const mx=raw&&!Array.isArray(raw)&&typeof raw==='object'?raw:{rows:[],columns:[]};
+                  const mx=parseOpts(q.options, true);
                   const setMx=next=>sQ(q._id,'options',next);
                   const addRow=()=>setMx({...mx,rows:[...(mx.rows||[]),{label:`Row ${(mx.rows||[]).length+1}`,value:`row_${(mx.rows||[]).length+1}`}]});
                   const addCol=()=>setMx({...mx,columns:[...(mx.columns||[]),{label:`Col ${(mx.columns||[]).length+1}`,value:`col_${(mx.columns||[]).length+1}`}]});
@@ -469,9 +483,9 @@ export default function SurveyEdit(){
                 </div>
                 <p style={{fontFamily:'Playfair Display,serif',fontWeight:700,fontSize:17,color:'var(--espresso)',marginBottom:q.description?8:0,lineHeight:1.4}}>{q.question_text||<em style={{opacity:0.35}}>No question text</em>}</p>
                 {q.description&&<p style={{fontFamily:'Fraunces,serif',fontWeight:300,fontSize:13,color:'rgba(22,15,8,0.5)',marginBottom:10,lineHeight:1.5}}>{q.description}</p>}
-                {hasO(q.question_type)&&(q.options||[]).length>0&&(
+                {hasO(q.question_type)&&parseOpts(q.options).length>0&&(
                   <div style={{display:'flex',flexWrap:'wrap',gap:8,marginTop:8}}>
-                    {q.options.map((o,j)=>(
+                    {parseOpts(q.options).map((o,j)=>(
                       <span key={j} style={{fontFamily:'Fraunces,serif',fontWeight:300,fontSize:13,color:'rgba(22,15,8,0.6)',background:'var(--cream-deep)',padding:'6px 14px',borderRadius:999,border:'1px solid rgba(22,15,8,0.06)'}}>{o.label}</span>
                     ))}
                   </div>
