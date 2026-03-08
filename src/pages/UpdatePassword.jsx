@@ -15,32 +15,50 @@ const Logo = () => (
   </div>
 );
 
-export default function UpdatePassword() {
-  const [pw, setPw]       = useState('');
-  const [confirm, setCf]  = useState('');
-  const [busy, setBusy]   = useState(false);
-  const [ready, setReady] = useState(false);
-  const nav = useNavigate();
+function friendlyAuthError(msg = '') {
+  const m = msg.toLowerCase();
+  if (m.includes('expired') || m.includes('invalid') || m.includes('otp'))
+    return 'This link has expired or is no longer valid. Please request a new password reset.';
+  if (m.includes('rate limit') || m.includes('too many'))
+    return 'Too many attempts — please wait a minute before trying again.';
+  if (m.includes('network') || m.includes('fetch'))
+    return 'Connection error. Please check your internet and try again.';
+  return msg;
+}
 
+export default function UpdatePassword() {
+  const [pw, setPw]           = useState('');
+  const [confirm, setCf]      = useState('');
+  const [busy, setBusy]       = useState(false);
+  const [ready, setReady]     = useState(false);
+  const [linkBad, setLinkBad] = useState(false);
+  const nav = useNavigate();
   const { stopLoading } = useLoading();
 
-  // Supabase fires PASSWORD_RECOVERY event when user arrives via email link
   useEffect(() => {
     stopLoading();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') setReady(true);
+    let resolved = false;
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
+        resolved = true;
+        setReady(true);
+      }
     });
-    // Also check existing session (user may already be authenticated via magic link)
+
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setReady(true);
+      if (session) { resolved = true; setReady(true); }
     });
-    return () => subscription.unsubscribe();
+
+    // If nothing fires within 6 s, the link has expired
+    const timer = setTimeout(() => { if (!resolved) setLinkBad(true); }, 6000);
+    return () => { subscription.unsubscribe(); clearTimeout(timer); };
   }, [stopLoading]);
 
   const go = async e => {
     e.preventDefault();
     if (pw.length < 6)     return toast.error('Password needs 6+ characters');
-    if (pw !== confirm)    return toast.error('Passwords don\'t match');
+    if (pw !== confirm)    return toast.error("Passwords don't match");
     setBusy(true);
     try {
       const { error } = await supabase.auth.updateUser({ password: pw });
@@ -48,7 +66,7 @@ export default function UpdatePassword() {
       toast.success('Password updated! Please sign in.');
       nav('/login');
     } catch (e) {
-      toast.error(e.message);
+      toast.error(friendlyAuthError(e.message));
     } finally {
       setBusy(false);
     }
@@ -69,12 +87,34 @@ export default function UpdatePassword() {
 
         <Link to="/login" style={{ textDecoration: 'none', display: 'block', marginBottom: 48 }}><Logo /></Link>
 
-        {!ready ? (
+        {/* ── Expired / bad link state ── */}
+        {linkBad ? (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(214,59,31,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', fontSize: 28 }}>⏱</div>
+            <h2 style={{ fontFamily: 'Playfair Display, serif', fontWeight: 900, fontSize: 28, letterSpacing: '-1px', color: 'var(--espresso)', marginBottom: 12 }}>Link has expired</h2>
+            <p style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 16, lineHeight: 1.7, color: 'rgba(22,15,8,0.5)', marginBottom: 10 }}>
+              Password reset links are valid for <strong style={{ color: 'var(--espresso)' }}>1 hour</strong>. This one is no longer active.
+            </p>
+            <p style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 14, color: 'rgba(22,15,8,0.4)', marginBottom: 36 }}>
+              Don't worry — simply request a new link below and check your inbox.
+            </p>
+            <Link to="/reset-password"
+              style={{ display: 'inline-flex', padding: '14px 32px', borderRadius: 999, background: 'var(--espresso)', color: 'var(--cream)', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', textDecoration: 'none', transition: 'background 0.25s' }}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--coral)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'var(--espresso)'}>
+              Request new link →
+            </Link>
+          </div>
+
+        /* ── Verifying state ── */
+        ) : !ready ? (
           <div style={{ textAlign: 'center' }}>
             <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'rgba(255,69,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', fontSize: 24 }}>⏳</div>
             <h2 style={{ fontFamily: 'Playfair Display, serif', fontWeight: 900, fontSize: 28, letterSpacing: '-1px', color: 'var(--espresso)', marginBottom: 12 }}>Verifying link…</h2>
             <p style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 15, color: 'rgba(22,15,8,0.45)' }}>Please wait while we verify your reset link.</p>
           </div>
+
+        /* ── Set new password ── */
         ) : (
           <>
             <h2 style={{ fontFamily: 'Playfair Display, serif', fontWeight: 900, fontSize: 32, letterSpacing: '-1px', color: 'var(--espresso)', marginBottom: 8 }}>New password</h2>

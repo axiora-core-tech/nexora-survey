@@ -37,6 +37,21 @@ export function useAnalytics(qs, rs, ans) {
     const completionRate = total ? Math.round((completed.length / total) * 100) : 0;
     const abandonRate    = total ? Math.round((abandoned.length / total) * 100) : 0;
 
+    // ── Completion milestones (25 / 50 / 75 / 100 %) ────────────────────────
+    // For each respondent, figure out what % of questions they answered,
+    // then bucket them into milestone bands.
+    const milestones = { pct25: 0, pct50: 0, pct75: 0, pct100: 0 };
+    if (total > 0 && qs.length > 0) {
+      rs.forEach(r => {
+        const answered = new Set(ans.filter(a => a.response_id === r.id).map(a => a.question_id));
+        const pct = answered.size / qs.length;
+        if (pct >= 0.25) milestones.pct25++;
+        if (pct >= 0.50) milestones.pct50++;
+        if (pct >= 0.75) milestones.pct75++;
+        if (r.status === 'completed' || pct >= 1) milestones.pct100++;
+      });
+    }
+
     // ── Average completion time ──────────────────────────────────────────
     const times = completed
       .filter(r => r.completed_at && r.started_at)
@@ -177,6 +192,7 @@ export function useAnalytics(qs, rs, ans) {
       abandonedCount: abandoned.length,
       completionRate,
       abandonRate,
+      milestones,
       avgTimeMin,
       nps,
       dropOffFunnel,
@@ -316,6 +332,7 @@ function emptyResult() {
   return {
     total: 0, completedCount: 0, abandonedCount: 0,
     completionRate: 0, abandonRate: 0,
+    milestones: { pct25: 0, pct50: 0, pct75: 0, pct100: 0 },
     avgTimeMin: null, nps: null,
     dropOffFunnel: [], timingHeatmap: [],
     qualityBreakdown: { high: 0, medium: 0, low: 0, unscored: 0 },

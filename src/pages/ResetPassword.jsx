@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import toast from 'react-hot-toast';
@@ -45,7 +45,16 @@ export default function ResetPassword() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}
         style={{ width: '100%', maxWidth: 380 }}>
 
-        <Link to="/login" style={{ textDecoration: 'none', display: 'block', marginBottom: 48 }}><Logo /></Link>
+        {/* Header: logo + close button (back to wherever user came from) */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 48 }}>
+          <Link to="/login" style={{ textDecoration: 'none' }}><Logo /></Link>
+          <button onClick={() => nav(-1)}
+            style={{ width: 36, height: 36, borderRadius: '50%', border: '1px solid rgba(22,15,8,0.12)', background: 'transparent', color: 'rgba(22,15,8,0.4)', fontSize: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--coral)'; e.currentTarget.style.color = 'var(--coral)'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(22,15,8,0.12)'; e.currentTarget.style.color = 'rgba(22,15,8,0.4)'; }}>
+            ✕
+          </button>
+        </div>
 
         {sent ? (
           <div style={{ textAlign: 'center' }}>

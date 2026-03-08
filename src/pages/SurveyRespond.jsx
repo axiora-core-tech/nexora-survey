@@ -52,6 +52,10 @@ export default function SurveyRespond() {
   const [dir,   setDir]   = useState(1);
   const [busy,  setBusy]  = useState(false);
   const [done,  setDone]  = useState(false);
+  const [fbDone, setFbDone] = useState(false);
+  const [fbRating, setFbRating] = useState(0);
+  const [fbComment, setFbComment] = useState('');
+  const [fbBusy, setFbBusy] = useState(false);
   const [err,   setErr]   = useState(null);
   const [email, setEmail] = useState('');
   const [saved, setSaved] = useState(null);
@@ -214,12 +218,76 @@ export default function SurveyRespond() {
   if (!sv) return null;
 
   // ── Thank you ─────────────────────────────────────────────────────────────
+  async function submitFeedback() {
+    if (fbRating === 0) return;
+    setFbBusy(true);
+    try {
+      await supabase.from('survey_feedback').insert({
+        survey_id: sv.id,
+        rating: fbRating,
+        comment: fbComment.trim() || null,
+        responded_at: new Date().toISOString(),
+      }).select();
+    } catch (e) { /* silent — feedback is best-effort */ }
+    finally { setFbBusy(false); setFbDone(true); }
+  }
+
   if (done) return (
     <div style={{ height:'100vh', background:'#100B05', display:'flex', alignItems:'center', justifyContent:'center', padding:32, position:'relative', overflow:'hidden' }}>
       <div aria-hidden style={{ position:'absolute', inset:0, pointerEvents:'none' }}>
         <div style={{ position:'absolute', top:'40%', left:'50%', transform:'translate(-50%,-50%)', width:700, height:700, borderRadius:'50%', background:`radial-gradient(circle, ${tc}18, transparent 65%)`, filter:'blur(80px)' }} />
       </div>
-      <motion.div initial={{ opacity:0, scale:0.92, y:20 }} animate={{ opacity:1, scale:1, y:0 }} transition={{ duration:0.7, ease:[0.16,1,0.3,1] }}
+
+      <AnimatePresence mode="wait">
+
+      {/* ── Quick feedback card (before thank-you) ── */}
+      {!fbDone ? (
+        <motion.div key="feedback"
+          initial={{ opacity:0, y:24 }} animate={{ opacity:1, y:0 }} exit={{ opacity:0, y:-16 }}
+          transition={{ duration:0.55, ease:[0.16,1,0.3,1] }}
+          style={{ position:'relative', zIndex:1, textAlign:'center', maxWidth:400, width:'100%' }}>
+          <p style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:'rgba(237,232,223,0.25)', marginBottom:20 }}>
+            One quick question
+          </p>
+          <h2 style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:'clamp(22px,4vw,32px)', letterSpacing:'-1px', color:'#EDE8DF', marginBottom:28, lineHeight:1.15 }}>
+            How was this survey experience?
+          </h2>
+          {/* Star rating */}
+          <div style={{ display:'flex', justifyContent:'center', gap:10, marginBottom:28 }}>
+            {[1,2,3,4,5].map(n => (
+              <button key={n} onClick={() => setFbRating(n)}
+                style={{ background:'none', border:'none', fontSize:32, cursor:'pointer', transition:'transform 0.15s', transform: fbRating >= n ? 'scale(1.15)' : 'scale(1)', filter: fbRating >= n ? 'brightness(1)' : 'brightness(0.35)', color: fbRating >= n ? '#FFB800' : '#EDE8DF' }}>
+                ★
+              </button>
+            ))}
+          </div>
+          {/* Optional comment */}
+          <textarea value={fbComment} onChange={e => setFbComment(e.target.value)}
+            placeholder="Anything we should know? (optional)"
+            rows={2}
+            style={{ width:'100%', boxSizing:'border-box', padding:'12px 16px', background:'rgba(237,232,223,0.06)', border:'1px solid rgba(237,232,223,0.12)', borderRadius:14, fontFamily:'Fraunces,serif', fontWeight:300, fontSize:15, color:'#EDE8DF', outline:'none', resize:'none', transition:'border-color 0.2s', marginBottom:20 }}
+            onFocus={e => e.target.style.borderColor = 'rgba(237,232,223,0.3)'}
+            onBlur={e => e.target.style.borderColor = 'rgba(237,232,223,0.12)'}
+          />
+          <div style={{ display:'flex', gap:10, justifyContent:'center' }}>
+            <button onClick={submitFeedback} disabled={fbRating === 0 || fbBusy}
+              style={{ padding:'13px 28px', borderRadius:999, border:'none', background: fbRating === 0 ? 'rgba(237,232,223,0.08)' : tc, color: fbRating === 0 ? 'rgba(237,232,223,0.3)' : '#fff', fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:11, letterSpacing:'0.12em', textTransform:'uppercase', cursor: fbRating === 0 ? 'not-allowed' : 'pointer', transition:'all 0.25s' }}>
+              {fbBusy ? 'Sending…' : 'Submit feedback'}
+            </button>
+            <button onClick={() => setFbDone(true)}
+              style={{ padding:'13px 20px', borderRadius:999, border:'1px solid rgba(237,232,223,0.12)', background:'transparent', color:'rgba(237,232,223,0.3)', fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:11, letterSpacing:'0.12em', textTransform:'uppercase', cursor:'pointer', transition:'all 0.2s' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor='rgba(237,232,223,0.3)'; e.currentTarget.style.color='rgba(237,232,223,0.6)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(237,232,223,0.12)'; e.currentTarget.style.color='rgba(237,232,223,0.3)'; }}>
+              Skip
+            </button>
+          </div>
+        </motion.div>
+
+      ) : (
+
+      /* ── Thank-you screen ── */
+      <motion.div key="thankyou"
+        initial={{ opacity:0, scale:0.92, y:20 }} animate={{ opacity:1, scale:1, y:0 }} transition={{ duration:0.7, ease:[0.16,1,0.3,1] }}
         style={{ textAlign:'center', maxWidth:460, position:'relative', zIndex:1 }}>
         <motion.div initial={{ scale:0, rotate:-20 }} animate={{ scale:1, rotate:0 }} transition={{ delay:0.2, type:'spring', stiffness:180, damping:16 }}
           style={{ width:88, height:88, borderRadius:'50%', border:`1.5px solid ${tc}50`, background:`${tc}0D`, display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 44px' }}>
@@ -240,6 +308,10 @@ export default function SurveyRespond() {
           <span style={{ fontFamily:'Syne,sans-serif', fontSize:8, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:'rgba(237,232,223,0.12)' }}>Nexora Pulse</span>
         </motion.div>
       </motion.div>
+
+      )}
+
+      </AnimatePresence>
     </div>
   );
 
