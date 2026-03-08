@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '../lib/supabase';
+import toast from 'react-hot-toast';
 
 import RankingInput  from '../components/questions/RankingInput';
 import SliderInput   from '../components/questions/SliderInput';
@@ -116,7 +117,7 @@ export default function EmbedView() {
 
   async function submit() {
     for (const q of visibleQuestions) {
-      if (q.is_required && !ans[q.id]) { goTo(qs.indexOf(q)); return alert(`Please answer: "${q.question_text}"`); }
+      if (q.is_required && !ans[q.id]) { goTo(qs.indexOf(q)); return toast.error(`Please answer: "${q.question_text}"`); }
     }
     sSub(true);
     try {
@@ -128,13 +129,13 @@ export default function EmbedView() {
       localStorage.removeItem(`nx_embed_${slug}`);
       // Notify parent frame
       window.parent?.postMessage({ type: 'nx:completed', slug, surveyTitle: sv?.title }, '*');
-    } catch(e) { alert('Submission failed — please try again.'); }
+    } catch(e) { toast.error('Submission failed — please try again.'); }
     finally { sSub(false); }
   }
 
   function goTo(n) { setDir(n > step ? 1 : -1); setStep(n); }
   function goNext() {
-    const q = qs[step]; if (q?.is_required && !ans[q.id]) return alert('This question is required');
+    const q = qs[step]; if (q?.is_required && !ans[q.id]) return toast.error('This question is required');
     if (q) tracker.onLeave(q.id);
     const next = nextVisible(step);
     if (next !== null) { setDir(1); setStep(next); tracker.onEnter(qs[next]?.id); }
@@ -250,7 +251,7 @@ export default function EmbedView() {
                 <motion.button initial={{ opacity:0, y:10 }} animate={{ opacity:1, y:0 }} transition={{ delay:0.35 }}
                   whileHover={{ scale:1.02 }} whileTap={{ scale:0.97 }}
                   onClick={() => {
-                    if (sv.require_email && !email) return alert('Please enter your email');
+                    if (sv.require_email && !email) return toast.error('Please enter your email');
                     setDir(1);
                     const idx = qs.findIndex(q => visibleQuestions.some(vq=>vq.id===q.id));
                     const n = idx >= 0 ? idx : 0;

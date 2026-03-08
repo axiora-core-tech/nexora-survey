@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import AISurveySuggestions from '../components/AISurveySuggestions';
 import useAuthStore from '../hooks/useAuth';
 import { QUESTION_TYPES, generateUniqueSlug } from '../lib/constants';
+import { Reorder } from 'framer-motion';
+import HelpTip from '../components/HelpTip';
 import toast from 'react-hot-toast';
 import { useLoading } from '../context/LoadingContext';
 
@@ -27,8 +29,21 @@ export default function SurveyCreate() {
   const [tab, setTab]     = useState('details');
   const [f, sf]           = useState({ title: '', description: '', welcome_message: '', thank_you_message: 'Thank you for completing this survey!', expires_at: '', theme_color: '#FF4500', allow_anonymous: true, require_email: false, show_progress_bar: true });
   const [qs, sQs]         = useState([newQ()]);
+  const [dirty, setDirty] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
 
-  const s    = (k, v) => sf(p => ({ ...p, [k]: v }));
+  // ── Beforeunload guard ───────────────────────────────────────────────────
+  useEffect(() => {
+    const handler = e => {
+      if (!dirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handler);
+    return () => window.removeEventListener('beforeunload', handler);
+  }, [dirty]);
+
+  const s    = (k, v) => { sf(p => ({ ...p, [k]: v })); setDirty(true); };
   const sQ   = (id, k, v) => sQs(a => a.map(q => q._id === id ? { ...q, [k]: v } : q));
   const addQ = () => sQs(a => [...a, newQ()]);
   const delQ = id => { if (qs.length <= 1) return toast.error('Need at least 1 question'); sQs(a => a.filter(q => q._id !== id)); };
@@ -50,6 +65,7 @@ export default function SurveyCreate() {
       if (!sv) throw new Error('Survey not created');
       const { error: e2 } = await supabase.from('survey_questions').insert(qs.map((q, i) => ({ survey_id: sv.id, question_text: q.question_text, question_type: q.question_type, options: hasO(q.question_type) ? q.options : isMx(q.question_type) ? (q.options || { rows: [], columns: [] }) : null, is_required: q.is_required, description: q.description || null, sort_order: i })));
       if (e2) throw e2;
+      setDirty(false);
       toast.success(status === 'active' ? 'Published!' : 'Draft saved');
       nav(`/surveys/${sv.id}/edit`);
     } catch (e) { console.error(e); toast.error(e.message || 'Failed to save'); }
@@ -62,17 +78,85 @@ export default function SurveyCreate() {
     { id: 'settings',  label: 'Settings' },
   ];
 
-  const btnBase = { padding: '10px 22px', borderRadius: 999, fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'none', border: 'none', transition: 'all 0.2s', whiteSpace: 'nowrap', opacity: busy ? 0.45 : 1 };
+  const btnBase = { padding: '10px 22px', borderRadius: 999, fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', cursor: 'pointer', border: 'none', transition: 'all 0.2s', whiteSpace: 'nowrap', opacity: busy ? 0.45 : 1 };
 
   return (
     <div>
+      {/* ── Template Gallery Modal ──────────────────────────────────────── */}
+      {showTemplates && (
+        <div style={{ position:'fixed',inset:0,zIndex:9000,background:'rgba(22,15,8,0.55)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',padding:24 }}
+          onClick={e=>{ if(e.target===e.currentTarget) setShowTemplates(false); }}>
+          <div style={{ background:'var(--warm-white)',borderRadius:24,padding:36,maxWidth:680,width:'100%',maxHeight:'80vh',overflowY:'auto',boxShadow:'0 32px 80px rgba(22,15,8,0.25)' }}>
+            <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:24 }}>
+              <h2 style={{ fontFamily:'Playfair Display,serif',fontWeight:700,fontSize:24,letterSpacing:'-0.5px',margin:0 }}>Survey Templates</h2>
+              <button onClick={()=>setShowTemplates(false)} style={{ background:'none',border:'none',cursor:'pointer',fontSize:20,color:'rgba(22,15,8,0.3)' }}>✕</button>
+            </div>
+            <div style={{ display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(280px,1fr))',gap:16 }}>
+              {[
+                { name:'NPS Survey', desc:'Measure customer loyalty with the Net Promoter Score methodology.', time:'2 min', icon:'⭐', qs:[
+                  {question_text:'How likely are you to recommend us to a friend or colleague?',question_type:'scale',is_required:true,description:'0 = Not at all likely, 10 = Extremely likely'},
+                  {question_text:'What is the main reason for your score?',question_type:'long_text',is_required:false,description:''},
+                  {question_text:'What could we do to improve your experience?',question_type:'long_text',is_required:false,description:''},
+                ]},
+                { name:'Product Feedback', desc:'Gather actionable feedback on your product features and UX.', time:'3 min', icon:'🛠️', qs:[
+                  {question_text:'How satisfied are you with the product overall?',question_type:'rating',is_required:true,description:''},
+                  {question_text:'Which features do you use most often?',question_type:'multiple_choice',is_required:false,options:[{label:'Dashboard',value:'dashboard'},{label:'Analytics',value:'analytics'},{label:'Sharing',value:'sharing'},{label:'Integrations',value:'integrations'}]},
+                  {question_text:'What feature would you most like to see added?',question_type:'long_text',is_required:false},
+                  {question_text:'How easy is the product to use?',question_type:'scale',is_required:true,description:'1 = Very difficult, 10 = Very easy'},
+                ]},
+                { name:'Employee Pulse', desc:'Quick check-in on team morale, workload, and engagement.', time:'4 min', icon:'💼', qs:[
+                  {question_text:'How satisfied are you with your work environment?',question_type:'rating',is_required:true},
+                  {question_text:'How manageable is your current workload?',question_type:'scale',is_required:true,description:'1 = Overwhelmed, 10 = Very manageable'},
+                  {question_text:'Do you feel your contributions are recognised?',question_type:'yes_no',is_required:true},
+                  {question_text:'What would most improve your day-to-day experience?',question_type:'long_text',is_required:false},
+                ]},
+                { name:'Event Feedback', desc:'Collect structured feedback right after an event or workshop.', time:'2 min', icon:'🎤', qs:[
+                  {question_text:'How would you rate this event overall?',question_type:'rating',is_required:true},
+                  {question_text:'How well did the event meet your expectations?',question_type:'scale',is_required:true,description:'1 = Far below, 10 = Far exceeded'},
+                  {question_text:'What was the highlight of the event?',question_type:'short_text',is_required:false},
+                  {question_text:'What could be improved for next time?',question_type:'long_text',is_required:false},
+                ]},
+                { name:'Market Research', desc:'Understand your audience segments and buying intent.', time:'5 min', icon:'📊', qs:[
+                  {question_text:'Which of the following best describes your role?',question_type:'single_choice',is_required:true,options:[{label:'Individual Contributor',value:'ic'},{label:'Manager',value:'manager'},{label:'Director or above',value:'director'},{label:'Founder/Owner',value:'founder'}]},
+                  {question_text:'What is your primary challenge in your work today?',question_type:'long_text',is_required:true},
+                  {question_text:'Which tools do you currently use?',question_type:'multiple_choice',is_required:false,options:[{label:'Spreadsheets',value:'spreadsheets'},{label:'Survey tools',value:'survey'},{label:'CRM',value:'crm'},{label:'BI tools',value:'bi'}]},
+                  {question_text:'How important is this problem for your team?',question_type:'scale',is_required:true,description:'1 = Nice to solve, 10 = Critical'},
+                ]},
+              ].map(t=>(
+                <div key={t.name} style={{ background:'var(--cream)',borderRadius:18,padding:24,border:'1px solid rgba(22,15,8,0.07)',cursor:'pointer',transition:'all 0.2s' }}
+                  onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--coral)';e.currentTarget.style.boxShadow='0 12px 40px rgba(255,69,0,0.1)';}}
+                  onMouseLeave={e=>{e.currentTarget.style.borderColor='rgba(22,15,8,0.07)';e.currentTarget.style.boxShadow='none';}}
+                  onClick={()=>{
+                    sf(p=>({...p,title:t.name}));
+                    sQs(t.qs.map(q=>({...q,_id:Math.random().toString(36).slice(2),options:q.options||[],description:q.description||''})));
+                    setDirty(true); setShowTemplates(false); setTab('questions');
+                    toast.success(`"${t.name}" template loaded!`);
+                  }}>
+                  <div style={{ fontSize:28,marginBottom:12 }}>{t.icon}</div>
+                  <div style={{ fontFamily:'Playfair Display,serif',fontWeight:700,fontSize:16,color:'var(--espresso)',marginBottom:6 }}>{t.name}</div>
+                  <div style={{ fontFamily:'Fraunces,serif',fontWeight:300,fontSize:13,color:'rgba(22,15,8,0.5)',lineHeight:1.5,marginBottom:10 }}>{t.desc}</div>
+                  <div style={{ fontFamily:'Syne,sans-serif',fontSize:9,fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',color:'rgba(22,15,8,0.35)' }}>
+                    ~{t.time} · {t.qs.length} questions
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
       {/* Header — full width, matches all other pages */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, marginBottom: 40, flexWrap: 'nowrap' }}>
         <div>
           <div style={{ fontFamily: 'Syne, sans-serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--coral)', marginBottom: 10 }}>Research</div>
           <h1 style={{ fontFamily: 'Playfair Display, serif', fontWeight: 900, fontSize: 'clamp(28px,3.5vw,48px)', letterSpacing: '-2px', color: 'var(--espresso)', margin: 0 }}>New Survey</h1>
+          {dirty && <span style={{fontFamily:'Syne,sans-serif',fontSize:9,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'var(--saffron)',marginTop:6,display:'block'}}>● Unsaved changes</span>}
         </div>
         <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+          <button onClick={() => setShowTemplates(true)} style={{ ...btnBase, background: 'var(--cream-deep)', color: 'rgba(22,15,8,0.6)', display:'flex', alignItems:'center', gap:6 }}
+            onMouseEnter={e => { if (!busy) e.currentTarget.style.background = 'rgba(22,15,8,0.1)'; }}
+            onMouseLeave={e => { if (!busy) e.currentTarget.style.background = 'var(--cream-deep)'; }}>
+            ☰ Templates
+          </button>
           <button onClick={() => save('draft')} disabled={busy} style={{ ...btnBase, background: 'var(--cream-deep)', color: 'rgba(22,15,8,0.6)' }}
             onMouseEnter={e => { if (!busy) e.currentTarget.style.background = 'rgba(22,15,8,0.1)'; }}
             onMouseLeave={e => { if (!busy) e.currentTarget.style.background = 'var(--cream-deep)'; }}>
@@ -93,7 +177,7 @@ export default function SurveyCreate() {
       <div style={{ display: 'flex', gap: 4, padding: 6, background: 'var(--cream-deep)', borderRadius: 999, marginBottom: 32 }}>
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)}
-            style={{ flex: 1, padding: '10px 0', borderRadius: 999, border: 'none', cursor: 'none', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', transition: 'all 0.2s', background: tab === t.id ? 'var(--espresso)' : 'transparent', color: tab === t.id ? 'var(--cream)' : 'rgba(22,15,8,0.4)' }}>
+            style={{ flex: 1, padding: '10px 0', borderRadius: 999, border: 'none', cursor: 'pointer', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', transition: 'all 0.2s', background: tab === t.id ? 'var(--espresso)' : 'transparent', color: tab === t.id ? 'var(--cream)' : 'rgba(22,15,8,0.4)' }}>
             {t.label}
           </button>
         ))}
@@ -127,7 +211,7 @@ export default function SurveyCreate() {
               <label style={label}>Theme colour</label>
               <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
                 <input type="color" value={f.theme_color} onChange={e => s('theme_color', e.target.value)}
-                  style={{ width: 48, height: 48, borderRadius: 12, border: '1px solid rgba(22,15,8,0.1)', cursor: 'none', padding: 2, background: 'var(--warm-white)' }} />
+                  style={{ width: 48, height: 48, borderRadius: 12, border: '1px solid rgba(22,15,8,0.1)', cursor: 'pointer', padding: 2, background: 'var(--warm-white)' }} />
                 <input value={f.theme_color} onChange={e => s('theme_color', e.target.value)} style={{ ...inp, flex: 1, fontFamily: 'Fraunces, serif', letterSpacing: '0.05em' }} onFocus={focusIn} onBlur={focusOut} />
               </div>
             </div>
@@ -146,12 +230,12 @@ export default function SurveyCreate() {
                 <div style={{ display: 'flex', gap: 4 }}>
                   {[[-1,'↑'],[1,'↓']].map(([d, sym]) => (
                     <button key={d} onClick={() => moveQ(q._id, d)} disabled={(d === -1 && i === 0) || (d === 1 && i === qs.length - 1)}
-                      style={{ width: 30, height: 30, borderRadius: 8, border: 'none', background: 'none', cursor: 'none', fontFamily: 'Syne, sans-serif', color: 'rgba(22,15,8,0.3)', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', opacity: ((d === -1 && i === 0) || (d === 1 && i === qs.length - 1)) ? 0.2 : 1 }}
+                      style={{ width: 30, height: 30, borderRadius: 8, border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'Syne, sans-serif', color: 'rgba(22,15,8,0.3)', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', opacity: ((d === -1 && i === 0) || (d === 1 && i === qs.length - 1)) ? 0.2 : 1 }}
                       onMouseEnter={e => e.currentTarget.style.background = 'var(--cream-deep)'}
                       onMouseLeave={e => e.currentTarget.style.background = 'none'}>{sym}</button>
                   ))}
                   <button onClick={() => delQ(q._id)}
-                    style={{ width: 30, height: 30, borderRadius: 8, border: 'none', background: 'none', cursor: 'none', color: 'rgba(22,15,8,0.25)', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                    style={{ width: 30, height: 30, borderRadius: 8, border: 'none', background: 'none', cursor: 'pointer', color: 'rgba(22,15,8,0.25)', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
                     onMouseEnter={e => { e.currentTarget.style.background = 'rgba(214,59,31,0.08)'; e.currentTarget.style.color = 'var(--terracotta)'; }}
                     onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'rgba(22,15,8,0.25)'; }}>✕</button>
                 </div>
@@ -173,9 +257,9 @@ export default function SurveyCreate() {
                     onFocus={focusIn} onBlur={focusOut}>
                     {QUESTION_TYPES.map(t => <option key={t.value} value={t.value}>{t.icon} {t.label}</option>)}
                   </select>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'Syne, sans-serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.4)', cursor: 'none', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'Syne, sans-serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.4)', cursor: 'pointer', whiteSpace: 'nowrap', flexShrink: 0 }}>
                     <input type="checkbox" checked={q.is_required} onChange={e => sQ(q._id, 'is_required', e.target.checked)}
-                      style={{ width: 16, height: 16, accentColor: 'var(--coral)', cursor: 'none' }} />
+                      style={{ width: 16, height: 16, accentColor: 'var(--coral)', cursor: 'pointer' }} />
                     Required
                   </label>
                 </div>
@@ -190,13 +274,13 @@ export default function SurveyCreate() {
                           placeholder={`Option ${j + 1}`}
                           style={{ ...inp, flex: 1, padding: '10px 14px', fontSize: 14 }} onFocus={focusIn} onBlur={focusOut} />
                         <button onClick={() => delOpt(q._id, j)}
-                          style={{ background: 'none', border: 'none', cursor: 'none', color: 'rgba(22,15,8,0.2)', fontSize: 14, padding: 4, transition: 'color 0.15s', lineHeight: 1 }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(22,15,8,0.2)', fontSize: 14, padding: 4, transition: 'color 0.15s', lineHeight: 1 }}
                           onMouseEnter={e => e.currentTarget.style.color = 'var(--terracotta)'}
                           onMouseLeave={e => e.currentTarget.style.color = 'rgba(22,15,8,0.2)'}>✕</button>
                       </div>
                     ))}
                     <button onClick={() => addOpt(q._id)}
-                      style={{ fontFamily: 'Syne, sans-serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--coral)', background: 'none', border: 'none', cursor: 'none', padding: '6px 0', textAlign: 'left', transition: 'opacity 0.15s' }}>
+                      style={{ fontFamily: 'Syne, sans-serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--coral)', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 0', textAlign: 'left', transition: 'opacity 0.15s' }}>
                       + Add option
                     </button>
                   </div>
@@ -243,7 +327,7 @@ export default function SurveyCreate() {
 
           {/* Add question */}
           <button onClick={addQ}
-            style={{ width: '100%', padding: '18px 0', border: '2px dashed rgba(22,15,8,0.12)', borderRadius: 20, background: 'transparent', cursor: 'none', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.3)', transition: 'all 0.2s' }}
+            style={{ width: '100%', padding: '18px 0', border: '2px dashed rgba(22,15,8,0.12)', borderRadius: 20, background: 'transparent', cursor: 'pointer', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.3)', transition: 'all 0.2s' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--coral)'; e.currentTarget.style.color = 'var(--coral)'; e.currentTarget.style.background = 'rgba(255,69,0,0.03)'; }}
             onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(22,15,8,0.12)'; e.currentTarget.style.color = 'rgba(22,15,8,0.3)'; e.currentTarget.style.background = 'transparent'; }}>
             + Add Question
@@ -266,7 +350,7 @@ export default function SurveyCreate() {
             { k: 'require_email',     l: 'Require email address',  d: 'Ask for email before the survey starts' },
             { k: 'show_progress_bar', l: 'Progress bar',           d: 'Show completion percentage to respondents' },
           ].map(x => (
-            <label key={x.k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', background: 'var(--warm-white)', borderRadius: 18, border: '1px solid rgba(22,15,8,0.07)', cursor: 'none', transition: 'border-color 0.2s' }}
+            <label key={x.k} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', background: 'var(--warm-white)', borderRadius: 18, border: '1px solid rgba(22,15,8,0.07)', cursor: 'pointer', transition: 'border-color 0.2s' }}
               onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(22,15,8,0.14)'}
               onMouseLeave={e => e.currentTarget.style.borderColor = 'rgba(22,15,8,0.07)'}>
               <div>

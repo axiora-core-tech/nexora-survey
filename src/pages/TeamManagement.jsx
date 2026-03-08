@@ -5,6 +5,7 @@ import useAuthStore from '../hooks/useAuth';
 import { ROLE_LABELS, hasPermission } from '../lib/constants';
 import toast from 'react-hot-toast';
 import { useLoading } from '../context/LoadingContext';
+import ConfirmModal from '../components/ConfirmModal';
 
 const ROLE_COLORS = { super_admin: 'rgba(139,92,246,0.12)', admin: 'rgba(255,69,0,0.1)', manager: 'rgba(255,184,0,0.12)', creator: 'rgba(30,122,74,0.1)', viewer: 'rgba(22,15,8,0.06)' };
 const ROLE_TEXT   = { super_admin: '#7C3AED', admin: 'var(--coral)', manager: '#A07000', creator: 'var(--sage)', viewer: 'rgba(22,15,8,0.4)' };
@@ -18,6 +19,7 @@ export default function TeamManagement() {
   const [showModal, setShowModal] = useState(false);
   const [iE, sIE] = useState(''); const [iR, sIR] = useState('viewer'); const [iN, sIN] = useState('');
   const [busy, setBusy] = useState(false);
+  const [deactivateTarget, setDeactivateTarget] = useState(null);
 
   const location = useLocation();
   useEffect(() => { if (profile?.id) load(); else stopLoading(); }, [profile?.id, location.key]);
@@ -46,13 +48,25 @@ export default function TeamManagement() {
     toast.success('Role updated'); load();
   }
   async function deactivate(uid) {
-    if (uid === profile.id || !confirm('Deactivate this member?')) return;
-    await supabase.from('user_profiles').update({ is_active: false }).eq('id', uid);
+    if (uid === profile.id) return toast.error("Can't deactivate yourself");
+    setDeactivateTarget(uid);
+  }
+  async function doDeactivate() {
+    await supabase.from('user_profiles').update({ is_active: false }).eq('id', deactivateTarget);
     toast.success('Member deactivated'); load();
   }
 
   return (
     <div>
+      <ConfirmModal
+        open={!!deactivateTarget}
+        onClose={() => setDeactivateTarget(null)}
+        title="Deactivate member?"
+        body="This member will lose access to the workspace. You can reactivate them later by updating their profile."
+        confirmLabel="Deactivate"
+        danger
+        onConfirm={doDeactivate}
+      />
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 48 }}>
         <div>

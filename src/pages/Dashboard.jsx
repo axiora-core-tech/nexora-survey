@@ -1,10 +1,43 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
 import useAuthStore from '../hooks/useAuth';
 import { hasPermission, timeAgo, SURVEY_STATUS } from '../lib/constants';
 import { useLoading } from '../context/LoadingContext';
+
+// ── Animated counter hook ─────────────────────────────────────────────────
+function useCountUp(target, duration = 700) {
+  const [display, setDisplay] = useState(0);
+  const raf = useRef(null);
+  useEffect(() => {
+    if (target === 0) { setDisplay(0); return; }
+    let start = null;
+    const from = 0;
+    const step = (ts) => {
+      if (!start) start = ts;
+      const progress = Math.min((ts - start) / duration, 1);
+      // Ease out cubic
+      const ease = 1 - Math.pow(1 - progress, 3);
+      setDisplay(Math.round(from + (target - from) * ease));
+      if (progress < 1) raf.current = requestAnimationFrame(step);
+    };
+    raf.current = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf.current);
+  }, [target]);
+  return display;
+}
+
+// Wrapper that animates each stat card individually
+function AnimatedStat({ val, label, accent }) {
+  const display = useCountUp(val);
+  return (
+    <>
+      <div style={S.statNum} className="count-up">{display}</div>
+      <div style={S.statLabel}>{label}</div>
+    </>
+  );
+}
 
 const S = {
   page: { },
@@ -96,8 +129,7 @@ export default function Dashboard() {
             transition={{ delay: i * 0.07, ease: [0.16,1,0.3,1] }}
             whileHover={{ y: -4, boxShadow: '0 24px 60px rgba(22,15,8,0.1)' }}
             style={S.statCard(STAT_ACCENTS[i])}>
-            <div style={S.statNum}>{item.val}</div>
-            <div style={S.statLabel}>{item.label}</div>
+            <AnimatedStat val={item.val} label={item.label} accent={STAT_ACCENTS[i]} />
           </motion.div>
         ))}
       </div>

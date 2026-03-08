@@ -28,6 +28,7 @@ import UpdatePassword   from './pages/UpdatePassword';
 
 // ── Auth store ───────────────────────────────────────────────────
 import useAuthStore from './hooks/useAuth';
+import ErrorBoundary from './components/ErrorBoundary';
 
 /**
  * GlobalSpinner
@@ -102,8 +103,10 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <LoadingProvider>
-      <AppRoutes />
-    </LoadingProvider>
+    <ErrorBoundary>
+      <LoadingProvider>
+        <AppRoutes />
+      </LoadingProvider>
+    </ErrorBoundary>
   );
 }

@@ -36,16 +36,16 @@ const S = {
   tag:       { fontFamily:'Syne,sans-serif', fontSize:10, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:'var(--coral)', marginBottom:10 },
   h1:        { fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:'clamp(26px,3.5vw,42px)', letterSpacing:'-2px', color:'var(--espresso)', margin:0, lineHeight:1.05 },
   card:      { background:'var(--warm-white)', borderRadius:20, border:'1px solid rgba(22,15,8,0.07)', padding:'24px 28px 22px' },
-  secLabel:  { fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:'rgba(22,15,8,0.3)', marginBottom:18 },
-  qNum:      { fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:'rgba(22,15,8,0.3)' },
+  secLabel:  { fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, letterSpacing:'0.2em', textTransform:'uppercase', color:'rgba(22,15,8,0.3)', marginBottom:18 },
+  qNum:      { fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:'rgba(22,15,8,0.3)' },
   qText:     { fontFamily:'Playfair Display,serif', fontWeight:700, fontSize:18, color:'var(--espresso)', lineHeight:1.3, letterSpacing:'-0.3px', marginBottom:4 },
-  qResp:     { fontFamily:'Fraunces,serif', fontWeight:300, fontSize:12, color:'rgba(22,15,8,0.35)', marginBottom:20 },
+  qResp:     { fontFamily:'Fraunces,serif', fontWeight:300, fontSize:13, color:'rgba(22,15,8,0.50)', marginBottom:20 },
   statNum:   { fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:42, letterSpacing:'-3px', color:'var(--espresso)', lineHeight:1 },
-  statLbl:   { fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.16em', textTransform:'uppercase', color:'rgba(22,15,8,0.35)', marginTop:8 },
+  statLbl:   { fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, letterSpacing:'0.16em', textTransform:'uppercase', color:'rgba(22,15,8,0.35)', marginTop:8 },
   body:      { fontFamily:'Fraunces,serif', fontWeight:300, fontSize:14, color:'rgba(22,15,8,0.65)', lineHeight:1.65 },
   textResp:  { fontFamily:'Fraunces,serif', fontWeight:300, fontSize:13, color:'var(--espresso)', background:'var(--cream)', borderRadius:10, padding:'10px 14px', lineHeight:1.6, borderLeft:'3px solid var(--coral)' },
   exportBtn: { display:'inline-flex', alignItems:'center', gap:8, padding:'11px 22px', borderRadius:999, border:'1px solid rgba(22,15,8,0.12)', background:'transparent', color:'rgba(22,15,8,0.55)', fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:10, letterSpacing:'0.12em', textTransform:'uppercase', cursor:'pointer', transition:'all 0.2s' },
-  backLink:  { display:'inline-flex', alignItems:'center', gap:6, fontFamily:'Syne,sans-serif', fontSize:10, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(22,15,8,0.35)', textDecoration:'none', marginBottom:14, transition:'color 0.2s' },
+  backLink:  { display:'inline-flex', alignItems:'center', gap:6, fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(22,15,8,0.50)', textDecoration:'none', marginBottom:14, transition:'color 0.2s' },
 };
 
 // ── Shared chart tooltip defaults ─────────────────────────────────────────────
@@ -118,7 +118,7 @@ function StatCard({ label, value, accent='var(--coral)', sub }) {
       style={{ ...S.card, borderTop:`3px solid ${accent}`, padding:'20px 22px 18px' }}>
       <div style={S.statNum}>{value}</div>
       <div style={S.statLbl}>{label}</div>
-      {sub && <div style={{ fontFamily:'Fraunces,serif', fontWeight:300, fontSize:11, color:'rgba(22,15,8,0.28)', marginTop:4 }}>{sub}</div>}
+      {sub && <div style={{ fontFamily:'Fraunces,serif', fontWeight:300, fontSize:11, color:'rgba(22,15,8,0.50)', marginTop:4 }}>{sub}</div>}
     </motion.div>
   );
 }
@@ -144,7 +144,7 @@ function EmptyState({ message='No data yet.' }) {
   return (
     <div style={{ ...S.card, textAlign:'center', padding:'52px 32px' }}>
       <div style={{ fontFamily:'Playfair Display,serif', fontSize:44, color:'rgba(22,15,8,0.05)', fontWeight:900, marginBottom:12 }}>Empty</div>
-      <p style={{ ...S.body, color:'rgba(22,15,8,0.28)', margin:0 }}>{message}</p>
+      <p style={{ ...S.body, color:'rgba(22,15,8,0.50)', margin:0 }}>{message}</p>
     </div>
   );
 }
@@ -270,7 +270,7 @@ function OverviewTab({ analytics }) {
         </motion.div>
       ) : (
         <div style={{ ...S.card, textAlign:'center', padding:'32px' }}>
-          <p style={{ ...S.body, color:'rgba(22,15,8,0.28)', margin:0 }}>No responses in the last 14 days.</p>
+          <p style={{ ...S.body, color:'rgba(22,15,8,0.50)', margin:0 }}>No responses in the last 14 days.</p>
         </div>
       )}
 
@@ -373,26 +373,26 @@ function DropoffTab({ analytics }) {
             return (
               <div key={step.questionId}>
                 <div style={{ display:'flex', alignItems:'center', gap:14, marginBottom:3 }}>
-                  <div style={{ width:28, fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(22,15,8,0.3)', flexShrink:0, textAlign:'right' }}>Q{i+1}</div>
+                  <div style={{ width:28, fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(22,15,8,0.3)', flexShrink:0, textAlign:'right' }}>Q{i+1}</div>
                   <div style={{ flex:1, position:'relative', height:34, background:'var(--cream-deep)', borderRadius:8, overflow:'hidden' }}>
                     <motion.div
                       initial={{ width:0 }} animate={{ width:`${w}%` }}
                       transition={{ duration:0.7, delay:i*0.055, ease:[0.16,1,0.3,1] }}
                       style={{ height:'100%', background:isWorst?'rgba(214,59,31,0.18)':'rgba(22,15,8,0.1)', borderRadius:8, display:'flex', alignItems:'center', paddingLeft:12, border:isWorst?'1px solid rgba(214,59,31,0.25)':'none' }}>
-                      <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, color:isWorst?'var(--terracotta)':'rgba(22,15,8,0.5)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:'88%' }}>
+                      <span style={{ fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, color:isWorst?'var(--terracotta)':'rgba(22,15,8,0.5)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', maxWidth:'88%' }}>
                         {step.questionText.slice(0,60)}{step.questionText.length>60?'...':''}
                       </span>
                     </motion.div>
                   </div>
                   <div style={{ display:'flex', gap:6, alignItems:'center', width:118, flexShrink:0 }}>
                     <span style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:15, color:'var(--espresso)' }}>{step.reached}</span>
-                    <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, color:'rgba(22,15,8,0.28)', textTransform:'uppercase', letterSpacing:'0.06em' }}>reached</span>
+                    <span style={{ fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, color:'rgba(22,15,8,0.50)', textTransform:'uppercase', letterSpacing:'0.06em' }}>reached</span>
                   </div>
                 </div>
                 {i < dropOffFunnel.length-1 && step.dropped > 0 && (
                   <div style={{ display:'flex', alignItems:'center', paddingLeft:42, marginBottom:3 }}>
                     <div style={{ flex:1 }} />
-                    <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, color:step.dropPct>20?'var(--terracotta)':'rgba(22,15,8,0.28)', letterSpacing:'0.05em', width:118, flexShrink:0 }}>
+                    <span style={{ fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, color:step.dropPct>20?'var(--terracotta)':'rgba(22,15,8,0.50)', letterSpacing:'0.05em', width:118, flexShrink:0 }}>
                       down {step.dropped} dropped ({step.dropPct}%)
                     </span>
                   </div>
@@ -414,7 +414,7 @@ function DropoffTab({ analytics }) {
               const hc = t.avgSecs<5?'#1E7A4A':t.avgSecs<15?'#FFB800':t.avgSecs<30?'#FF4500':'#D63B1F';
               return (
                 <div key={t.questionId} style={{ display:'flex', alignItems:'center', gap:12 }}>
-                  <div style={{ width:26, fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, color:'rgba(22,15,8,0.3)', flexShrink:0, textAlign:'right' }}>Q{i+1}</div>
+                  <div style={{ width:26, fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, color:'rgba(22,15,8,0.3)', flexShrink:0, textAlign:'right' }}>Q{i+1}</div>
                   <div style={{ flex:1, height:26, background:'var(--cream-deep)', borderRadius:6, overflow:'hidden' }}>
                     <motion.div initial={{ width:0 }} animate={{ width:`${pct}%` }}
                       transition={{ duration:0.6, delay:i*0.04, ease:[0.16,1,0.3,1] }}
@@ -422,7 +422,7 @@ function DropoffTab({ analytics }) {
                   </div>
                   <div style={{ width:80, flexShrink:0, display:'flex', gap:6, alignItems:'center' }}>
                     <span style={{ fontFamily:'Syne,sans-serif', fontSize:10, fontWeight:700, color:'var(--espresso)' }}>{t.avgSecs}s</span>
-                    <span style={{ fontFamily:'Syne,sans-serif', fontSize:8, fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase', color:hc }}>{t.label}</span>
+                    <span style={{ fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase', color:hc }}>{t.label}</span>
                   </div>
                 </div>
               );
@@ -432,7 +432,7 @@ function DropoffTab({ analytics }) {
             {[{ l:'Fast (<5s)', c:'#1E7A4A' }, { l:'Normal (5-15s)', c:'#FFB800' }, { l:'Slow (15-30s)', c:'#FF4500' }, { l:'Very slow (>30s)', c:'#D63B1F' }].map(x => (
               <div key={x.l} style={{ display:'flex', alignItems:'center', gap:5 }}>
                 <div style={{ width:7, height:7, borderRadius:'50%', background:x.c }} />
-                <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase', color:'rgba(22,15,8,0.35)' }}>{x.l}</span>
+                <span style={{ fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase', color:'rgba(22,15,8,0.35)' }}>{x.l}</span>
               </div>
             ))}
           </div>
@@ -447,7 +447,7 @@ function DropoffTab({ analytics }) {
             <thead>
               <tr style={{ borderBottom:'1px solid rgba(22,15,8,0.07)' }}>
                 {['#','Question','Reached','Answered','Dropped','Drop Rate'].map(h => (
-                  <th key={h} style={{ textAlign:'left', padding:'8px 10px', fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:'rgba(22,15,8,0.3)' }}>{h}</th>
+                  <th key={h} style={{ textAlign:'left', padding:'8px 10px', fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, letterSpacing:'0.14em', textTransform:'uppercase', color:'rgba(22,15,8,0.3)' }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -456,13 +456,13 @@ function DropoffTab({ analytics }) {
                 <tr key={s.questionId} style={{ borderBottom:'1px solid rgba(22,15,8,0.04)', transition:'background 0.14s' }}
                   onMouseEnter={e=>e.currentTarget.style.background='var(--cream)'}
                   onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
-                  <td style={{ padding:'9px 10px', fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, color:'rgba(22,15,8,0.3)' }}>Q{i+1}</td>
+                  <td style={{ padding:'9px 10px', fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, color:'rgba(22,15,8,0.3)' }}>Q{i+1}</td>
                   <td style={{ padding:'9px 10px', fontFamily:'Fraunces,serif', fontWeight:300, fontSize:13, color:'var(--espresso)', maxWidth:260 }}>{s.questionText.slice(0,60)}{s.questionText.length>60?'...':''}</td>
                   <td style={{ padding:'9px 10px', fontFamily:'Fraunces,serif', fontWeight:300, fontSize:13, color:'rgba(22,15,8,0.5)' }}>{s.reached}</td>
                   <td style={{ padding:'9px 10px', fontFamily:'Fraunces,serif', fontWeight:300, fontSize:13, color:'rgba(22,15,8,0.5)' }}>{s.answered}</td>
                   <td style={{ padding:'9px 10px', fontFamily:'Fraunces,serif', fontWeight:300, fontSize:13, color:s.dropped>0?'var(--terracotta)':'rgba(22,15,8,0.3)' }}>{s.dropped}</td>
                   <td style={{ padding:'9px 10px' }}>
-                    <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', padding:'3px 8px', borderRadius:999, background:s.dropPct>25?'rgba(214,59,31,0.1)':s.dropPct>10?'rgba(255,184,0,0.1)':'rgba(30,122,74,0.08)', color:s.dropPct>25?'var(--terracotta)':s.dropPct>10?'#9A6D00':'var(--sage)' }}>{s.dropPct}%</span>
+                    <span style={{ fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', padding:'3px 8px', borderRadius:999, background:s.dropPct>25?'rgba(214,59,31,0.1)':s.dropPct>10?'rgba(255,184,0,0.1)':'rgba(30,122,74,0.08)', color:s.dropPct>25?'var(--terracotta)':s.dropPct>10?'#9A6D00':'var(--sage)' }}>{s.dropPct}%</span>
                   </td>
                 </tr>
               ))}
@@ -483,17 +483,17 @@ function QuestionCard({ question:q, data:d, index:i }) {
       <div style={{ marginBottom:16 }}>
         <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
           <span style={S.qNum}>Q{i+1}</span>
-          <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', padding:'2px 8px', borderRadius:999, background:'rgba(22,15,8,0.05)', color:'rgba(22,15,8,0.4)' }}>
+          <span style={{ fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', padding:'2px 8px', borderRadius:999, background:'rgba(22,15,8,0.05)', color:'rgba(22,15,8,0.4)' }}>
             {q.question_type.replace(/_/g,' ')}
           </span>
-          {q.is_required && <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, color:'var(--coral)' }}>required</span>}
+          {q.is_required && <span style={{ fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, color:'var(--coral)' }}>required</span>}
         </div>
         <div style={S.qText}>{q.question_text}</div>
         <div style={S.qResp}>{d?.total||0} response{d?.total!==1?'s':''}</div>
       </div>
 
       {!d ? (
-        <div style={{ fontFamily:'Fraunces,serif', fontWeight:300, fontSize:13, color:'rgba(22,15,8,0.25)', fontStyle:'italic' }}>No responses yet</div>
+        <div style={{ fontFamily:'Fraunces,serif', fontWeight:300, fontSize:13, color:'rgba(22,15,8,0.45)', fontStyle:'italic' }}>No responses yet</div>
 
       ) : d.type === 'doughnut' ? (
         // Single choice / Dropdown / Yes-No
@@ -528,7 +528,7 @@ function QuestionCard({ question:q, data:d, index:i }) {
           {d.avg !== undefined && (
             <div style={{ display:'flex', alignItems:'baseline', gap:8, marginBottom:16 }}>
               <span style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:38, letterSpacing:'-2px', color:'var(--espresso)' }}>{d.avg}</span>
-              <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(22,15,8,0.35)' }}>average</span>
+              <span style={{ fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(22,15,8,0.35)' }}>average</span>
             </div>
           )}
           {d.min !== undefined && (
@@ -536,7 +536,7 @@ function QuestionCard({ question:q, data:d, index:i }) {
               {[{ l:'Min', v:d.min }, { l:'Max', v:d.max }, { l:'Avg', v:d.avg }].map(s => (
                 <div key={s.l}>
                   <div style={{ fontFamily:'Playfair Display,serif', fontWeight:900, fontSize:22, letterSpacing:'-1px', color:'var(--espresso)' }}>{s.v}</div>
-                  <div style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(22,15,8,0.3)' }}>{s.l}</div>
+                  <div style={{ fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(22,15,8,0.3)' }}>{s.l}</div>
                 </div>
               ))}
             </div>
@@ -549,7 +549,7 @@ function QuestionCard({ question:q, data:d, index:i }) {
       ) : d.type === 'ranking' ? (
         // Ranking — horizontal bar (lower avg rank = better)
         <div>
-          <div style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(22,15,8,0.3)', marginBottom:16 }}>Avg rank — lower = ranked first by respondents</div>
+          <div style={{ fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', color:'rgba(22,15,8,0.3)', marginBottom:16 }}>Avg rank — lower = ranked first by respondents</div>
           <div style={{ height:Math.max(140, d.labels.length*38) }}>
             <Bar options={hBarOpts} data={{ labels:d.labels, datasets:[{ data:d.values, backgroundColor:d.labels.map((_,j)=>COLS[j%COLS.length]), borderRadius:6, barThickness:22 }] }} />
           </div>
@@ -563,7 +563,7 @@ function QuestionCard({ question:q, data:d, index:i }) {
               <tr>
                 <th style={{ padding:'6px 10px', minWidth:120 }} />
                 {d.cols.map(c => (
-                  <th key={c.value} style={{ padding:'6px 8px', fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(22,15,8,0.45)', textAlign:'center', minWidth:64 }}>{c.label}</th>
+                  <th key={c.value} style={{ padding:'6px 8px', fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(22,15,8,0.45)', textAlign:'center', minWidth:64 }}>{c.label}</th>
                 ))}
               </tr>
             </thead>
@@ -595,7 +595,7 @@ function QuestionCard({ question:q, data:d, index:i }) {
           <div style={{ display:'flex', flexDirection:'column', gap:7, maxHeight:220, overflowY:'auto' }}>
             {(d.items ?? []).slice(0,18).map((r,j) => <div key={j} style={S.textResp}>{r}</div>)}
             {(d.items ?? []).length > 18 && (
-              <div style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(22,15,8,0.28)', paddingLeft:4 }}>
+              <div style={{ fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(22,15,8,0.50)', paddingLeft:4 }}>
                 +{d.items.length-18} more — view full analysis in Text Insights tab
               </div>
             )}
@@ -634,7 +634,7 @@ function TextInsightsTab({ analytics }) {
           <div key={q.id} style={S.card}>
             <div style={S.qNum}>{q.question_type==='long_text'?'Long Text':'Short Text'}</div>
             <div style={S.qText}>{q.question_text}</div>
-            <p style={{ ...S.body, color:'rgba(22,15,8,0.28)', marginTop:8 }}>No responses yet.</p>
+            <p style={{ ...S.body, color:'rgba(22,15,8,0.50)', marginTop:8 }}>No responses yet.</p>
           </div>
         );
 
@@ -665,7 +665,7 @@ function TextInsightsTab({ analytics }) {
                       <motion.div key={s.l} title={`${s.l}: ${s.v} (${pct}%)`}
                         initial={{ scaleX:0, originX:0 }} animate={{ scaleX:1 }} transition={{ duration:0.7, ease:[0.16,1,0.3,1] }}
                         style={{ width:`${pct}%`, background:s.c, display:'flex', alignItems:'center', justifyContent:'center', minWidth:s.v>0?22:0 }}>
-                        <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, color:'rgba(255,255,255,0.85)', letterSpacing:'0.05em' }}>{pct>9?`${pct}%`:''}</span>
+                        <span style={{ fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, color:'rgba(255,255,255,0.85)', letterSpacing:'0.05em' }}>{pct>9?`${pct}%`:''}</span>
                       </motion.div>
                     );
                   })}
@@ -734,7 +734,7 @@ function TextInsightsTab({ analytics }) {
                     <div key={j} style={{ ...S.textResp, borderLeftColor:bc }}>
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:8 }}>
                         <span style={{ flex:1 }}>{r}</span>
-                        <span style={{ fontFamily:'Syne,sans-serif', fontSize:8, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:bc, flexShrink:0, marginTop:2, opacity:0.75 }}>{s}</span>
+                        <span style={{ fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, letterSpacing:'0.08em', textTransform:'uppercase', color:bc, flexShrink:0, marginTop:2, opacity:0.75 }}>{s}</span>
                       </div>
                     </div>
                   );
@@ -763,7 +763,7 @@ function ResponsesTable({ rs, qs, ans }) {
             <thead>
               <tr style={{ borderBottom:'1px solid rgba(22,15,8,0.08)' }}>
                 {['#','Status','Email','Started','Completed'].map(h => (
-                  <th key={h} style={{ textAlign:'left', padding:'9px 12px', fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.16em', textTransform:'uppercase', color:'rgba(22,15,8,0.3)' }}>{h}</th>
+                  <th key={h} style={{ textAlign:'left', padding:'9px 12px', fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, letterSpacing:'0.16em', textTransform:'uppercase', color:'rgba(22,15,8,0.3)' }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -774,7 +774,7 @@ function ResponsesTable({ rs, qs, ans }) {
                   onMouseLeave={e=>e.currentTarget.style.background='transparent'}>
                   <td style={{ padding:'11px 12px', fontFamily:'Fraunces,serif', fontWeight:300, fontSize:13, color:'rgba(22,15,8,0.35)' }}>{i+1}</td>
                   <td style={{ padding:'11px 12px' }}>
-                    <span style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', padding:'3px 10px', borderRadius:999,
+                    <span style={{ fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, letterSpacing:'0.12em', textTransform:'uppercase', padding:'3px 10px', borderRadius:999,
                       background:r.status==='completed'?'rgba(30,122,74,0.1)':r.status==='in_progress'?'rgba(0,71,255,0.08)':'rgba(22,15,8,0.06)',
                       color:r.status==='completed'?'var(--sage)':r.status==='in_progress'?'var(--cobalt)':'rgba(22,15,8,0.4)' }}>{r.status}</span>
                   </td>
@@ -785,7 +785,7 @@ function ResponsesTable({ rs, qs, ans }) {
               ))}
             </tbody>
           </table>
-          {rs.length>50 && <div style={{ fontFamily:'Syne,sans-serif', fontSize:9, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(22,15,8,0.28)', padding:'14px 12px 0', textAlign:'center' }}>Showing 50 of {rs.length} — export CSV for all</div>}
+          {rs.length>50 && <div style={{ fontFamily:'Syne,sans-serif', fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'rgba(22,15,8,0.50)', padding:'14px 12px 0', textAlign:'center' }}>Showing 50 of {rs.length} — export CSV for all</div>}
         </div>
       )}
     </div>
