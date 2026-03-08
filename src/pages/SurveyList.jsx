@@ -249,7 +249,7 @@ export default function SurveyList() {
           {list.map((sv, i) => (
             <motion.div key={sv.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
               whileHover={{ y: -4, boxShadow: '0 24px 60px rgba(22,15,8,0.1)' }}
-              style={{ background: 'var(--warm-white)', borderRadius: 20, border: '1px solid rgba(22,15,8,0.07)', overflow: 'visible', position: 'relative' }}>
+              style={{ background: 'var(--warm-white)', borderRadius: 20, border: '1px solid rgba(22,15,8,0.07)', overflow: 'hidden', position: 'relative' }}>
 
               {/* Colour accent bar */}
               <div style={{ height: 3, borderRadius: '20px 20px 0 0', background: sv.theme_color || 'var(--coral)' }} />
