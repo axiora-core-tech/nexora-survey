@@ -64,15 +64,14 @@ export async function handler(event) {
     if (error) throw error;
 
     // Audit log
-    try {
-      await supabase.from('audit_log').insert({
-        tenant_id: requester.tenant_id,
-        user_id: requesterId,
-        action: 'delete_user',
-        resource_type: 'user',
-        resource_id: targetUserId,
-      });
-    } catch (_) { /* audit log is non-critical */ }
+    const { error: auditErr } = await supabase.from('audit_log').insert({
+      tenant_id: requester.tenant_id,
+      user_id: requesterId,
+      action: 'delete_user',
+      resource_type: 'user',
+      resource_id: targetUserId,
+    });
+    if (auditErr) console.warn('Audit log failed (non-critical):', auditErr.message);
 
     return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify({ message: 'User deleted' }) };
   } catch (err) {
