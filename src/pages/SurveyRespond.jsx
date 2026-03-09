@@ -276,13 +276,14 @@ export default function SurveyRespond() {
   async function submitFeedback() {
     setFbBusy(true);
     try {
-      await supabase.from('survey_feedback').insert({
+      const { error: fbErr } = await supabase.from('survey_feedback').insert({
         survey_id: sv.id,
-        rating: fbRating || null,
+        rating: fbRating,
         comment: fbComment.trim() || null,
         responded_at: new Date().toISOString(),
-      }).select();
-    } catch (e) { /* silent — feedback is best-effort */ }
+      });
+      if (fbErr) console.warn('Feedback insert failed:', fbErr.message);
+    } catch (e) { console.warn('Feedback error:', e.message); }
     finally { setFbBusy(false); setFbDone(true); }
   }
 
