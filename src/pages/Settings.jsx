@@ -12,6 +12,106 @@ const dis   = { ...inp, background: 'var(--cream-deep)', color: 'rgba(22,15,8,0.
 const btn   = { padding: '13px 28px', borderRadius: 999, border: 'none', background: 'var(--espresso)', color: 'var(--cream)', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', transition: 'background 0.25s ease' };
 const secH  = { fontFamily: 'Syne, sans-serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.35)', marginBottom: 28 };
 
+// ── ApprovedDomainsCard ───────────────────────────────────────────────────────
+// req #5/#6/#12/#13: only super_admin can view/edit; saved per tenant
+function ApprovedDomainsCard({ tenant, onSaved }) {
+  const [domains, setDomains] = React.useState(() =>
+    (tenant?.approved_domains || []).join(', ')
+  );
+  const [saving, setSaving] = React.useState(false);
+
+  // Keep in sync if tenant reloads
+  React.useEffect(() => {
+    setDomains((tenant?.approved_domains || []).join(', '));
+  }, [tenant?.id]);
+
+  async function save(e) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      // Parse, clean, and deduplicate the domain list
+      const parsed = domains
+        .split(/[,\n]+/)
+        .map(d => d.trim().toLowerCase().replace(/^@/, ''))
+        .filter(d => d && d.includes('.'));
+
+      if (parsed.length === 0) {
+        toast.error('Enter at least one valid domain (e.g. company.com)');
+        return;
+      }
+
+      const { error } = await supabase
+        .from('tenants')
+        .update({ approved_domains: parsed })
+        .eq('id', tenant.id);
+
+      if (error) throw error;
+      onSaved(parsed);
+      setDomains(parsed.join(', '));
+      toast.success('Approved domains saved');
+    } catch (err) {
+      toast.error(err.message || 'Failed to save domains');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const approvedList = (tenant?.approved_domains || []);
+
+  return (
+    <div style={card}>
+      <div style={secH}>Approved Email Domains</div>
+      <p style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 14, color: 'rgba(22,15,8,0.5)', lineHeight: 1.65, marginBottom: 20, marginTop: -16 }}>
+        Invitations can only be sent to addresses belonging to these domains.
+        You must set at least one domain before any invites can be sent.
+      </p>
+
+      {/* Current approved domains pill list */}
+      {approvedList.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
+          {approvedList.map(d => (
+            <span key={d} style={{ fontFamily: 'Syne, sans-serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', padding: '5px 12px', borderRadius: 999, background: 'rgba(30,122,74,0.1)', color: 'var(--sage)', border: '1px solid rgba(30,122,74,0.15)' }}>
+              @{d}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {approvedList.length === 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', borderRadius: 12, background: 'rgba(255,184,0,0.08)', border: '1px solid rgba(255,184,0,0.2)', marginBottom: 20 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A07000" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span style={{ fontFamily: 'Syne, sans-serif', fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', color: '#A07000' }}>No domains set — invitations are blocked until you add at least one.</span>
+        </div>
+      )}
+
+      <form onSubmit={save} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div>
+          <label style={label}>Domains (comma-separated)</label>
+          <textarea
+            value={domains}
+            onChange={e => setDomains(e.target.value)}
+            placeholder="company.com, partner.org"
+            rows={3}
+            style={{ ...inp, resize: 'vertical', lineHeight: 1.6 }}
+            onFocus={e => e.target.style.borderColor = 'var(--coral)'}
+            onBlur={e => e.target.style.borderColor = 'rgba(22,15,8,0.1)'}
+          />
+          <p style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 12, color: 'rgba(22,15,8,0.38)', marginTop: 8 }}>
+            Enter domains without the @ sign, e.g. <em>acme.com</em>. Separate multiple domains with commas.
+          </p>
+        </div>
+        <div>
+          <button type="submit" disabled={saving} style={{ ...btn, opacity: saving ? 0.5 : 1 }}
+            onMouseEnter={e => { if (!saving) e.currentTarget.style.background = 'var(--coral)'; }}
+            onMouseLeave={e => { if (!saving) e.currentTarget.style.background = 'var(--espresso)'; }}>
+            {saving ? 'Saving…' : 'Save domains'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export default function Settings() {
   // BUG FIX: Destructure updateTenant from the store — previously the org save
   // updated Supabase but never synced back to Zustand, so the nav header kept
@@ -49,6 +149,12 @@ export default function Settings() {
     setDark(next);
     document.documentElement.setAttribute('data-theme', next ? 'dark' : 'light');
     localStorage.setItem('np-theme', next ? 'dark' : 'light');
+  }
+
+  // Sync approved_domains back into the Zustand store after save
+  // (updateTenant re-fetches the whole row; this is a lightweight local patch)
+  function syncDomains(domains) {
+    useAuthStore.setState(s => ({ tenant: s.tenant ? { ...s.tenant, approved_domains: domains } : s.tenant }));
   }
 
   async function saveP(e) {
@@ -187,6 +293,11 @@ export default function Settings() {
             </div>
           </form>
         </div>
+      )}
+
+      {/* Approved Email Domains — req #5/#6/#12/#13 */}
+      {hasPermission(profile?.role, 'manage_tenant') && (
+        <ApprovedDomainsCard tenant={tenant} onSaved={syncDomains} />
       )}
 
       {/* Preferences */}

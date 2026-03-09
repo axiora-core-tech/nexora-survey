@@ -191,7 +191,7 @@ const useAuthStore = create((set, get) => ({
       password,
       options: {
         data: { full_name: fullName, tenant_name: tenantName },
-        emailRedirectTo: `${window.location.origin}/dashboard`,
+        emailRedirectTo: `${window.location.hostname === 'localhost' ? window.location.origin : 'https://nexorapulse.netlify.app'}/dashboard`,
       },
     });
     if (authErr) throw authErr;

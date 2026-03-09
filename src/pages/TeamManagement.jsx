@@ -50,7 +50,11 @@ function RoleDropdown({ value, onChange }) {
       </button>
       {open && (
         <div style={{ position: 'absolute', left: 0, top: 'calc(100% + 6px)', zIndex: 50, background: 'var(--espresso)', borderRadius: 14, padding: 6, boxShadow: '0 16px 48px rgba(22,15,8,0.25)', minWidth: '100%' }}>
-          {Object.entries(ROLE_LABELS).map(([v, l]) => (
+          {Object.entries(ROLE_LABELS).filter(([v]) => {
+            // admins cannot assign super_admin role (req #11)
+            if (v === 'super_admin') return false;
+            return true;
+          }).map(([v, l]) => (
             <button key={v} onClick={() => { onChange(v); setOpen(false); }}
               style={{ display: 'block', width: '100%', padding: '9px 14px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: v === value ? 'var(--coral)' : 'rgba(253,245,232,0.7)', borderRadius: 9, transition: 'background 0.15s', whiteSpace: 'nowrap' }}
               onMouseEnter={e => e.currentTarget.style.background = 'rgba(253,245,232,0.08)'}
@@ -65,13 +69,14 @@ function RoleDropdown({ value, onChange }) {
 }
 
 export default function TeamManagement() {
-  const { profile } = useAuthStore();
+  const { profile, tenant } = useAuthStore();
   const { stopLoading } = useLoading();
   const [members, setMembers] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [iE, sIE] = useState(''); const [iR, sIR] = useState('viewer'); const [iN, sIN] = useState('');
   const [busy, setBusy] = useState(false);
   const [deactivateTarget, setDeactivateTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const location = useLocation();
   useEffect(() => { if (profile?.id) load(); else stopLoading(); }, [profile?.id, location.key]);
@@ -94,14 +99,41 @@ export default function TeamManagement() {
       toast.success(`Invited ${iE}`); setShowModal(false); sIE(''); sIN(''); sIR('viewer'); load();
     } catch (e) { toast.error(e.message); } finally { setBusy(false); }
   }
-  async function chgRole(uid, role) {
+  async function chgRole(uid, newRole) {
     if (uid === profile.id) return toast.error("Can't change your own role");
-    await supabase.from('user_profiles').update({ role }).eq('id', uid);
+    // req #11: admin cannot change super_admin's role
+    const target = members.find(m => m.id === uid);
+    if (target?.role === 'super_admin') return toast.error("Super Admin's role cannot be changed");
+    // admin cannot promote someone to super_admin
+    if (profile.role === 'admin' && newRole === 'super_admin') return toast.error("Admins cannot assign the Super Admin role");
+    await supabase.from('user_profiles').update({ role: newRole }).eq('id', uid);
     toast.success('Role updated'); load();
   }
   async function deactivate(uid) {
     if (uid === profile.id) return toast.error("Can't deactivate yourself");
+    // req #11: admin cannot disable super_admin
+    const target = members.find(m => m.id === uid);
+    if (target?.role === 'super_admin') return toast.error("Super Admin cannot be disabled");
     setDeactivateTarget(uid);
+  }
+
+  // req #14: only super_admin can delete users
+  function confirmDelete(uid) {
+    if (profile.role !== 'super_admin') return toast.error("Only Super Admins can delete users");
+    const target = members.find(m => m.id === uid);
+    if (target?.role === 'super_admin') return toast.error("Super Admin cannot be deleted");
+    setDeleteTarget(uid);
+  }
+
+  async function doDelete() {
+    const res = await fetch('/.netlify/functions/delete-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ targetUserId: deleteTarget, requesterId: profile.id }),
+    });
+    const d = await res.json();
+    if (!res.ok) return toast.error(d.error || 'Failed to delete user');
+    toast.success('User deleted'); setDeleteTarget(null); load();
   }
   async function doDeactivate() {
     await supabase.from('user_profiles').update({ is_active: false }).eq('id', deactivateTarget);
@@ -124,6 +156,16 @@ export default function TeamManagement() {
         danger
         onConfirm={doDeactivate}
       />
+      {/* req #14: delete only for super_admin */}
+      <ConfirmModal
+        open={!!deleteTarget}
+        onClose={() => setDeleteTarget(null)}
+        title="Delete user permanently?"
+        body="This will permanently delete the user and all their data. This cannot be undone."
+        confirmLabel="Delete permanently"
+        danger
+        onConfirm={doDelete}
+      />
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 48 }}>
         <div>
@@ -131,14 +173,26 @@ export default function TeamManagement() {
           <h1 style={{ fontFamily: 'Playfair Display, serif', fontWeight: 900, fontSize: 'clamp(32px,4vw,48px)', letterSpacing: '-2px', color: 'var(--espresso)', margin: 0 }}>Team</h1>
           <p style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 15, color: 'rgba(22,15,8,0.4)', marginTop: 6 }}>{members.length} member{members.length !== 1 ? 's' : ''}</p>
         </div>
-        {hasPermission(profile?.role, 'manage_team') && (
-          <button onClick={() => setShowModal(true)}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--espresso)', color: 'var(--cream)', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', padding: '14px 28px', borderRadius: 999, border: 'none', cursor: 'pointer', transition: 'background 0.25s ease' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--coral)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'var(--espresso)'}>
-            + Invite member
-          </button>
-        )}
+        {hasPermission(profile?.role, 'manage_team') && (() => {
+          const hasNoDomains = !tenant?.approved_domains?.length;
+          // req #6: super_admin must configure domains first; admins see the same gate
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+              {hasNoDomains && (
+                <span style={{ fontFamily: 'Syne, sans-serif', fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#A07000', background: 'rgba(255,184,0,0.1)', padding: '4px 12px', borderRadius: 999, border: '1px solid rgba(255,184,0,0.2)' }}>
+                  ⚠ Set approved domains in Settings first
+                </span>
+              )}
+              <button
+                onClick={() => { if (hasNoDomains) return toast.error('Configure approved email domains in Settings before inviting.'); setShowModal(true); }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: hasNoDomains ? 'rgba(22,15,8,0.2)' : 'var(--espresso)', color: 'var(--cream)', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', padding: '14px 28px', borderRadius: 999, border: 'none', cursor: hasNoDomains ? 'not-allowed' : 'pointer', transition: 'background 0.25s ease' }}
+                onMouseEnter={e => { if (!hasNoDomains) e.currentTarget.style.background = 'var(--coral)'; }}
+                onMouseLeave={e => { if (!hasNoDomains) e.currentTarget.style.background = 'var(--espresso)'; }}>
+                + Invite member
+              </button>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Member grid */}
@@ -180,23 +234,35 @@ export default function TeamManagement() {
             </div>
 
             {/* Action — enable / deactivate */}
-            {hasPermission(profile?.role, 'manage_team') && m.id !== profile.id && (
-              m.is_active === false ? (
-                <button onClick={() => reactivate(m.id)} title="Re-enable member"
-                  style={{ flexShrink: 0, padding: '8px 16px', borderRadius: 999, border: 'none', background: 'rgba(30,122,74,0.1)', color: 'var(--sage)', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--sage)'; e.currentTarget.style.color = '#fff'; }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'rgba(30,122,74,0.1)'; e.currentTarget.style.color = 'var(--sage)'; }}>
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-                  Enable
-                </button>
-              ) : (
-                <button onClick={() => deactivate(m.id)} title="Deactivate member"
-                  style={{ flexShrink: 0, width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'none', color: 'rgba(22,15,8,0.2)', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
-                  onMouseEnter={e => { e.currentTarget.style.color = 'var(--terracotta)'; e.currentTarget.style.background = 'rgba(214,59,31,0.06)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.color = 'rgba(22,15,8,0.2)'; e.currentTarget.style.background = 'none'; }}>
-                  ✕
-                </button>
-              )
+            {hasPermission(profile?.role, 'manage_team') && m.id !== profile.id && m.role !== 'super_admin' && (
+              <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                {m.is_active === false ? (
+                  <button onClick={() => reactivate(m.id)} title="Re-enable member"
+                    style={{ padding: '8px 16px', borderRadius: 999, border: 'none', background: 'rgba(30,122,74,0.1)', color: 'var(--sage)', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 9, letterSpacing: '0.12em', textTransform: 'uppercase', cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--sage)'; e.currentTarget.style.color = '#fff'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(30,122,74,0.1)'; e.currentTarget.style.color = 'var(--sage)'; }}>
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                    Enable
+                  </button>
+                ) : (
+                  /* req #15: both admin and super_admin can disable */
+                  <button onClick={() => deactivate(m.id)} title="Disable member"
+                    style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'none', color: 'rgba(22,15,8,0.2)', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                    onMouseEnter={e => { e.currentTarget.style.color = 'var(--terracotta)'; e.currentTarget.style.background = 'rgba(214,59,31,0.06)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = 'rgba(22,15,8,0.2)'; e.currentTarget.style.background = 'none'; }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+                  </button>
+                )}
+                {/* req #14: only super_admin sees delete button */}
+                {profile.role === 'super_admin' && (
+                  <button onClick={() => confirmDelete(m.id)} title="Delete user permanently"
+                    style={{ width: 30, height: 30, borderRadius: '50%', border: 'none', background: 'none', color: 'rgba(22,15,8,0.15)', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                    onMouseEnter={e => { e.currentTarget.style.color = 'var(--terracotta)'; e.currentTarget.style.background = 'rgba(214,59,31,0.06)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.color = 'rgba(22,15,8,0.15)'; e.currentTarget.style.background = 'none'; }}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                  </button>
+                )}
+              </div>
             )}
           </div>
         ))}

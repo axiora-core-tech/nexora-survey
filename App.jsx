@@ -99,6 +99,7 @@ function AppRoutes() {
         <Route path="/register"        element={<RegisterPage />} />
         <Route path="/reset-password"  element={<ResetPassword />} />
         <Route path="/update-password" element={<UpdatePassword />} />
+        <Route path="/accept-invite"   element={<AcceptInvite />} />
 
         {/* ── Public survey response (no auth needed) ── */}
         <Route path="/s/:slug"      element={<SurveyRespond />} />
