@@ -23,18 +23,18 @@ export default function AcceptInvite() {
 
   // Read query params — injected by invite-user.js into redirectTo
   const params = new URLSearchParams(window.location.search);
-  const tenantId    = params.get('tenant_id')   || '';
-  const tenantName  = params.get('tenant_name') || '';
-  const prefillName = params.get('full_name')   || '';
+  const tenantId = params.get('tenant_id') || '';
+  const tenantName = params.get('tenant_name') || '';
+  const prefillName = params.get('full_name') || '';
 
   // Detect expired-link errors from Supabase (req #20)
   // Supabase appends error info to the hash: #error=access_denied&error_description=...
-  const hashParams   = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-  const urlError     = params.get('error')             || hashParams.get('error');
+  const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const urlError = params.get('error') || hashParams.get('error');
   const urlErrorDesc = params.get('error_description') || hashParams.get('error_description');
 
-  const [f, setF]           = useState({ fullName: prefillName, password: '', confirm: '' });
-  const [busy, setBusy]     = useState(false);
+  const [f, setF] = useState({ fullName: prefillName, password: '', confirm: '' });
+  const [busy, setBusy] = useState(false);
   // BUG FIX #1: Do NOT redirect if account_status === 'invited'.
   // The invite link auto-signs the user in via magic link; useAuth.onAuthStateChange
   // fires SIGNED_IN and sets `user` in the store BEFORE the user has completed setup.
@@ -42,7 +42,7 @@ export default function AcceptInvite() {
   // the setup form entirely. Now we track whether we are mid-invite-flow and suppress
   // the redirect until setup is confirmed complete.
   const [setupComplete, setSetupComplete] = useState(false);
-  const [linkExpired, setLinkExpired]     = useState(
+  const [linkExpired, setLinkExpired] = useState(
     urlError === 'access_denied' || !!urlErrorDesc?.toLowerCase().includes('expired')
   );
 
@@ -126,7 +126,7 @@ export default function AcceptInvite() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           style={{ background: 'var(--warm-white)', borderRadius: 24, padding: '48px 44px', maxWidth: 400, width: '100%', textAlign: 'center', boxShadow: '0 24px 80px rgba(22,15,8,0.1)' }}>
           <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(214,59,31,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px' }}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--terracotta)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--terracotta)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
           </div>
           <h2 style={{ fontFamily: 'Playfair Display, serif', fontWeight: 900, fontSize: 26, letterSpacing: '-0.5px', color: 'var(--espresso)', marginBottom: 10 }}>Invitation link expired</h2>
           <p style={{ fontFamily: 'Fraunces, serif', fontWeight: 300, fontSize: 15, lineHeight: 1.7, color: 'rgba(22,15,8,0.5)', marginBottom: 28 }}>

@@ -2,29 +2,30 @@ import { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import PageLoader from "./pages/PageLoader";
+import AcceptInvite from './pages/AcceptInvite';
 
 // ── Loading context ───────────────────────────────────────────────
 import { LoadingProvider, useLoading } from './context/LoadingContext';
 
 // ── Layout & guards ──────────────────────────────────────────────
-import DashboardLayout  from './components/DashboardLayout';
-import ProtectedRoute   from './components/ProtectedRoute';
+import DashboardLayout from './components/DashboardLayout';
+import ProtectedRoute from './components/ProtectedRoute';
 
 // ── Pages ────────────────────────────────────────────────────────
-import LandingPage      from './pages/Landing';
-import LoginPage        from './pages/Login';
-import RegisterPage     from './pages/Register';
-import Dashboard        from './pages/Dashboard';
-import SurveyList       from './pages/SurveyList';
-import SurveyCreate     from './pages/SurveyCreate';
-import SurveyEdit       from './pages/SurveyEdit';
-import SurveyAnalytics  from './pages/SurveyAnalytics';
-import SurveyRespond    from './pages/SurveyRespond';
-import EmbedView        from './pages/EmbedView';
-import TeamManagement   from './pages/TeamManagement';
-import Settings         from './pages/Settings';
-import ResetPassword    from './pages/ResetPassword';
-import UpdatePassword   from './pages/UpdatePassword';
+import LandingPage from './pages/Landing';
+import LoginPage from './pages/Login';
+import RegisterPage from './pages/Register';
+import Dashboard from './pages/Dashboard';
+import SurveyList from './pages/SurveyList';
+import SurveyCreate from './pages/SurveyCreate';
+import SurveyEdit from './pages/SurveyEdit';
+import SurveyAnalytics from './pages/SurveyAnalytics';
+import SurveyRespond from './pages/SurveyRespond';
+import EmbedView from './pages/EmbedView';
+import TeamManagement from './pages/TeamManagement';
+import Settings from './pages/Settings';
+import ResetPassword from './pages/ResetPassword';
+import UpdatePassword from './pages/UpdatePassword';
 
 // ── Auth store ───────────────────────────────────────────────────
 import useAuthStore from './hooks/useAuth';
@@ -94,27 +95,27 @@ function AppRoutes() {
 
       <Routes>
         {/* ── Public ── */}
-        <Route path="/"               element={initialized && user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
-        <Route path="/login"           element={<LoginPage />} />
-        <Route path="/register"        element={<RegisterPage />} />
-        <Route path="/reset-password"  element={<ResetPassword />} />
+        <Route path="/" element={initialized && user ? <Navigate to="/dashboard" replace /> : <LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/update-password" element={<UpdatePassword />} />
-        <Route path="/accept-invite"   element={<AcceptInvite />} />
+        <Route path="/accept-invite" element={<AcceptInvite />} />
 
         {/* ── Public survey response (no auth needed) ── */}
-        <Route path="/s/:slug"      element={<SurveyRespond />} />
-        <Route path="/embed/:slug"  element={<EmbedView />} />
+        <Route path="/s/:slug" element={<SurveyRespond />} />
+        <Route path="/embed/:slug" element={<EmbedView />} />
 
         {/* ── Protected app (all children require auth) ── */}
         <Route element={<ProtectedRoute />}>
           <Route element={<DashboardLayout />}>
-            <Route path="/dashboard"              element={<Dashboard />} />
-            <Route path="/surveys"                element={<SurveyList />} />
-            <Route path="/surveys/new"            element={<SurveyCreate />} />
-            <Route path="/surveys/:id/edit"       element={<SurveyEdit />} />
-            <Route path="/surveys/:id/analytics"  element={<SurveyAnalytics />} />
-            <Route path="/team"                   element={<TeamManagement />} />
-            <Route path="/settings"               element={<Settings />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/surveys" element={<SurveyList />} />
+            <Route path="/surveys/new" element={<SurveyCreate />} />
+            <Route path="/surveys/:id/edit" element={<SurveyEdit />} />
+            <Route path="/surveys/:id/analytics" element={<SurveyAnalytics />} />
+            <Route path="/team" element={<TeamManagement />} />
+            <Route path="/settings" element={<Settings />} />
           </Route>
         </Route>
 
