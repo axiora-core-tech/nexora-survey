@@ -145,8 +145,22 @@ export async function handler(event) {
     }
 
     // ----------------------------------------------------------------
-    // STEP 3: Check slug uniqueness
+    // STEP 3: Check name and slug uniqueness (req #2)
     // ----------------------------------------------------------------
+    const { data: nameTaken } = await supabase
+      .from('tenants')
+      .select('id')
+      .ilike('name', tenantName)
+      .maybeSingle();
+
+    if (nameTaken) {
+      return {
+        statusCode: 409,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({ error: 'An organisation with this name already exists. Please choose a different name.' }),
+      };
+    }
+
     const { data: slugTaken } = await supabase
       .from('tenants')
       .select('id')
@@ -174,6 +188,9 @@ export async function handler(event) {
 
     if (error) {
       console.error('register_tenant RPC error:', error);
+      if (error.message?.includes('duplicate key') && error.message?.includes('tenants_name_unique')) {
+        throw new Error('An organisation with this name already exists.');
+      }
       if (error.message?.includes('duplicate key') && error.message?.includes('tenants_slug_key')) {
         throw new Error('Organization URL already taken.');
       }
