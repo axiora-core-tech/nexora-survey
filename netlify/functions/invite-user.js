@@ -156,14 +156,16 @@ export async function handler(event) {
       account_status: 'invited',
     });
 
-    await supabase.from('audit_log').insert({
-      tenant_id: tenantId,
-      user_id: invitedBy,
-      action: 'invite_user',
-      resource_type: 'user',
-      resource_id: authUser.user.id,
-      details: { email, role },
-    }).catch(() => {});
+    try {
+      await supabase.from('audit_log').insert({
+        tenant_id: tenantId,
+        user_id: invitedBy,
+        action: 'invite_user',
+        resource_type: 'user',
+        resource_id: authUser.user.id,
+        details: { email, role },
+      });
+    } catch (_) { /* audit log is non-critical */ }
 
     return {
       statusCode: 200,
