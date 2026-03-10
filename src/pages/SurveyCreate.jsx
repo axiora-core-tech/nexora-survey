@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../lib/supabase';
 import AISurveySuggestions from '../components/AISurveySuggestions';
 import useAuthStore from '../hooks/useAuth';
 import { QUESTION_TYPES, generateUniqueSlug } from '../lib/constants';
-import { Reorder } from 'framer-motion';
+import { Reorder, useDragControls } from 'framer-motion';
 import toast from 'react-hot-toast';
 import { useLoading } from '../context/LoadingContext';
 
@@ -19,6 +19,150 @@ const INP = { width: '100%', boxSizing: 'border-box', padding: '13px 17px', back
 const LBL = { fontFamily: "'Syne', sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.38)', display: 'block', marginBottom: 10 };
 
 const GRAIN = `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='300' height='300'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='300' height='300' filter='url(%23n)'/%3E%3C/svg%3E")`;
+
+
+// ── Module-level QCardCreate — prevents remount on parent re-render ────────────
+function QCardCreate({ q, i, tc, qs, sQ, delQ, moveQ, addOpt, sOpt, delOpt }) {
+  const dragControls = useDragControls();
+  const [typeOpen, setTypeOpen] = useState(false);
+  const typeRef = useRef(null);
+
+  useEffect(() => {
+    if (!typeOpen) return;
+    const h = e => { if (typeRef.current && !typeRef.current.contains(e.target)) setTypeOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [typeOpen]);
+
+  const currentType = QUESTION_TYPES.find(t => t.value === q.question_type);
+
+  return (
+    <Reorder.Item value={q} dragControls={dragControls} dragListener={false} style={{ listStyle: 'none' }}>
+      <div className="q-card" style={{ background: 'var(--warm-white)', borderRadius: 24, border: '1.5px solid rgba(22,15,8,0.07)', overflow: 'visible', position: 'relative', transition: 'border-color 0.25s,box-shadow 0.25s' }}>
+        <div className="q-accent" style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 3, background: `linear-gradient(180deg,${tc},${tc}40)`, opacity: 0.4, transition: 'opacity 0.25s', borderRadius: '24px 0 0 24px' }} />
+        <div className="q-ghost-num" style={{ position: 'absolute', right: 18, bottom: -16, fontFamily: "'Playfair Display',serif", fontWeight: 900, fontSize: 110, color: 'rgba(22,15,8,0.04)', lineHeight: 1, letterSpacing: '-6px', userSelect: 'none', pointerEvents: 'none' }}>
+          {String(i + 1).padStart(2, '0')}
+        </div>
+        <div style={{ padding: '24px 28px 22px 32px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div onPointerDown={e => { e.preventDefault(); dragControls.start(e); }} title="Drag to reorder"
+                style={{ cursor: 'grab', padding: '4px 6px', borderRadius: 8, color: 'rgba(22,15,8,0.2)', display: 'flex', alignItems: 'center', transition: 'all 0.15s', touchAction: 'none' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--cream-deep)'; e.currentTarget.style.color = 'rgba(22,15,8,0.5)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'rgba(22,15,8,0.2)'; }}>
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><circle cx="5" cy="4" r="1.5"/><circle cx="11" cy="4" r="1.5"/><circle cx="5" cy="8" r="1.5"/><circle cx="11" cy="8" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="11" cy="12" r="1.5"/></svg>
+              </div>
+              <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 9, letterSpacing: '0.2em', color: 'rgba(22,15,8,0.22)' }}>{String(i + 1).padStart(2, '0')}</span>
+              <span style={{ width: 1, height: 11, background: 'rgba(22,15,8,0.1)', display: 'block' }} />
+              <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 8, letterSpacing: '0.14em', textTransform: 'uppercase', color: tc, background: `${tc}12`, padding: '4px 10px', borderRadius: 999 }}>
+                {currentType?.label || 'Question'}
+              </span>
+              {q.is_required && <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 8, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--terracotta)', background: 'rgba(214,59,31,0.08)', padding: '4px 10px', borderRadius: 999 }}>Required</span>}
+            </div>
+            <div style={{ display: 'flex', gap: 2 }}>
+              {[[-1, '\u2191'], [1, '\u2193']].map(([d, sym]) => (
+                <button key={d} onClick={() => moveQ(q._id, d)} disabled={(d === -1 && i === 0) || (d === 1 && i === qs.length - 1)}
+                  style={{ width: 30, height: 30, borderRadius: 9, border: 'none', background: 'none', cursor: 'pointer', color: 'rgba(22,15,8,0.25)', fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', opacity: (d === -1 && i === 0) || (d === 1 && i === qs.length - 1) ? 0.18 : 1 }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--cream-deep)'; e.currentTarget.style.color = 'var(--espresso)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'rgba(22,15,8,0.25)'; }}>
+                  {sym}
+                </button>
+              ))}
+              <button onClick={() => delQ(q._id)} style={{ width: 30, height: 30, borderRadius: 9, border: 'none', background: 'none', cursor: 'pointer', color: 'rgba(22,15,8,0.2)', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(214,59,31,0.08)'; e.currentTarget.style.color = 'var(--terracotta)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'rgba(22,15,8,0.2)'; }}>{String.fromCharCode(0x2715)}</button>
+            </div>
+          </div>
+
+          <input value={q.question_text} onChange={e => sQ(q._id, 'question_text', e.target.value)} placeholder="Type your question here\u2026"
+            style={{ ...INP, fontSize: 17, padding: '14px 18px', background: 'rgba(253,245,232,0.55)', border: '1.5px solid rgba(22,15,8,0.07)', marginBottom: 10, borderRadius: 16 }} onFocus={fi} onBlur={fo} />
+
+          <input value={q.description || ''} onChange={e => sQ(q._id, 'description', e.target.value)} placeholder="Description or helper text (optional)"
+            style={{ ...INP, fontSize: 13, color: 'rgba(22,15,8,0.45)', padding: '10px 16px', background: 'transparent', border: '1.5px solid rgba(22,15,8,0.06)', marginBottom: 16, borderRadius: 13 }} onFocus={fi} onBlur={fo} />
+
+          <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+            <div style={{ flex: 1, position: 'relative' }} ref={typeRef}>
+              <button onClick={() => setTypeOpen(o => !o)}
+                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '11px 14px', background: 'var(--cream-deep)', border: '1.5px solid rgba(22,15,8,0.1)', borderRadius: 13, cursor: 'pointer', fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--espresso)', transition: 'border-color 0.2s', textAlign: 'left' }}>
+                <span style={{ width: 26, height: 26, borderRadius: 8, background: `${tc}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0, color: tc }}>{currentType?.icon}</span>
+                <span style={{ flex: 1 }}>{currentType?.label}</span>
+                <svg width="9" height="6" viewBox="0 0 9 6" fill="none" style={{ flexShrink: 0, opacity: 0.4, transition: 'transform 0.2s', transform: typeOpen ? 'rotate(180deg)' : 'none' }}><path d="M0 0l4.5 6L9 0z" fill="currentColor" /></svg>
+              </button>
+              {typeOpen && (
+                <div style={{ position: 'absolute', left: 0, right: 0, top: 'calc(100% + 6px)', zIndex: 100, background: 'var(--espresso)', borderRadius: 16, padding: 6, boxShadow: '0 24px 60px rgba(22,15,8,0.3)', maxHeight: 280, overflowY: 'auto' }}>
+                  {QUESTION_TYPES.map(t => (
+                    <button key={t.value}
+                      onClick={() => { sQ(q._id, 'question_type', t.value); setTypeOpen(false); }}
+                      style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', background: 'none', border: 'none', cursor: 'pointer', borderRadius: 10, transition: 'background 0.12s', color: t.value === q.question_type ? 'var(--coral)' : 'rgba(253,245,232,0.75)', textAlign: 'left' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(253,245,232,0.08)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                      <span style={{ width: 28, height: 28, borderRadius: 8, background: t.value === q.question_type ? 'rgba(255,69,0,0.18)' : 'rgba(253,245,232,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0, color: t.value === q.question_type ? 'var(--coral)' : 'rgba(253,245,232,0.5)' }}>{t.icon}</span>
+                      <span style={{ fontFamily: "'Syne',sans-serif", fontWeight: 700, fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase' }}>{t.label}</span>
+                      {t.value === q.question_type && <svg style={{ marginLeft: 'auto', flexShrink: 0 }} width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="var(--coral)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M2 6l3 3 5-5" /></svg>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', flexShrink: 0, userSelect: 'none' }}>
+              <div onClick={() => sQ(q._id, 'is_required', !q.is_required)}
+                style={{ width: 38, height: 22, borderRadius: 999, background: q.is_required ? tc : 'rgba(22,15,8,0.12)', position: 'relative', transition: 'background 0.25s', cursor: 'pointer' }}>
+                <div style={{ position: 'absolute', width: 16, height: 16, borderRadius: '50%', background: '#fff', top: 3, left: q.is_required ? 19 : 3, transition: 'left 0.25s', boxShadow: '0 1px 4px rgba(22,15,8,0.2)' }} />
+              </div>
+              <span style={{ fontFamily: "'Syne',sans-serif", fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.38)', whiteSpace: 'nowrap' }}>Required</span>
+            </label>
+          </div>
+
+          {hasO(q.question_type) && (
+            <div style={{ marginTop: 16, paddingLeft: 14, borderLeft: `2px solid ${tc}25` }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {(q.options || []).map((o, j) => (
+                  <div key={j} className="opt-row" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 12px 4px 14px', borderRadius: 12, border: '1.5px solid rgba(22,15,8,0.07)', background: 'rgba(253,245,232,0.5)', transition: 'all 0.15s' }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', border: `2px solid ${tc}55`, flexShrink: 0, background: `${tc}15` }} />
+                    <input value={o.label} onChange={e => sOpt(q._id, j, e.target.value)} placeholder={`Option ${j + 1}`} className="opt-input" />
+                    <button onClick={() => delOpt(q._id, j)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(22,15,8,0.18)', fontSize: 12, padding: 4, transition: 'color 0.15s', lineHeight: 1 }}
+                      onMouseEnter={e => e.currentTarget.style.color = 'var(--terracotta)'} onMouseLeave={e => e.currentTarget.style.color = 'rgba(22,15,8,0.18)'}>{String.fromCharCode(0x2715)}</button>
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => addOpt(q._id)} style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 7, fontFamily: "'Syne',sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: tc, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0', transition: 'opacity 0.15s' }}>
+                <span style={{ width: 18, height: 18, borderRadius: 6, background: `${tc}14`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700 }}>+</span>
+                Add option
+              </button>
+            </div>
+          )}
+
+          {isMx(q.question_type) && (() => {
+            const mxData = q.options && !Array.isArray(q.options) ? q.options : { rows: [], columns: [] };
+            const setMx = next => sQ(q._id, 'options', next);
+            const addRow = () => setMx({ ...mxData, rows: [...(mxData.rows || []), { label: `Row ${(mxData.rows || []).length + 1}`, value: `row_${(mxData.rows || []).length + 1}` }] });
+            const addCol = () => setMx({ ...mxData, columns: [...(mxData.columns || []), { label: `Col ${(mxData.columns || []).length + 1}`, value: `col_${(mxData.columns || []).length + 1}` }] });
+            const updRow = (ri, v) => { const r = [...(mxData.rows || [])]; r[ri] = { label: v, value: v.toLowerCase().replace(/\s+/g, '_') }; setMx({ ...mxData, rows: r }); };
+            const updCol = (ci, v) => { const cs = [...(mxData.columns || [])]; cs[ci] = { label: v, value: v.toLowerCase().replace(/\s+/g, '_') }; setMx({ ...mxData, columns: cs }); };
+            const delRow = ri => setMx({ ...mxData, rows: (mxData.rows || []).filter((_, j) => j !== ri) });
+            const delCol = ci => setMx({ ...mxData, columns: (mxData.columns || []).filter((_, j) => j !== ci) });
+            return (
+              <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18 }}>
+                {[['Rows', mxData.rows || [], addRow, updRow, delRow], ['Columns', mxData.columns || [], addCol, updCol, delCol]].map(([lbl, items, add, upd, del]) => (
+                  <div key={lbl}>
+                    <div style={{ fontFamily: "'Syne',sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(22,15,8,0.38)', marginBottom: 10 }}>{lbl}</div>
+                    {items.map((r, idx) => (
+                      <div key={idx} style={{ display: 'flex', gap: 7, marginBottom: 7 }}>
+                        <input value={r.label} onChange={e => upd(idx, e.target.value)} placeholder={`${lbl.slice(0, -1)} ${idx + 1}`} style={{ ...INP, flex: 1, padding: '9px 13px', fontSize: 13, borderRadius: 12 }} onFocus={fi} onBlur={fo} />
+                        <button onClick={() => del(idx)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(22,15,8,0.2)', fontSize: 12, padding: '0 4px' }} onMouseEnter={e => e.currentTarget.style.color = 'var(--terracotta)'} onMouseLeave={e => e.currentTarget.style.color = 'rgba(22,15,8,0.2)'}>{String.fromCharCode(0x2715)}</button>
+                      </div>
+                    ))}
+                    <button onClick={add} style={{ fontFamily: "'Syne',sans-serif", fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: tc, background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0' }}>+ Add {lbl.slice(0, -1).toLowerCase()}</button>
+                  </div>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
+      </div>
+    </Reorder.Item>
+  );
+}
 
 export default function SurveyCreate() {
   const { profile } = useAuthStore();
@@ -369,118 +513,11 @@ export default function SurveyCreate() {
           {/* ── QUESTIONS TAB ── */}
           {tab === 'questions' && (
             <div style={{ display:'flex',flexDirection:'column',gap:16 }}>
-              <Reorder.Group axis="y" values={qs} onReorder={sQs} style={{ listStyle:'none',padding:0,margin:0,display:'flex',flexDirection:'column',gap:16 }}>
+              <Reorder.Group axis="y" values={qs} onReorder={sQs} style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
                 {qs.map((q, i) => (
-                  <Reorder.Item key={q._id} value={q} dragListener={false} style={{ listStyle:'none' }}>
-                    <div className="q-card" style={{ background:'var(--warm-white)',borderRadius:24,border:'1.5px solid rgba(22,15,8,0.07)',overflow:'hidden',position:'relative',transition:'border-color 0.25s,box-shadow 0.25s',animationDelay:`${i*0.05}s` }}>
-                      {/* Left coral accent */}
-                      <div className="q-accent" style={{ position:'absolute',left:0,top:0,bottom:0,width:3,background:`linear-gradient(180deg,${tc},${tc}40)`,opacity:0.4,transition:'opacity 0.25s' }}/>
-                      {/* Ghost number */}
-                      <div className="q-ghost-num" style={{ position:'absolute',right:18,bottom:-16,fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:110,color:'rgba(22,15,8,0.04)',lineHeight:1,letterSpacing:'-6px',userSelect:'none',pointerEvents:'none',transition:'opacity 0.25s' }}>
-                        {String(i+1).padStart(2,'0')}
-                      </div>
-
-                      <div style={{ padding:'24px 28px 22px 32px' }}>
-                        {/* Card header */}
-                        <div style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:18 }}>
-                          <div style={{ display:'flex',alignItems:'center',gap:8 }}>
-                            <span style={{ fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:9,letterSpacing:'0.2em',color:'rgba(22,15,8,0.22)' }}>{String(i+1).padStart(2,'0')}</span>
-                            <span style={{ width:1,height:11,background:'rgba(22,15,8,0.1)',display:'block' }}/>
-                            <span style={{ fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:8,letterSpacing:'0.14em',textTransform:'uppercase',color:tc,background:`${tc}12`,padding:'4px 10px',borderRadius:999 }}>
-                              {QUESTION_TYPES.find(t => t.value === q.question_type)?.label || 'Question'}
-                            </span>
-                            {q.is_required && <span style={{ fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:8,letterSpacing:'0.12em',textTransform:'uppercase',color:'var(--terracotta)',background:'rgba(214,59,31,0.08)',padding:'4px 10px',borderRadius:999 }}>Required</span>}
-                          </div>
-                          <div style={{ display:'flex',gap:2 }}>
-                            {[[-1,'↑'],[1,'↓']].map(([d,sym]) => (
-                              <button key={d} onClick={()=>moveQ(q._id,d)} disabled={(d===-1&&i===0)||(d===1&&i===qs.length-1)}
-                                style={{ width:30,height:30,borderRadius:9,border:'none',background:'none',cursor:'pointer',color:'rgba(22,15,8,0.25)',fontSize:13,display:'flex',alignItems:'center',justifyContent:'center',transition:'all 0.15s',opacity:(d===-1&&i===0)||(d===1&&i===qs.length-1)?0.18:1 }}
-                                onMouseEnter={e=>{e.currentTarget.style.background='var(--cream-deep)';e.currentTarget.style.color='var(--espresso)';}}
-                                onMouseLeave={e=>{e.currentTarget.style.background='none';e.currentTarget.style.color='rgba(22,15,8,0.25)';}}>
-                                {sym}
-                              </button>
-                            ))}
-                            <button onClick={()=>delQ(q._id)} style={{ width:30,height:30,borderRadius:9,border:'none',background:'none',cursor:'pointer',color:'rgba(22,15,8,0.2)',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center',transition:'all 0.15s' }}
-                              onMouseEnter={e=>{e.currentTarget.style.background='rgba(214,59,31,0.08)';e.currentTarget.style.color='var(--terracotta)';}}
-                              onMouseLeave={e=>{e.currentTarget.style.background='none';e.currentTarget.style.color='rgba(22,15,8,0.2)';}}>✕</button>
-                          </div>
-                        </div>
-
-                        {/* Question text */}
-                        <input value={q.question_text} onChange={e=>sQ(q._id,'question_text',e.target.value)} placeholder="Type your question here…"
-                          style={{...INP,fontSize:17,padding:'14px 18px',background:'rgba(253,245,232,0.55)',border:'1.5px solid rgba(22,15,8,0.07)',marginBottom:10,borderRadius:16}} onFocus={fi} onBlur={fo}/>
-
-                        {/* Helper text */}
-                        <input value={q.description||''} onChange={e=>sQ(q._id,'description',e.target.value)} placeholder="Description or helper text (optional)"
-                          style={{...INP,fontSize:13,color:'rgba(22,15,8,0.45)',padding:'10px 16px',background:'transparent',border:'1.5px solid rgba(22,15,8,0.06)',marginBottom:16,borderRadius:13}} onFocus={fi} onBlur={fo}/>
-
-                        {/* Type + required row */}
-                        <div style={{ display:'flex',gap:12,alignItems:'center' }}>
-                          <div style={{ flex:1,position:'relative' }}>
-                            <select value={q.question_type} onChange={e=>sQ(q._id,'question_type',e.target.value)}
-                              className="np-sel" style={{...INP,padding:'11px 32px 11px 14px',fontSize:11,fontFamily:"'Syne',sans-serif",fontWeight:700,letterSpacing:'0.08em',textTransform:'uppercase',cursor:'pointer',background:'var(--cream-deep)',borderRadius:13}} onFocus={fi} onBlur={fo}>
-                              {QUESTION_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-                            </select>
-                          </div>
-                          <label style={{ display:'flex',alignItems:'center',gap:8,cursor:'pointer',flexShrink:0,userSelect:'none' }}>
-                            <div onClick={()=>sQ(q._id,'is_required',!q.is_required)}
-                              style={{ width:38,height:22,borderRadius:999,background:q.is_required?tc:'rgba(22,15,8,0.12)',position:'relative',transition:'background 0.25s',cursor:'pointer' }}>
-                              <div style={{ position:'absolute',width:16,height:16,borderRadius:'50%',background:'#fff',top:3,left:q.is_required?19:3,transition:'left 0.25s',boxShadow:'0 1px 4px rgba(22,15,8,0.2)' }}/>
-                            </div>
-                            <span style={{ fontFamily:"'Syne',sans-serif",fontSize:10,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:'rgba(22,15,8,0.38)',whiteSpace:'nowrap' }}>Required</span>
-                          </label>
-                        </div>
-
-                        {/* Options for choice types */}
-                        {hasO(q.question_type) && (
-                          <div style={{ marginTop:16,paddingLeft:14,borderLeft:`2px solid ${tc}25` }}>
-                            <div style={{ display:'flex',flexDirection:'column',gap:8 }}>
-                              {(q.options||[]).map((o,j) => (
-                                <div key={j} className="opt-row" style={{ display:'flex',alignItems:'center',gap:8,padding:'4px 12px 4px 14px',borderRadius:12,border:'1.5px solid rgba(22,15,8,0.07)',background:'rgba(253,245,232,0.5)',transition:'all 0.15s' }}>
-                                  <div style={{ width:10,height:10,borderRadius:'50%',border:`2px solid ${tc}55`,flexShrink:0,background:`${tc}15` }}/>
-                                  <input value={o.label} onChange={e=>sOpt(q._id,j,e.target.value)} placeholder={`Option ${j+1}`} className="opt-input"/>
-                                  <button onClick={()=>delOpt(q._id,j)} style={{ background:'none',border:'none',cursor:'pointer',color:'rgba(22,15,8,0.18)',fontSize:12,padding:4,transition:'color 0.15s',lineHeight:1 }}
-                                    onMouseEnter={e=>e.currentTarget.style.color='var(--terracotta)'} onMouseLeave={e=>e.currentTarget.style.color='rgba(22,15,8,0.18)'}>✕</button>
-                                </div>
-                              ))}
-                            </div>
-                            <button onClick={()=>addOpt(q._id)} style={{ marginTop:10,display:'inline-flex',alignItems:'center',gap:7,fontFamily:"'Syne',sans-serif",fontSize:9,fontWeight:700,letterSpacing:'0.12em',textTransform:'uppercase',color:tc,background:'none',border:'none',cursor:'pointer',padding:'4px 0',transition:'opacity 0.15s' }}>
-                              <span style={{ width:18,height:18,borderRadius:6,background:`${tc}14`,display:'flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700 }}>+</span>
-                              Add option
-                            </button>
-                          </div>
-                        )}
-
-                        {/* Matrix editor */}
-                        {isMx(q.question_type) && (() => {
-                          const mx = q.options && !Array.isArray(q.options) ? q.options : { rows:[], columns:[] };
-                          const setMx = next => sQ(q._id,'options',next);
-                          const addRow = () => setMx({...mx,rows:[...(mx.rows||[]),{label:`Row ${(mx.rows||[]).length+1}`,value:`row_${(mx.rows||[]).length+1}`}]});
-                          const addCol = () => setMx({...mx,columns:[...(mx.columns||[]),{label:`Col ${(mx.columns||[]).length+1}`,value:`col_${(mx.columns||[]).length+1}`}]});
-                          const updRow = (i,v) => { const r=[...(mx.rows||[])];r[i]={label:v,value:v.toLowerCase().replace(/\s+/g,'_')};setMx({...mx,rows:r}); };
-                          const updCol = (i,v) => { const cs=[...(mx.columns||[])];cs[i]={label:v,value:v.toLowerCase().replace(/\s+/g,'_')};setMx({...mx,columns:cs}); };
-                          const delRow = i => setMx({...mx,rows:(mx.rows||[]).filter((_,j)=>j!==i)});
-                          const delCol = i => setMx({...mx,columns:(mx.columns||[]).filter((_,j)=>j!==i)});
-                          return (
-                            <div style={{ marginTop:16,display:'grid',gridTemplateColumns:'1fr 1fr',gap:18 }}>
-                              {[['Rows',mx.rows||[],addRow,updRow,delRow],['Columns',mx.columns||[],addCol,updCol,delCol]].map(([lbl,items,add,upd,del]) => (
-                                <div key={lbl}>
-                                  <div style={{ fontFamily:"'Syne',sans-serif",fontSize:9,fontWeight:700,letterSpacing:'0.14em',textTransform:'uppercase',color:'rgba(22,15,8,0.38)',marginBottom:10 }}>{lbl}</div>
-                                  {items.map((r,idx) => (
-                                    <div key={idx} style={{ display:'flex',gap:7,marginBottom:7 }}>
-                                      <input value={r.label} onChange={e=>upd(idx,e.target.value)} placeholder={`${lbl.slice(0,-1)} ${idx+1}`} style={{...INP,flex:1,padding:'9px 13px',fontSize:13,borderRadius:12}} onFocus={fi} onBlur={fo}/>
-                                      <button onClick={()=>del(idx)} style={{ background:'none',border:'none',cursor:'pointer',color:'rgba(22,15,8,0.2)',fontSize:12,padding:'0 4px' }} onMouseEnter={e=>e.currentTarget.style.color='var(--terracotta)'} onMouseLeave={e=>e.currentTarget.style.color='rgba(22,15,8,0.2)'}>✕</button>
-                                    </div>
-                                  ))}
-                                  <button onClick={add} style={{ fontFamily:"'Syne',sans-serif",fontSize:9,fontWeight:700,letterSpacing:'0.1em',textTransform:'uppercase',color:tc,background:'none',border:'none',cursor:'pointer',padding:'4px 0' }}>+ Add {lbl.slice(0,-1).toLowerCase()}</button>
-                                </div>
-                              ))}
-                            </div>
-                          );
-                        })()}
-                      </div>
-                    </div>
-                  </Reorder.Item>
+                  <QCardCreate key={q._id} q={q} i={i} tc={tc} qs={qs}
+                    sQ={sQ} delQ={delQ} moveQ={moveQ}
+                    addOpt={addOpt} sOpt={sOpt} delOpt={delOpt} />
                 ))}
               </Reorder.Group>
 

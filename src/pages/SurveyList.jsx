@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { supabase } from '../lib/supabase';
@@ -26,6 +26,27 @@ export default function SurveyList() {
   const [sort, setSort]         = useState('created_desc');
   const [sortOpen, setSortOpen] = useState(false);
   const [menu, setMenu]       = useState(null);
+  const sortRef = useRef(null);
+  const menuRef = useRef({});
+
+  // ── Click-outside: close sort dropdown ───────────────────────────────────
+  useEffect(() => {
+    if (!sortOpen) return;
+    const h = e => { if (sortRef.current && !sortRef.current.contains(e.target)) setSortOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [sortOpen]);
+
+  // ── Click-outside: close kebab menu ──────────────────────────────────────
+  useEffect(() => {
+    if (!menu) return;
+    const h = e => {
+      const ref = menuRef.current[menu];
+      if (ref && !ref.contains(e.target)) setMenu(null);
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [menu]);
 
   // ── ConfirmModal state ────────────────────────────────────────────────────
   const [confirmOpen,  setConfirmOpen]  = useState(false);
@@ -213,7 +234,7 @@ export default function SurveyList() {
         </div>
 
         {/* Sort */}
-        <div style={{ position: 'relative' }}>
+        <div style={{ position: 'relative' }} ref={sortRef}>
           <button onClick={() => setSortOpen(o => !o)}
             style={{ padding: '10px 16px', borderRadius: 999, border: '1px solid rgba(22,15,8,0.08)', cursor: 'pointer', fontFamily: 'Syne, sans-serif', fontWeight: 700, fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', background: 'var(--warm-white)', color: 'rgba(22,15,8,0.5)', display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', transition: 'border-color 0.2s' }}
             onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(22,15,8,0.2)'}
@@ -249,7 +270,7 @@ export default function SurveyList() {
           {list.map((sv, i) => (
             <motion.div key={sv.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
               whileHover={{ y: -4, boxShadow: '0 24px 60px rgba(22,15,8,0.1)' }}
-              style={{ background: 'var(--warm-white)', borderRadius: 20, border: '1px solid rgba(22,15,8,0.07)', overflow: 'hidden', position: 'relative' }}>
+              style={{ background: 'var(--warm-white)', borderRadius: 20, border: '1px solid rgba(22,15,8,0.07)', overflow: 'visible', position: 'relative' }}>
 
               {/* Colour accent bar */}
               <div style={{ height: 3, borderRadius: '20px 20px 0 0', background: sv.theme_color || 'var(--coral)' }} />
@@ -264,7 +285,7 @@ export default function SurveyList() {
                   </div>
 
                   {/* Kebab menu */}
-                  <div style={{ position: 'relative' }}>
+                  <div style={{ position: 'relative' }} ref={el => menuRef.current[sv.id] = el}>
                     <button onClick={() => setMenu(menu === sv.id ? null : sv.id)}
                       aria-label="Survey options"
                       style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px', borderRadius: 8, color: 'rgba(22,15,8,0.3)', transition: 'all 0.2s', fontSize: 18, lineHeight: 1 }}
@@ -273,28 +294,26 @@ export default function SurveyList() {
                       ···
                     </button>
                     {menu === sv.id && (
-                      <>
-                        <div style={{ position: 'fixed', inset: 0, zIndex: 10 }} onClick={() => setMenu(null)} />
-                        <div style={{ position: 'absolute', right: 0, top: 36, zIndex: 20, width: 190, background: 'var(--espresso)', borderRadius: 16, padding: 8, boxShadow: '0 24px 60px rgba(22,15,8,0.25)' }}>
-                          {[
-                            { label: 'Edit',        icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>, action: () => { nav(`/surveys/${sv.id}/edit`); setMenu(null); } },
-                            { label: 'Analytics',   icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 20h18M7 20V12M11 20V8M15 20V14M19 20V4"/></svg>, action: () => { nav(`/surveys/${sv.id}/analytics`); setMenu(null); } },
-                            { label: 'Copy link',   icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>, action: () => copy(sv.slug) },
-                            { label: 'Duplicate',   icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>, action: () => duplicate(sv) },
-                            sv.status !== 'active' && { label: 'Activate',  icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l6 3.5-6 3.5V8.5z" fill="currentColor" stroke="none"/></svg>, action: () => chg(sv.id, 'active'), coral: true },
-                            sv.status === 'active' && { label: 'Pause',     icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><line x1="10" y1="8" x2="10" y2="16"/><line x1="14" y1="8" x2="14" y2="16"/></svg>, action: () => chg(sv.id, 'paused') },
-                            hasPermission(profile?.role, 'delete_survey') && sv.status === 'draft' && { label: 'Delete', icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>, action: () => confirmDelete(sv.id, sv.title), danger: true },
-                          ].filter(Boolean).map(item => (
-                            <button key={item.label} onClick={item.action}
-                              style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'Syne, sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: item.danger ? 'var(--terracotta)' : item.coral ? 'var(--coral)' : 'rgba(253,245,232,0.7)', borderRadius: 10, transition: 'background 0.15s' }}
-                              onMouseEnter={e => e.currentTarget.style.background = 'rgba(253,245,232,0.08)'}
-                              onMouseLeave={e => e.currentTarget.style.background = 'none'}>
-                              <span style={{ opacity: 0.7, display: 'flex', alignItems: 'center' }}>{item.icon}</span>
-                              {item.label}
-                            </button>
-                          ))}
-                        </div>
-                      </>
+                      <div style={{ position: 'absolute', right: 0, top: 36, zIndex: 200, width: 190, background: 'var(--espresso)', borderRadius: 16, padding: 8, boxShadow: '0 24px 60px rgba(22,15,8,0.25)' }}>
+                        {[
+                          { label: 'Edit',        icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>, action: () => { nav(`/surveys/${sv.id}/edit`); setMenu(null); } },
+                          { label: 'Analytics',   icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 20h18M7 20V12M11 20V8M15 20V14M19 20V4"/></svg>, action: () => { nav(`/surveys/${sv.id}/analytics`); setMenu(null); } },
+                          // Copy link — only shown when survey is NOT in draft
+                          sv.status !== 'draft' && { label: 'Copy link', icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>, action: () => copy(sv.slug) },
+                          { label: 'Duplicate',   icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>, action: () => duplicate(sv) },
+                          sv.status !== 'active' && { label: 'Activate',  icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M10 8.5l6 3.5-6 3.5V8.5z" fill="currentColor" stroke="none"/></svg>, action: () => chg(sv.id, 'active'), coral: true },
+                          sv.status === 'active' && { label: 'Pause',     icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><line x1="10" y1="8" x2="10" y2="16"/><line x1="14" y1="8" x2="14" y2="16"/></svg>, action: () => chg(sv.id, 'paused') },
+                          hasPermission(profile?.role, 'delete_survey') && sv.status === 'draft' && { label: 'Delete', icon: <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>, action: () => confirmDelete(sv.id, sv.title), danger: true },
+                        ].filter(Boolean).map(item => (
+                          <button key={item.label} onClick={item.action}
+                            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', fontFamily: 'Syne, sans-serif', fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: item.danger ? 'var(--terracotta)' : item.coral ? 'var(--coral)' : 'rgba(253,245,232,0.7)', borderRadius: 10, transition: 'background 0.15s' }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(253,245,232,0.08)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                            <span style={{ opacity: 0.7, display: 'flex', alignItems: 'center' }}>{item.icon}</span>
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
                     )}
                   </div>
                 </div>

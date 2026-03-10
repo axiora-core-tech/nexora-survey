@@ -47,10 +47,10 @@ export default function NotificationFeed() {
     try {
       const { data: responses } = await supabase
         .from('survey_responses')
-        .select('id, created_at, status, survey:surveys!survey_id(id, title)')
+        .select('id, started_at, status, survey:surveys!survey_id(id, title)')
         .eq('surveys.tenant_id', profile.tenant_id)
         .eq('status', 'completed')
-        .order('created_at', { ascending: false })
+        .order('started_at', { ascending: false })
         .limit(12);
 
       const { data: surveys } = await supabase
@@ -66,7 +66,7 @@ export default function NotificationFeed() {
           type: 'response',
           icon: 'inbox',
           text: `New response on "${r.survey?.title}"`,
-          time: r.created_at,
+          time: r.started_at,
           to: `/surveys/${r.survey?.id}/analytics`,
         })),
         ...(surveys || []).map(s => ({

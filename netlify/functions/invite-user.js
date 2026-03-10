@@ -125,11 +125,23 @@ export async function handler(event) {
     });
 
     if (authErr) {
+      // Supabase returns this error when the email is already in the auth.users table.
+      // In that case we add the existing user directly to the org without resending an invite email.
       if (authErr.message?.includes('already registered') || authErr.message?.includes('already been registered')) {
-        const { data: { users } } = await supabase.auth.admin.listUsers();
-        const existingUser = users?.find(u => u.email === email);
+        // listUsers is paginated — iterate until we find the user or exhaust pages
+        let existingUser = null;
+        let page = 1;
+        const perPage = 1000;
+        while (!existingUser) {
+          const { data: listData, error: listErr } = await supabase.auth.admin.listUsers({ page, perPage });
+          if (listErr) { console.warn('listUsers error:', listErr.message); break; }
+          const users = listData?.users || [];
+          existingUser = users.find(u => u.email?.toLowerCase() === email.toLowerCase()) || null;
+          if (users.length < perPage) break; // no more pages
+          page++;
+        }
         if (existingUser) {
-          await supabase.from('user_profiles').insert({
+          const { error: profErr } = await supabase.from('user_profiles').insert({
             id: existingUser.id,
             tenant_id: tenantId,
             email,
@@ -139,9 +151,14 @@ export async function handler(event) {
             invite_accepted_at: new Date().toISOString(),
             account_status: 'active',
           });
+          if (profErr) {
+            console.error('Profile insert error (existing user):', profErr.message);
+            throw new Error('Failed to add existing user to organisation');
+          }
           return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify({ message: 'User added to organisation' }) };
         }
       }
+      console.error('inviteUserByEmail error:', authErr.message);
       throw authErr;
     }
 
