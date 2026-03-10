@@ -3,19 +3,21 @@ import { useEffect } from 'react';
 /**
  * CustomCursor
  * ─────────────────────────────────────────────────────────────
- * Renders the branded coral dot + trailing ring cursor that was
- * previously only on the Landing page.  Mount once in App.jsx
- * (outside Routes) so it persists on every page including
- * SurveyRespond, EmbedView, Login, Register, etc.
- *
- * The DOM elements (#np-cur-dot, #np-cur-ring) are styled in
- * index.css so they are always present and never FOUC'd.
+ * Singleton guard at module level ensures the RAF loop and all
+ * event listeners are attached exactly once, even under React
+ * StrictMode (which double-fires effects in development).
  */
+let _attached = false;
+
 export default function CustomCursor() {
   useEffect(() => {
+    // Already running — bail immediately (StrictMode double-invoke guard)
+    if (_attached) return;
+    _attached = true;
+
     const dot  = document.getElementById('np-cur-dot');
     const ring = document.getElementById('np-cur-ring');
-    if (!dot || !ring) return;
+    if (!dot || !ring) { _attached = false; return; }
 
     let mx = 0, my = 0, rx = 0, ry = 0;
     let raf;
@@ -40,42 +42,40 @@ export default function CustomCursor() {
     const onDown  = () => document.documentElement.classList.add('np-clicking');
     const onUp    = () => document.documentElement.classList.remove('np-clicking');
     const onOut   = () => { dot.style.opacity = '0'; ring.style.opacity = '0'; };
-    const onIn    = () => { dot.style.opacity = ''; ring.style.opacity = ''; };
+    const onIn    = () => { dot.style.opacity = '1'; ring.style.opacity = ''; };
 
-    // Attach hover listeners dynamically so newly mounted elements are included
-    function addHoverListeners() {
-      document.querySelectorAll('a, button, [role="button"], input, textarea, select, label, [tabindex]').forEach(el => {
-        el.addEventListener('mouseenter', onEnter);
-        el.addEventListener('mouseleave', onLeave);
-      });
+    function bindHovers() {
+      document.querySelectorAll('a, button, [role="button"], input, textarea, select, label, [tabindex]')
+        .forEach(el => {
+          if (el._npHover) return;
+          el._npHover = true;
+          el.addEventListener('mouseenter', onEnter);
+          el.addEventListener('mouseleave', onLeave);
+        });
     }
 
     document.addEventListener('mousemove', onMove);
     document.addEventListener('mousedown', onDown);
-    document.addEventListener('mouseup', onUp);
+    document.addEventListener('mouseup',   onUp);
     document.addEventListener('mouseleave', onOut);
     document.addEventListener('mouseenter', onIn);
     loopRing();
+    bindHovers();
 
-    // Run once now, then re-run after a short delay to catch dynamic content
-    addHoverListeners();
-    const t = setTimeout(addHoverListeners, 800);
-
-    // MutationObserver keeps hover listeners fresh as components mount
-    const obs = new MutationObserver(() => addHoverListeners());
+    const obs = new MutationObserver(bindHovers);
     obs.observe(document.body, { childList: true, subtree: true });
 
     return () => {
+      _attached = false;
       cancelAnimationFrame(raf);
-      clearTimeout(t);
       obs.disconnect();
       document.removeEventListener('mousemove', onMove);
       document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('mouseup', onUp);
+      document.removeEventListener('mouseup',   onUp);
       document.removeEventListener('mouseleave', onOut);
       document.removeEventListener('mouseenter', onIn);
     };
   }, []);
 
-  return null; // DOM elements are injected via index.html / App.jsx
+  return null;
 }
