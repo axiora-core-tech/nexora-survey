@@ -125,57 +125,6 @@ export default function DashboardLayout() {
     };
   }, [profile]);
 
-  // ── Custom cursor refs — must be declared before any early return ──────────
-  const cursorRef = useRef(null);
-  const ringRef   = useRef(null);
-  const mouse     = useRef({ x: 0, y: 0 });
-  const ring      = useRef({ x: 0, y: 0 });
-  const raf       = useRef(null);
-
-  // Custom cursor effect — runs only when profile is set (cursor DOM nodes exist)
-  useEffect(() => {
-    if (!profile) return; // guard: cursor elements not in DOM during loading state
-    const dot  = cursorRef.current;
-    const rng  = ringRef.current;
-    if (!dot || !rng) return;
-
-    const move = e => {
-      mouse.current = { x: e.clientX, y: e.clientY };
-      dot.style.transform = `translate(${e.clientX}px,${e.clientY}px)`;
-    };
-
-    const loop = () => {
-      ring.current.x += (mouse.current.x - ring.current.x) * 0.12;
-      ring.current.y += (mouse.current.y - ring.current.y) * 0.12;
-      rng.style.transform = `translate(${ring.current.x}px,${ring.current.y}px)`;
-      raf.current = requestAnimationFrame(loop);
-    };
-
-    const over  = () => document.body.classList.add('np-hovering');
-    const out   = () => document.body.classList.remove('np-hovering');
-    const down  = () => document.body.classList.add('np-clicking');
-    const up    = () => document.body.classList.remove('np-clicking');
-
-    window.addEventListener('mousemove', move);
-    // BUG FIX: Use event delegation on document instead of attaching
-    // mouseenter/mouseleave listeners to every individual element.
-    // The old approach: (1) missed dynamically added React elements,
-    // (2) created O(n) listeners with no cleanup — a memory leak.
-    document.addEventListener('mouseover',  e => { if (e.target.closest('a,button,[role=button]')) over(); });
-    document.addEventListener('mouseout',   e => { if (e.target.closest('a,button,[role=button]')) out();  });
-    window.addEventListener('mousedown', down);
-    window.addEventListener('mouseup', up);
-    raf.current = requestAnimationFrame(loop);
-
-    return () => {
-      window.removeEventListener('mousemove', move);
-      window.removeEventListener('mousedown', down);
-      window.removeEventListener('mouseup', up);
-      cancelAnimationFrame(raf.current);
-      document.body.classList.remove('np-hovering', 'np-clicking');
-    };
-  }, []);
-
   // All hooks declared above — safe to early-return now.
   // If loading or profile is null (session expired / being recovered), block
   // child pages from mounting until the session is confirmed and profile is set.
@@ -208,14 +157,6 @@ export default function DashboardLayout() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--cream)', cursor: 'none' }}>
-
-      {/* ── Custom cursor ── */}
-      <div ref={cursorRef} id="np-cursor-dot" style={{ position: 'fixed', top: 0, left: 0, zIndex: 9999, pointerEvents: 'none', willChange: 'transform' }}>
-        <div style={{ width: 6, height: 6, background: 'var(--coral)', borderRadius: '50%', position: 'absolute', transform: 'translate(-50%,-50%)', boxShadow: '0 0 0 2px rgba(255,255,255,.8),0 0 0 3.5px rgba(255,69,0,.18)', transition: 'width .15s,height .15s' }} />
-      </div>
-      <div ref={ringRef} id="np-cursor-ring" style={{ position: 'fixed', top: 0, left: 0, zIndex: 9998, pointerEvents: 'none', willChange: 'transform' }}>
-        <div style={{ width: 30, height: 30, borderRadius: '50%', position: 'absolute', transform: 'translate(-50%,-50%)', boxShadow: '0 0 0 1px rgba(22,15,8,.15),0 0 0 2px rgba(255,255,255,.3)', opacity: .5, transition: 'width .3s,height .3s,opacity .3s' }} />
-      </div>
 
       {/* ── STICKY TOP NAV ── */}
       <header style={{
@@ -371,12 +312,6 @@ export default function DashboardLayout() {
       </footer>
 
       <style>{`
-        /* Cursor states */
-        .np-hovering  #np-cursor-dot  > div { width: 5px !important; height: 5px !important; }
-        .np-hovering  #np-cursor-ring > div { width: 44px !important; height: 44px !important; opacity: .3 !important; }
-        .np-clicking  #np-cursor-dot  > div { width: 4px !important; height: 4px !important; }
-        .np-clicking  #np-cursor-ring > div { width: 20px !important; height: 20px !important; opacity: .7 !important; }
-
         /* Responsive */
         @media (max-width: 768px) {
           .np-desktop-nav { display: none !important; }

@@ -30,7 +30,6 @@ import AcceptInvite     from './pages/AcceptInvite';
 // ── Auth store ───────────────────────────────────────────────────
 import useAuthStore from './hooks/useAuth';
 import ErrorBoundary from './components/ErrorBoundary';
-import CustomCursor  from './components/CustomCursor';
 
 // Apply persisted theme before first render
 const savedTheme = localStorage.getItem('np-theme');
@@ -134,10 +133,6 @@ export default function App() {
   return (
     <ErrorBoundary>
       <LoadingProvider>
-        {/* Global branded cursor — visible on every page */}
-        <div id="np-cur-dot" aria-hidden="true" />
-        <div id="np-cur-ring" aria-hidden="true" />
-        <CustomCursor />
         <AppRoutes />
       </LoadingProvider>
     </ErrorBoundary>
